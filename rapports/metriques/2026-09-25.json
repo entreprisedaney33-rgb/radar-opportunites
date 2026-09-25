@@ -1,0 +1,33 @@
+{
+  "jour": "2026-09-25",
+  "opportunites_reperees": 120,
+  "opportunites_analysees": 64,
+  "par_statut": {
+    "rejete": 18,
+    "incertain": 46,
+    "en_analyse": 1,
+    "nouveau": 55
+  },
+  "par_decision_critic": {
+    "rejeter": 18,
+    "a_verifier": 46
+  },
+  "score_prudent": {
+    "min": 0.0,
+    "mediane": 25.0,
+    "p90": 35.0,
+    "max": 45.0,
+    "nb_superieur_60": 0,
+    "nb_superieur_80": 0
+  },
+  "part_hors_intersectoriel": 0.1083,
+  "sources_par_dossier": {
+    "min": 1,
+    "mediane": 1.0,
+    "max": 1,
+    "part_une_seule_source": 1.0
+  },
+  "objections_critic_par_type": null,
+  "cout_jour_eur": 4.5463,
+  "cout_moyen_par_dossier_analyse_eur": 0.071
+}
