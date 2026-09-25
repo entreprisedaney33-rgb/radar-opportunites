@@ -2,13 +2,14 @@
 coût (§6). Sépare la logique métier du fournisseur — changer de modèle ne
 touche que ce fichier.
 
-Tarifs indicatifs seulement (PRICES_USD_PAR_MILLION) : À VÉRIFIER sur la
-page tarifaire réelle du fournisseur avant tout run réel, comme demandé par
-le cahier des charges (§4, §6). ~1 USD ≈ 0,92 EUR — conversion approximative
-elle aussi à vérifier.
+Tarifs indicatifs seulement (PRICES_USD_PAR_MILLION_TOKENS) : À VÉRIFIER sur
+la page tarifaire réelle du fournisseur avant tout run réel, comme demandé
+par le cahier des charges (§4, §6). ~1 USD ≈ 0,92 EUR — conversion
+approximative elle aussi à vérifier.
 """
 from __future__ import annotations
 
+import json
 import logging
 
 from pydantic import BaseModel, ValidationError
@@ -28,6 +29,40 @@ USD_VERS_EUR = 0.92
 
 class AccesModeleIndisponible(Exception):
     pass
+
+
+def _normaliser_sortie_outil(brut: object, schema: type[BaseModel]) -> object:
+    """Corrige deux déformations observées en usage réel avec l'API tool-use,
+    avant validation stricte par pydantic — jamais de contenu inventé ici,
+    seulement du reformatage de ce que le modèle a réellement renvoyé :
+
+    1. Le modèle enveloppe parfois sa réponse dans une clé unique
+       (`{"repondre": {...}}`, `{"parameter": {...}}`) au lieu de renvoyer
+       les champs directement. On déballe si aucun champ attendu n'est
+       présent au premier niveau mais qu'une unique valeur imbriquée en
+       contient.
+    2. Un champ censé être une liste/un objet est parfois renvoyé comme une
+       chaîne JSON (`'[{"texte": ...}]'` au lieu de `[{...}]`). On tente de
+       la décoder ; en cas d'échec, on laisse tel quel (la validation
+       pydantic échouera alors normalement, comme avant)."""
+    if not isinstance(brut, dict):
+        return brut
+
+    champs_attendus = set(schema.model_fields.keys())
+    if not (set(brut.keys()) & champs_attendus) and len(brut) == 1:
+        (valeur_unique,) = brut.values()
+        if isinstance(valeur_unique, dict):
+            brut = valeur_unique
+
+    resultat = dict(brut)
+    for cle, valeur in resultat.items():
+        champ = schema.model_fields.get(cle)
+        if champ is not None and champ.annotation is not str and isinstance(valeur, str):
+            try:
+                resultat[cle] = json.loads(valeur)
+            except (json.JSONDecodeError, TypeError):
+                pass
+    return resultat
 
 
 def _estimer_cout_eur(modele: str, tokens_in_est: int, tokens_out_est: int) -> float:
@@ -106,7 +141,7 @@ class ModelClient:
             logger.warning("Aucun tool_use dans la réponse du modèle %s", modele)
             return None
         try:
-            return schema.model_validate(bloc_outil.input)
+            return schema.model_validate(_normaliser_sortie_outil(bloc_outil.input, schema))
         except ValidationError as exc:
             logger.warning("Sortie du modèle %s invalide vs schéma %s: %s", modele, schema.__name__, exc)
             return None
