@@ -5,13 +5,20 @@
 # clients sensibles) — voir ARCHITECTURE.md.
 #
 # Le dépôt de déploiement étant PUBLIC, aucun secret ne doit jamais y
-# atterrir : double protection —
+# atterrir : triple protection —
 #   1. .env, .env.* et tout motif de scripts/exclusions_deploiement.txt sont
 #      exclus de la copie (rsync --exclude) ;
 #   2. après la copie et avant tout commit/push, verifier_absence_fichiers_interdits.sh
 #      revérifie indépendamment la copie destinée au dépôt ; s'il trouve
 #      malgré tout un fichier interdit, le script s'arrête (rien n'est
-#      poussé).
+#      poussé) ;
+#   3. sous-étape 3.5 (AMELIORATIONS.md) : une fois le diff préparé
+#      (`git add -A`), verifier_absence_cles_api.sh le scanne pour une
+#      chaîne ressemblant à une clé d'API (préfixes sk-/BSA, affectations
+#      key=/token=) — protection sur le CONTENU du diff, indépendante des
+#      deux précédentes (basées sur des noms de fichiers ou le contenu final
+#      déjà synchronisé) ; si elle trouve quelque chose, rien n'est committé
+#      ni poussé.
 #
 # Usage : ./scripts/deployer_vers_github.sh "message de commit"
 #
@@ -55,6 +62,11 @@ if git diff --cached --quiet; then
   echo "Rien à synchroniser : le dépôt de déploiement est déjà à jour."
   exit 0
 fi
+
+if ! git diff --cached | "$SCRIPTS_DIR/verifier_absence_cles_api.sh"; then
+  exit 1
+fi
+
 git commit -m "$MESSAGE" --quiet
 git push --quiet
 echo "Synchronisé vers $DEPOT"

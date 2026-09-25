@@ -1,55 +1,9 @@
-# Sources que le Scout a le droit d'interroger. Chaque source déclare sa
-# méthode de collecte et son adaptateur. Ajouter une source = ajouter une
-# ligne ici, jamais en contournant login/CAPTCHA/robots.txt/CGU (voir §1).
-
-rss:
-  - id: hn_rss
-    nom: "Hacker News (front page)"
-    url: "https://hnrss.org/frontpage"
-    type: rss
-    budget_appels_par_nuit: 10
-
-  - id: hn_show_rss
-    nom: "Hacker News (Show HN — produits/outils montrés par leurs créateurs)"
-    url: "https://hnrss.org/show"
-    type: rss
-    budget_appels_par_nuit: 10
-
-  - id: producthunt_rss
-    nom: "Product Hunt (flux public)"
-    url: "https://www.producthunt.com/feed"
-    type: rss
-    budget_appels_par_nuit: 10
-
-  - id: techcrunch_rss
-    nom: "TechCrunch (actualité tech/business générale)"
-    url: "https://techcrunch.com/feed/"
-    type: rss
-    budget_appels_par_nuit: 10
-
-  # Flux Reddit publics (RSS officiel par sous-forum, sans compte ni clé) --
-  # ajoutés le 25/09/2026 pour couvrir la cible "70% B2B répétitif" du §1 du
-  # cahier des charges (les 2 premiers flux étaient surtout tech/startups
-  # généralistes). Reddit limite le débit par IP (429 observé en rafale lors
-  # du test) -- le retry/backoff de app/adapters/http.py absorbe ça, un seul
-  # appel par flux et par nuit suffit.
-  - id: reddit_smallbusiness_rss
-    nom: "Reddit r/smallbusiness (douleurs réelles de patrons de petites entreprises)"
-    url: "https://www.reddit.com/r/smallbusiness/.rss"
-    type: rss
-    budget_appels_par_nuit: 10
-
-  - id: reddit_accounting_rss
-    nom: "Reddit r/Accounting (flux documentaires, comptabilité)"
-    url: "https://www.reddit.com/r/Accounting/.rss"
-    type: rss
-    budget_appels_par_nuit: 10
-
-  - id: reddit_ecommerce_rss
-    nom: "Reddit r/ecommerce (e-commerce, SAV, retours)"
-    url: "https://www.reddit.com/r/ecommerce/.rss"
-    type: rss
-    budget_appels_par_nuit: 10
+# Sources que le Scout a le droit d'interroger.
+#
+# Les flux RSS réels ont déménagé dans app/sources.yaml en sous-étape 1.1
+# (chaque flux y est typé douleur/offre, avec secteur par défaut et langue —
+# voir app/sources.py::charger_sources). Ce fichier-ci ne garde que les
+# adaptateurs qui n'ont pas cette notion de type : démonstration et Apify.
 
 demo:
   - id: demo_fixtures

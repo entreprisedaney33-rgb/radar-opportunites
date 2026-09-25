@@ -52,6 +52,11 @@ sources = Table(
     Column("extrait", Text, nullable=False),
     Column("empreinte", String, nullable=False),
     Column("droits_collecte", String, nullable=False),
+    # Ajoutées en sous-étape 1.1 (migration additive) : NULL pour tout
+    # l'historique antérieur.
+    Column("flux_origine", String, nullable=True),  # nom du flux (app/sources.yaml)
+    Column("requete_origine", String, nullable=True),  # texte de la requête, s'il y a lieu (à partir de 1.2)
+    Column("etiquette", String, nullable=True),  # "signal_concurrence" pour un item d'un flux `offre`
     UniqueConstraint("url_canonique", "empreinte", name="uq_source_url_empreinte"),
 )
 
@@ -76,6 +81,11 @@ opportunities = Table(
     Column("probleme", Text, nullable=False),
     Column("mecanisme_ia", Text, nullable=False),
     Column("secteur", String, nullable=False),
+    # Sous-étape 2.1 : provenance du secteur (citation_verifiee|flux|defaut,
+    # voir app/pipeline/normalisation.py) — migration additive, NULL pour
+    # l'historique (app/storage/db.py, _COLONNES_ADDITIVES).
+    Column("secteur_provenance", String, nullable=True),
+    Column("secteur_citation", Text, nullable=True),
     Column("statut", String, nullable=False),
     Column("cluster_id", String, nullable=True),
     Column("date_creation", DateTime(timezone=True), nullable=False),
@@ -169,6 +179,37 @@ usage_events = Table(
     Column("role", String, nullable=True),  # scout|analyst|critic
     Column("opportunity_id", String, nullable=True),  # absent pour le Scout : appelé avant création du dossier
 )
+
+source_requetes = Table(
+    "source_requetes",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("source_id", String, nullable=False),
+    Column("flux_origine", String, nullable=True),
+    Column("requete_origine", String, nullable=False),
+    Column("date_creation", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("source_id", "flux_origine", "requete_origine", name="uq_source_requete"),
+)
+# Sous-étape 1.4 : dédoublonnage multi-requêtes. Un même post retrouvé par
+# plusieurs requêtes de recherche différentes (Reddit, Hacker News...) ne crée
+# jamais deux lignes dans `sources` (uq_source_url_empreinte ci-dessus,
+# inchangée) — mais chaque requête distincte qui l'a retrouvé est tracée ici
+# (voir app/storage/repo.py::upsert_source), pour mesurer quelles expressions
+# du lexique de douleur sont productives (app/metriques.py). Table neuve, pas
+# de migration additive nécessaire (comme etats_flux_recherche et
+# tirages_controle_rejetes ci-dessous).
+
+etats_flux_recherche = Table(
+    "etats_flux_recherche",
+    metadata,
+    Column("cle", String, primary_key=True),  # id du flux, ex. "reddit_recherche:smallbusiness:manually_en"
+    Column("derniere_visite", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape 1.2 : mémoire du planificateur de recherche Reddit (rotation
+# sub × expression — le produit dépasse 200 flux, voir
+# app/pipeline/planificateur_recherche.py). Table neuve (pas de migration
+# additive nécessaire, `metadata.create_all` la crée directement) : un flux
+# jamais visité est simplement absent de cette table.
 
 tirages_controle_rejetes = Table(
     "tirages_controle_rejetes",

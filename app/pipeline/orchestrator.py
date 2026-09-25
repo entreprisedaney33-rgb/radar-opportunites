@@ -1,7 +1,8 @@
 """Orchestration déterministe du pipeline (§2, pipeline) :
 
-Collecte -> normalisation -> déduplication -> Scout -> filtre de preuves ->
-Analyst -> Critic -> calcul du score -> dossier.
+Collecte -> normalisation -> déduplication -> Scout -> Enquêteur (sous-étape
+3.4 d'AMELIORATIONS.md) -> filtre de preuves -> Analyst -> Critic -> calcul du
+score -> dossier.
 
 Le programme orchestre les rôles ; ils ne s'accordent pas eux-mêmes de
 nouveaux droits (§2). Toute décision de dépenser (appel modèle) passe par
@@ -23,25 +24,35 @@ from __future__ import annotations
 import logging
 import random
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 
 from sqlalchemy.engine import Engine
 
 from app import config as cfg
+from app import lexique_douleur
+from app import sources as config_sources
 from app.adapters.base import SignalBrut
 from app.adapters.demo_adapter import AdaptateurDemo
+from app.adapters.hn_recherche import TAGS_VALIDES as HN_TAGS_VALIDES
+from app.adapters.hn_recherche import AdaptateurRechercheHN
 from app.adapters.model_client import ModelClient
+from app.adapters.reddit_recherche import AdaptateurRechercheReddit
 from app.adapters.rss_adapter import AdaptateurRSS
+from app.enqueteur.enqueteur import enqueter_opportunite
+from app.enqueteur.fournisseurs_gratuits import construire_registre_fournisseurs_gratuits
+from app.enqueteur.gabarits import HypotheseEnqueteur
 from app.models_schemas import DecisionCritic
 from app.pipeline import dedupe
 from app.pipeline.budget import BudgetDepasse, BudgetTracker
 from app.pipeline.normalisation import inferer_secteur
+from app.pipeline.planificateur_recherche import FluxRecherche, choisir_flux_a_visiter
 from app.roles import analyst as role_analyst
 from app.roles import critic as role_critic
 from app.roles import scout as role_scout
 from app.roles.critic import STATUT_PAR_DECISION
 from app.scoring.engine import calculer_score
+from app.sources import SourceConfig
 from app.storage import repo
 
 logger = logging.getLogger(__name__)
@@ -68,12 +79,15 @@ class ResumeRun:
     opportunites_nouvelles: int = 0
     opportunites_fusionnees: int = 0
     suggestions_fusion_a_revoir: list[dict] = field(default_factory=list)
+    opportunites_enquetees: int = 0  # sous-étape 3.4 : passées par l'Enquêteur ce passage
+    sources_enquete_ajoutees: int = 0  # nouvelles preuves rattachées par l'Enquêteur ce passage
     analyses_terminees: int = 0
     critiques_terminees: int = 0
     erreurs: list[str] = field(default_factory=list)
     budget_atteint: bool = False
     temps_ecoule: bool = False
     sources_indisponibles: list[str] = field(default_factory=list)
+    signaux_concurrence_stockes: int = 0  # items d'un flux `offre`, jamais transformés en opportunité (1.1)
 
 
 def _pause_demandee(engine: Engine) -> bool:
@@ -85,39 +99,188 @@ def _verifier_pause(engine: Engine) -> None:
         raise ArretPause("PAUSE_ALL est actif (variable d'environnement ou interface web).")
 
 
-def _construire_adaptateurs(forcer_demo: bool) -> list:
+def _construire_adaptateurs_recherche_reddit(
+    engine: Engine, quotas: dict,
+) -> list[tuple[object, int, SourceConfig | None]]:
+    """Sous-étape 1.2 : sub × expression du lexique de douleur, en rotation
+    (le produit dépasse 200 flux — voir `app/pipeline/planificateur_recherche.py`).
+    Toujours `douleur` : les subreddits interrogés le sont déjà tous dans
+    `app/sources.yaml` (`config_sources.subreddits_douleur`) — `config_source`
+    vaut `None` ici, comme pour la démo, parce que l'adaptateur porte
+    lui-même son `type_flux` (voir `app/adapters/reddit_recherche.py`)."""
+    subs = config_sources.subreddits_douleur()
+    expressions_douleur = lexique_douleur.expressions()
+    if not subs or not expressions_douleur:
+        return []
+
+    tous_les_flux = [
+        FluxRecherche(source="reddit", parametre=sub, expression_cle=expr.cle, expression_texte=expr.expression)
+        for sub in subs
+        for expr in expressions_douleur
+    ]
+    maintenant = datetime.now(timezone.utc)
+    dernieres_visites = repo.lire_dernieres_visites_recherche(engine)
+    choisis = choisir_flux_a_visiter(
+        tous_les_flux, dernieres_visites, maintenant=maintenant,
+        intervalle_heures=quotas["intervalle_heures_recherche_reddit"],
+        max_par_passage=quotas["max_flux_recherche_par_passage"],
+    )
+    # Marqué visité au choix, pas après coup : ce créneau de rotation est
+    # "consommé" pour ce passage même si le budget de signaux du passage
+    # (max_signaux_par_passage) est déjà plein avant que _collecter()
+    # n'atteigne ces adaptateurs (ils sont ajoutés en tête, voir
+    # _construire_adaptateurs, mais un passage peut en contenir plusieurs).
+    repo.marquer_flux_recherche_visites(engine, [f.id for f in choisis], maintenant)
+    if choisis:
+        logger.info(
+            "Recherche Reddit : %d/%d combinaisons dues visitées ce passage (%s).",
+            len(choisis), len(tous_les_flux), ", ".join(f.id for f in choisis),
+        )
+
+    budget_par_flux = quotas["budget_appels_recherche_reddit_par_flux"]
+    return [
+        (AdaptateurRechercheReddit(f.parametre, f.expression_cle, f.expression_texte), budget_par_flux, None)
+        for f in choisis
+    ]
+
+
+def _construire_adaptateurs_recherche_hn(
+    engine: Engine, quotas: dict,
+) -> list[tuple[object, int, SourceConfig | None]]:
+    """Sous-étape 1.4 : le connecteur de recherche Hacker News (sous-étape
+    1.3, `app/adapters/hn_recherche.py`) branché dans le même planificateur
+    générique que Reddit ci-dessus (question laissée ouverte en 1.3) — un
+    flux par combinaison (tag, expression) : 2 tags (`comment`, `ask_hn`) ×
+    25 expressions du lexique de douleur = 50 combinaisons, avec ses propres
+    quotas de rotation (bien plus petit que Reddit, voir config/quotas.yaml).
+    Toujours `douleur` : `config_source` vaut `None`, comme pour Reddit —
+    l'adaptateur porte lui-même son `type_flux`."""
+    expressions_douleur = lexique_douleur.expressions()
+    if not expressions_douleur:
+        return []
+
+    tous_les_flux = [
+        FluxRecherche(source="hn", parametre=tag, expression_cle=expr.cle, expression_texte=expr.expression)
+        for tag in sorted(HN_TAGS_VALIDES)
+        for expr in expressions_douleur
+    ]
+    maintenant = datetime.now(timezone.utc)
+    dernieres_visites = repo.lire_dernieres_visites_recherche(engine)
+    choisis = choisir_flux_a_visiter(
+        tous_les_flux, dernieres_visites, maintenant=maintenant,
+        intervalle_heures=quotas["intervalle_heures_recherche_hn"],
+        max_par_passage=quotas["max_flux_recherche_par_passage_hn"],
+    )
+    repo.marquer_flux_recherche_visites(engine, [f.id for f in choisis], maintenant)
+    if choisis:
+        logger.info(
+            "Recherche HN : %d/%d combinaisons dues visitées ce passage (%s).",
+            len(choisis), len(tous_les_flux), ", ".join(f.id for f in choisis),
+        )
+
+    budget_par_flux = quotas["budget_appels_recherche_hn_par_flux"]
+    return [
+        (AdaptateurRechercheHN(f.parametre, f.expression_cle, f.expression_texte), budget_par_flux, None)
+        for f in choisis
+    ]
+
+
+def _construire_adaptateurs(
+    engine: Engine, forcer_demo: bool, quotas: dict,
+) -> list[tuple[object, int, SourceConfig | None]]:
+    """Renvoie (adaptateur, budget d'appels, config de la source). La config
+    est `None` seulement pour le repli démo (sous-étape 1.1) et pour les
+    connecteurs de recherche Reddit (sous-étape 1.2) et Hacker News
+    (sous-étape 1.4, branché sur le connecteur créé en 1.3) — dans ces cas
+    l'adaptateur porte lui-même son `type_flux` (toujours `douleur`).
+
+    Les adaptateurs de recherche sont placés EN TÊTE de liste (avant les
+    flux frontpage statiques) : sous-étape 1.2, priorité au but de ce plan
+    (signaux de douleur ciblés par expression, but n°2 des constats
+    d'AMELIORATIONS.md), pas aux flux frontpage déjà présents avant ce plan
+    — sinon, avec `max_signaux_par_passage` partagé entre les deux, les
+    flux frontpage (jusqu'à 130 signaux de budget cumulé) pourraient à eux
+    seuls épuiser le quota douleur d'un passage avant que la recherche n'y
+    goûte jamais. Signalé en §9 : si ça ne suffit pas en pratique (mesuré à
+    la sous-étape 1.6), le quota lui-même devra être révisé, hors périmètre
+    de cette sous-étape-ci."""
     if forcer_demo:
-        return [(AdaptateurDemo(), 999)]
-    conf = cfg.sources_autorisees()
-    adaptateurs: list = []
-    for src in conf.get("rss", []):
-        adaptateurs.append((AdaptateurRSS(src["id"], src["nom"], src["url"]), src.get("budget_appels_par_nuit", 5)))
+        return [(AdaptateurDemo(), 999, None)]
+    adaptateurs: list[tuple[object, int, SourceConfig | None]] = []
+    adaptateurs.extend(_construire_adaptateurs_recherche_reddit(engine, quotas))
+    adaptateurs.extend(_construire_adaptateurs_recherche_hn(engine, quotas))
+    actives = [src for src in config_sources.sources() if src.actif]
+    adaptateurs.extend(
+        (AdaptateurRSS(src.id, src.nom, src.url), src.budget_appels_par_nuit, src) for src in actives
+    )
     if not adaptateurs:
+        conf = cfg.sources_autorisees()
         for src in conf.get("demo", []):
-            adaptateurs.append((AdaptateurDemo(), src.get("budget_appels_par_nuit", 20)))
+            adaptateurs.append((AdaptateurDemo(), src.get("budget_appels_par_nuit", 20), None))
     return adaptateurs
 
 
-def _collecter(adaptateurs, max_signaux: int, resume: ResumeRun) -> list[SignalBrut]:
-    bruts: list[SignalBrut] = []
-    for adaptateur, budget_source in adaptateurs:
-        if len(bruts) >= max_signaux:
-            break
-        restant = max_signaux - len(bruts)
+def _collecter(
+    adaptateurs: list[tuple[object, int, SourceConfig | None]],
+    max_signaux_douleur: int,
+    max_signaux_offre: int,
+    resume: ResumeRun,
+) -> list[SignalBrut]:
+    """Deux quotas INDÉPENDANTS (sous-étape 1.2) : un flux `offre` ne coûte
+    aucun appel modèle (il est seulement stocké comme preuve de concurrence,
+    jamais transformé en opportunité — voir `_phase_collecte_et_scout`) et ne
+    doit donc jamais réduire la place disponible pour les flux `douleur`, qui
+    eux alimentent le Scout. Chaque type de flux consomme son propre
+    compteur ; un flux dont le quota de son type est déjà plein est ignoré
+    pour la suite du passage, mais les flux de l'AUTRE type continuent
+    d'être collectés normalement (la boucle ne s'arrête jamais entièrement
+    tant qu'il reste de la place pour au moins un des deux types)."""
+    bruts_douleur: list[SignalBrut] = []
+    bruts_offre: list[SignalBrut] = []
+    for adaptateur, budget_source, config_source in adaptateurs:
+        type_flux = config_source.type if config_source is not None else "douleur"
+        bucket = bruts_douleur if type_flux == "douleur" else bruts_offre
+        plafond = max_signaux_douleur if type_flux == "douleur" else max_signaux_offre
+        restant = plafond - len(bucket)
+        if restant <= 0:
+            continue
         try:
             nouveaux = adaptateur.collecter(min(budget_source, restant))
-            bruts.extend(nouveaux)
         except Exception as exc:  # une source en panne n'arrête pas la collecte des autres
             logger.warning("Source %s indisponible: %s", getattr(adaptateur, "id_source", adaptateur), exc)
             resume.sources_indisponibles.append(str(getattr(adaptateur, "id_source", adaptateur)))
-    return bruts
+            continue
+        if config_source is not None:
+            # Le type douleur/offre et le secteur par défaut sont des
+            # concepts de configuration (1.1, 2.1), pas quelque chose que
+            # l'adaptateur RSS lui-même connaît.
+            nouveaux = [
+                replace(
+                    s, flux_origine=config_source.nom, type_flux=config_source.type,
+                    secteur_par_defaut=config_source.secteur_par_defaut,
+                )
+                for s in nouveaux
+            ]
+        bucket.extend(nouveaux)
+    return bruts_douleur + bruts_offre
+
+
+def _selectionner_pour_enquete(engine: Engine, max_enquetes: int) -> list[dict]:
+    """Sous-étape 3.4, point 3 : priorité au retard -- toute opportunité
+    encore `nouveau` (trouvée par le Scout, pas encore enquêtée), quel que
+    soit le passage qui l'a créée -- même logique de reprise que
+    `_selectionner_pour_analyse` ci-dessous (jamais seulement les
+    opportunités du passage courant)."""
+    toutes = repo.lister_opportunites_ouvertes(engine)
+    return sorted((o for o in toutes if o["statut"] == "nouveau"), key=lambda o: o["date_creation"])[:max_enquetes]
 
 
 def _selectionner_pour_analyse(engine: Engine, max_analyses: int, fraction_echantillon_rejetes: float) -> list[dict]:
     """Filtre de preuves : priorité au retard en attente (tout ce qui est
-    encore `nouveau`, quel que soit le passage qui l'a créé — jamais
-    seulement les opportunités du passage courant, sinon un dossier laissé
-    de côté par manque de budget ne serait plus jamais repris), plus un
+    encore `enquete_terminee` -- trouvé par le Scout ET déjà passé par
+    l'Enquêteur, sous-étape 3.4 -- quel que soit le passage qui l'a créé —
+    jamais seulement les opportunités du passage courant, sinon un dossier
+    laissé de côté par manque de budget ne serait plus jamais repris), plus un
     petit échantillon de rejetés pour vérifier que le filtre n'est pas trop
     sévère (§2).
 
@@ -126,7 +289,7 @@ def _selectionner_pour_analyse(engine: Engine, max_analyses: int, fraction_echan
     re-proposée — voir `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`, §4."""
     toutes = repo.lister_opportunites_ouvertes(engine)
     backlog_nouveau = sorted(
-        (o for o in toutes if o["statut"] == "nouveau"), key=lambda o: o["date_creation"]
+        (o for o in toutes if o["statut"] == "enquete_terminee"), key=lambda o: o["date_creation"]
     )
     deja_tirees = repo.opportunites_deja_tirees_controle(engine)
     deja_rejetees = [o for o in toutes if o["statut"] == "rejete" and o["id"] not in deja_tirees]
@@ -146,9 +309,12 @@ def _phase_collecte_et_scout(
     engine: Engine, run_id: str, *, options: OptionsRun, quotas: dict, settings, model_client: ModelClient | None,
     resume: ResumeRun, debut: float, duree_max: float,
 ) -> None:
-    max_signaux = min(options.max_signaux or quotas["max_signaux_par_passage"], quotas["max_signaux_par_passage"])
-    adaptateurs = _construire_adaptateurs(options.forcer_demo)
-    bruts = _collecter(adaptateurs, max_signaux, resume)
+    max_signaux_douleur = min(
+        options.max_signaux or quotas["max_signaux_par_passage"], quotas["max_signaux_par_passage"]
+    )
+    max_signaux_offre = quotas["max_signaux_offre_par_passage"]
+    adaptateurs = _construire_adaptateurs(engine, options.forcer_demo, quotas)
+    bruts = _collecter(adaptateurs, max_signaux_douleur, max_signaux_offre, resume)
 
     opportunites_du_passage: list[dict] = []  # dédup en continu à l'intérieur de CE passage
 
@@ -159,17 +325,40 @@ def _phase_collecte_et_scout(
 
         url_can = dedupe.canonicaliser_url(brut.url)
         empreinte = dedupe.empreinte_contenu(brut.texte)
+
+        if brut.type_flux == "offre":
+            # Signal de concurrence (sous-étape 1.1) : tracé comme preuve
+            # (mêmes champs que n'importe quelle source), mais jamais
+            # transformé en opportunité — réutilisé par l'Analyst à partir
+            # de l'étape 3 (magasin interne de l'Enquêteur).
+            repo.upsert_source(
+                engine, url_canonique=url_can, domaine=brut.domaine,
+                date_publication=brut.date_publication, type_source=brut.type_source,
+                extrait=brut.texte, empreinte=empreinte, droits_collecte=brut.droits_collecte,
+                flux_origine=brut.flux_origine, requete_origine=brut.requete_origine,
+                etiquette="signal_concurrence",
+            )
+            resume.signaux_concurrence_stockes += 1
+            continue
+
         source_id, _ = repo.upsert_source(
             engine, url_canonique=url_can, domaine=brut.domaine,
             date_publication=brut.date_publication, type_source=brut.type_source,
             extrait=brut.texte, empreinte=empreinte, droits_collecte=brut.droits_collecte,
+            flux_origine=brut.flux_origine, requete_origine=brut.requete_origine,
         )
 
         if repo.signal_deja_traite(engine, source_id):
             resume.signaux_deja_vus_ignores += 1
             continue
 
-        secteur = inferer_secteur(brut.texte)
+        # Avant l'appel au Scout, seuls les étages « flux » et « defaut »
+        # peuvent s'appliquer (la proposition du Scout n'existe pas encore) :
+        # ce secteur sert au signal, aux filtres ci-dessous, à l'indice donné
+        # au Scout, et au dédoublonnage intra-passage plus bas — inchangé par
+        # la sous-étape 2.2, hors périmètre écrit de 2.2.
+        resultat_secteur = inferer_secteur(brut.texte, secteur_defaut_flux=brut.secteur_par_defaut)
+        secteur = resultat_secteur.secteur
         if secteur in cfg.secteurs().get("exclure_secteur", []):
             continue
         if any(mot.lower() in brut.texte.lower() for mot in cfg.secteurs().get("mots_cles_negatifs", [])):
@@ -192,6 +381,18 @@ def _phase_collecte_et_scout(
             resume.erreurs.append(str(exc))
             break
 
+        # Sous-étape 2.2 : la proposition du Scout (secteur + citation) est
+        # maintenant disponible -- ré-évaluée ici pour décider du secteur
+        # PERSISTÉ sur l'opportunité (étage « citation_verifiee » possible).
+        # Le secteur `secteur` utilisé au-dessus (signal, filtres, indice
+        # donné au Scout) et ci-dessous (dédoublonnage intra-passage) reste
+        # volontairement celui d'avant le Scout : 2.2 ne touche pas au
+        # dédoublonnage, hors périmètre écrit de cette sous-étape.
+        resultat_secteur_final = inferer_secteur(
+            brut.texte, secteur_defaut_flux=brut.secteur_par_defaut,
+            secteur_propose=scout_sortie.secteur, citation_propose=scout_sortie.secteur_citation,
+        )
+
         existantes_meme_secteur = [o for o in opportunites_du_passage if o["secteur"] == secteur]
         suggestion = dedupe.proposer_cluster(
             secteur=secteur, acheteur=scout_sortie.buyer, texte=scout_sortie.pain,
@@ -205,7 +406,8 @@ def _phase_collecte_et_scout(
             opportunity_id = repo.creer_opportunite(
                 engine, titre=scout_sortie.opportunity_candidate, acheteur=scout_sortie.buyer,
                 probleme=scout_sortie.pain, mecanisme_ia=scout_sortie.ai_mechanism,
-                secteur=secteur, statut="nouveau", cluster_id=None,
+                secteur=resultat_secteur_final.secteur, statut="nouveau", cluster_id=None,
+                secteur_provenance=resultat_secteur_final.provenance, secteur_citation=resultat_secteur_final.citation,
             )
             opportunites_du_passage.append({
                 "id": opportunity_id, "secteur": secteur, "acheteur": scout_sortie.buyer,
@@ -227,6 +429,46 @@ def _phase_collecte_et_scout(
             engine, opportunity_id=opportunity_id, source_id=source_id,
             claim=f"Scout: {scout_sortie.pain}", type_="hypothese", independant=True,
         )
+
+
+def _phase_enquete(
+    engine: Engine, *, options: OptionsRun, quotas: dict, budget: BudgetTracker, resume: ResumeRun,
+    debut: float, duree_max: float,
+) -> None:
+    """Sous-étape 3.4 : Scout -> Enquêteur -> Analyst -> Critic. Chaque
+    opportunité `nouveau` (retard repris en priorité, voir
+    `_selectionner_pour_enquete`) est enquêtée puis marquée
+    `enquete_terminee` -- TOUJOURS, même sans nouvelle source trouvée ou en
+    cas d'erreur inattendue d'un fournisseur : jamais bloquée en attente
+    d'enquête (point 3 du texte de 3.4). `enqueter_opportunite` ne lève
+    jamais `BudgetDepasse` (chaque appel est protégé individuellement) ; le
+    filet `except Exception` ci-dessous ne couvre qu'une panne totalement
+    inattendue, même esprit que `_collecter` pour une source en panne."""
+    max_enquetes = min(options.max_analyses or quotas["max_analyses_par_passage"], quotas["max_analyses_par_passage"])
+    a_enqueter = _selectionner_pour_enquete(engine, max_enquetes)
+    if not a_enqueter:
+        return
+
+    registre = construire_registre_fournisseurs_gratuits(engine)
+    for opportunite in a_enqueter:
+        if time.monotonic() - debut > duree_max:
+            resume.temps_ecoule = True
+            break
+
+        hypothese = HypotheseEnqueteur(
+            acheteur=opportunite["acheteur"], douleur=opportunite["probleme"], mecanisme=opportunite["mecanisme_ia"],
+        )
+        try:
+            nouvelles_sources = enqueter_opportunite(
+                engine, opportunite["id"], hypothese, registre=registre, budget=budget, quotas=quotas,
+            )
+        except Exception as exc:
+            logger.warning("Enquête de l'opportunité %s interrompue par une erreur inattendue : %s", opportunite["id"], exc)
+            nouvelles_sources = []
+
+        resume.opportunites_enquetees += 1
+        resume.sources_enquete_ajoutees += len(nouvelles_sources)
+        repo.maj_statut_opportunite(engine, opportunite["id"], "enquete_terminee")
 
 
 def _phase_analyse_et_critique(
@@ -322,11 +564,14 @@ def _resume_vers_dict(resume: ResumeRun) -> dict:
         "opportunites_nouvelles": resume.opportunites_nouvelles,
         "opportunites_fusionnees": resume.opportunites_fusionnees,
         "suggestions_fusion_a_revoir": resume.suggestions_fusion_a_revoir,
+        "opportunites_enquetees": resume.opportunites_enquetees,
+        "sources_enquete_ajoutees": resume.sources_enquete_ajoutees,
         "analyses_terminees": resume.analyses_terminees,
         "critiques_terminees": resume.critiques_terminees,
         "budget_atteint": resume.budget_atteint,
         "temps_ecoule": resume.temps_ecoule,
         "sources_indisponibles": resume.sources_indisponibles,
+        "signaux_concurrence_stockes": resume.signaux_concurrence_stockes,
     }
 
 
@@ -351,6 +596,8 @@ def executer_run(engine: Engine, options: OptionsRun) -> tuple[str, ResumeRun]:
         engine, run_id,
         plafond_eur=quotas["budget_eur_par_jour"],
         plafond_appels_approfondis=quotas["max_appels_approfondis_par_jour"],
+        plafond_requetes_recherche_par_jour=quotas["max_requetes_recherche_par_jour"],
+        plafond_fetchs_pages_par_jour=quotas["max_fetchs_pages_par_jour"],
     )
     model_client = None
     if options.mode != "dry-run" and settings.has_model_access:
@@ -363,6 +610,14 @@ def executer_run(engine: Engine, options: OptionsRun) -> tuple[str, ResumeRun]:
         )
 
         if resume.budget_atteint or resume.temps_ecoule:
+            _finaliser(engine, run_id, budget, resume, statut="interrompu")
+            return run_id, resume
+
+        _phase_enquete(
+            engine, options=options, quotas=quotas, budget=budget, resume=resume, debut=debut, duree_max=duree_max,
+        )
+
+        if resume.temps_ecoule:
             _finaliser(engine, run_id, budget, resume, statut="interrompu")
             return run_id, resume
 
@@ -446,6 +701,8 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
             engine, run_id,
             plafond_eur=plafond_jour,
             plafond_appels_approfondis=quotas["max_appels_approfondis_par_jour"],
+            plafond_requetes_recherche_par_jour=quotas["max_requetes_recherche_par_jour"],
+            plafond_fetchs_pages_par_jour=quotas["max_fetchs_pages_par_jour"],
         )
         model_client = ModelClient(settings, budget) if settings.has_model_access else None
 
@@ -454,6 +711,11 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
                 engine, run_id, options=options, quotas=quotas, settings=settings, model_client=model_client,
                 resume=resume, debut=debut, duree_max=duree_max_passage,
             )
+            if not (resume.budget_atteint or resume.temps_ecoule):
+                _phase_enquete(
+                    engine, options=options, quotas=quotas, budget=budget, resume=resume,
+                    debut=debut, duree_max=duree_max_passage,
+                )
             if not (resume.budget_atteint or resume.temps_ecoule):
                 _phase_analyse_et_critique(
                     engine, run_id, options=options, quotas=quotas, poids_config=poids_config, settings=settings,

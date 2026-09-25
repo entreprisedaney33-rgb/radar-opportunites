@@ -48,6 +48,7 @@ class AdaptateurRSS:
                     date_publication=date_publication,
                     type_source="rss",
                     droits_collecte=f"flux RSS public ({self.url}), conditions du flux",
+                    flux_origine=self.nom,
                 )
             )
         return signaux

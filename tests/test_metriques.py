@@ -13,29 +13,30 @@ def _dt(jour: date, heure: int = 12) -> datetime:
     return datetime(jour.year, jour.month, jour.day, heure, tzinfo=timezone.utc)
 
 
-def _creer_opportunite(engine, id_, *, jour, statut, secteur):
+def _creer_opportunite(engine, id_, *, jour, statut, secteur, secteur_provenance=None):
     with engine.begin() as cx:
         cx.execute(insert(opportunities).values(
             id=id_, titre=f"titre {id_}", acheteur="acheteur", probleme="probleme",
-            mecanisme_ia="mecanisme", secteur=secteur, statut=statut, cluster_id=None,
-            date_creation=_dt(jour), date_maj=_dt(jour),
+            mecanisme_ia="mecanisme", secteur=secteur, secteur_provenance=secteur_provenance,
+            statut=statut, cluster_id=None, date_creation=_dt(jour), date_maj=_dt(jour),
         ))
 
 
-def _creer_source(engine, id_):
+def _creer_source(engine, id_, *, jour=JOUR, flux_origine=None, requete_origine=None, etiquette=None):
     with engine.begin() as cx:
         cx.execute(insert(sources).values(
             id=id_, url_canonique=f"https://exemple.invalid/{id_}", domaine="exemple",
-            date_publication=None, date_collecte=_dt(JOUR), type="rss",
+            date_publication=None, date_collecte=_dt(jour), type="rss",
             extrait="extrait", empreinte=id_, droits_collecte="test",
+            flux_origine=flux_origine, requete_origine=requete_origine, etiquette=etiquette,
         ))
 
 
-def _rattacher_preuve(engine, opportunity_id, source_id):
+def _rattacher_preuve(engine, opportunity_id, source_id, *, claim="preuve"):
     with engine.begin() as cx:
         cx.execute(insert(opportunity_evidence).values(
             id=f"ev-{opportunity_id}-{source_id}", opportunity_id=opportunity_id, source_id=source_id,
-            claim="preuve", type="observe", independant=True, date_creation=_dt(JOUR),
+            claim=claim, type="observe", independant=True, date_creation=_dt(JOUR),
         ))
 
 
@@ -111,18 +112,81 @@ def test_metriques_sur_jeu_de_test_complet(engine_test):
     # opp2 (services_professionnels) et opp3 (e_commerce) sont hors intersectoriel -> 2/4.
     assert m["part_hors_intersectoriel"] == 0.5
     assert m["par_secteur"] == {"intersectoriel": 2, "services_professionnels": 1, "e_commerce": 1}
+    # Sous-étape 2.2, point 3 : aucune opportunité de ce jeu de test n'a de
+    # secteur_provenance (créées sans -- comme tout l'historique avant 2.1).
+    assert m["par_secteur_provenance"] == {"aucune": 4}
 
     assert m["sources_par_dossier"]["min"] == 1
     assert m["sources_par_dossier"]["max"] == 3
     assert m["sources_par_dossier"]["mediane"] == 2.0
     # opp1 et opp4 n'ont qu'une seule source -> 2/4.
     assert m["sources_par_dossier"]["part_une_seule_source"] == 0.5
+    # Aucune preuve `preuve_enquete` dans ce jeu de test (sous-étape 3.4).
+    assert m["sources_par_dossier"]["par_fournisseur"] == {}
 
     # Le type d'objection n'existe pas encore dans le modèle -- jamais inventé.
     assert m["objections_critic_par_type"] is None
 
+    # Sous-étape 1.4 : le jeu de test ci-dessus ne pose que des preuves
+    # "preuve" (pas "Scout: ..."), donc aucune de ces répartitions ne doit
+    # rien trouver -- voir test_metriques_repartition_par_flux_et_expression
+    # ci-dessous pour le cas qui en pose.
+    assert m["par_type_flux"] == {}
+    assert m["par_flux"] == {}
+    assert m["top_10_expressions_lexique"] == {}
+    assert m["signaux_concurrence_stockes"] == 0
+
     assert m["cout_jour_eur"] == 0.15
     assert m["cout_moyen_par_dossier_analyse_eur"] == round(0.15 / 3, 4)
+
+
+def test_sources_par_dossier_ventilees_par_fournisseur(engine_test):
+    """Sous-étape 3.4, point 5 : sources par dossier ventilées par
+    fournisseur de l'Enquêteur -- seules les sources étiquetées
+    `preuve_enquete` (app.enqueteur.fetch.ETIQUETTE_PREUVE_ENQUETE) ou, depuis
+    la sous-étape 3.4b, `prix` (app.enqueteur.fetch.ETIQUETTE_PREUVE_PRIX)
+    comptent ici, jamais un `signal_concurrence` ni une source normale."""
+    _creer_opportunite(engine_test, "opp1", jour=JOUR, statut="a_revoir", secteur="e_commerce")
+
+    _creer_source(engine_test, "src-scout", flux_origine="r/ecommerce")  # étiquette=None : source normale
+    _creer_source(engine_test, "src-hn", flux_origine="algolia_hn", etiquette="preuve_enquete")
+    _creer_source(engine_test, "src-reddit-a", flux_origine="reddit", etiquette="preuve_enquete")
+    _creer_source(engine_test, "src-reddit-b", flux_origine="reddit", etiquette="preuve_enquete")
+    _creer_source(engine_test, "src-offre", flux_origine="Show HN", etiquette="signal_concurrence")
+
+    _rattacher_preuve(engine_test, "opp1", "src-scout")
+    _rattacher_preuve(engine_test, "opp1", "src-hn")
+    _rattacher_preuve(engine_test, "opp1", "src-reddit-a")
+    _rattacher_preuve(engine_test, "opp1", "src-reddit-b")
+    # src-offre n'est jamais rattachée en preuve ici (elle ne le serait pas
+    # non plus par le vrai pipeline, sous-étape 1.1) -- posée quand même pour
+    # prouver qu'elle ne fausserait rien si elle l'était par erreur.
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    assert m["sources_par_dossier"]["par_fournisseur"] == {"algolia_hn": 1, "reddit": 2}
+
+
+def test_sources_par_dossier_par_fournisseur_compte_aussi_les_preuves_prix(engine_test):
+    """Sous-étape 3.4b : une page trouvée pour la famille de requêtes `prix`
+    (étiquette `prix`, pas `preuve_enquete`) reste une preuve d'enquête au
+    sens de cette ventilation -- sinon elle disparaîtrait silencieusement de
+    ce compteur dès qu'un concurrent est identifié."""
+    _creer_opportunite(engine_test, "opp1", jour=JOUR, statut="a_revoir", secteur="e_commerce")
+
+    _creer_source(engine_test, "src-hn", flux_origine="algolia_hn", etiquette="preuve_enquete")
+    _creer_source(engine_test, "src-prix-recherche", flux_origine="reddit", etiquette="prix")
+    _creer_source(engine_test, "src-prix-direct", flux_origine="fetch_direct_pricing", etiquette="prix")
+
+    _rattacher_preuve(engine_test, "opp1", "src-hn")
+    _rattacher_preuve(engine_test, "opp1", "src-prix-recherche")
+    _rattacher_preuve(engine_test, "opp1", "src-prix-direct")
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    assert m["sources_par_dossier"]["par_fournisseur"] == {
+        "algolia_hn": 1, "reddit": 1, "fetch_direct_pricing": 1,
+    }
 
 
 def test_metriques_cout_par_role_et_par_opportunite(engine_test):
@@ -149,6 +213,191 @@ def test_metriques_cout_par_role_et_par_opportunite(engine_test):
     assert m["cout_moyen_par_opportunite_eur"] == round((0.08 + 0.04) / 2, 4)
 
 
+def _ligne_usage(engine, id_, *, jour=JOUR, fournisseur="anthropic", modele="claude-sonnet-5",
+                  tokens_in=None, tokens_out=None, cout=0.0, role=None):
+    with engine.begin() as cx:
+        cx.execute(insert(usage_events).values(
+            id=id_, run_id="run-test", fournisseur=fournisseur, modele_ou_actor=modele,
+            appels=1, tokens_in=tokens_in, tokens_out=tokens_out, cout_declare_ou_estime=cout,
+            devise="EUR", date_creation=_dt(jour), role=role, opportunity_id=None,
+        ))
+
+
+def test_cout_recalcule_tarifs_courants_diffère_de_l_ancien_tarif(engine_test):
+    """Sous-étape 3.6 (préalable) : deux appels Sonnet 5 journalisés à
+    l'ANCIEN tarif (3 $/15 $, taux 0,92 — celui utilisé avant la correction de
+    la sous-étape 0.7) doivent être recalculés au tarif COURANT de
+    config/tarifs.yaml (2 $/10 $, taux 0,877), pas au tarif d'origine."""
+    from app.adapters.model_client import estimer_cout_eur
+
+    ancien_tarif_usd = 3.0 + 15.0  # 1 000 000 tokens_in + 1 000 000 tokens_out, ancien tarif
+    ancien_cout_eur = round(ancien_tarif_usd * 0.92, 4)
+    _ligne_usage(
+        engine_test, "sonnet-ancien-tarif", modele="claude-sonnet-5",
+        tokens_in=1_000_000, tokens_out=1_000_000, cout=ancien_cout_eur,
+    )
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    attendu_courant = estimer_cout_eur("claude-sonnet-5", 1_000_000, 1_000_000)
+    recalcul = m["cout_jour_recalcule_tarifs_courants"]
+    assert recalcul["eur"] == round(attendu_courant, 4)
+    assert recalcul["eur"] != m["cout_jour_eur"]
+    assert recalcul["ecart_vs_enregistre_eur"] == round(attendu_courant - m["cout_jour_eur"], 4)
+    assert recalcul["evenements_anthropic_couverts"] == 1
+    assert recalcul["evenements_anthropic_sans_tokens"] == 0
+
+
+def test_cout_recalcule_compte_a_part_les_evenements_anthropic_sans_tokens(engine_test):
+    """Un appel modèle qui a échoué (réseau, voir model_client.py) journalise
+    fournisseur="anthropic" avec tokens_in/tokens_out=None et cout=0.0 : il ne
+    peut pas être recalculé, mais ne doit jamais être confondu avec un
+    évènement réellement couvert par le recalcul."""
+    _ligne_usage(engine_test, "sonnet-echec-reseau", tokens_in=None, tokens_out=None, cout=0.0)
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    recalcul = m["cout_jour_recalcule_tarifs_courants"]
+    assert recalcul["eur"] == 0.0
+    assert recalcul["evenements_anthropic_couverts"] == 0
+    assert recalcul["evenements_anthropic_sans_tokens"] == 1
+
+
+def test_cout_recalcule_ignore_les_evenements_non_anthropic(engine_test):
+    """Les compteurs de l'Enquêteur (fournisseur=algolia_hn|reddit|..., jamais
+    "anthropic") ne coûtent jamais rien et n'ont jamais de tokens — ils ne
+    doivent apparaître ni dans le recalcul, ni dans son compte d'évènements
+    sans tokens (ce n'est pas une lacune, ils n'ont juste rien à voir avec un
+    appel modèle)."""
+    _ligne_usage(
+        engine_test, "enqueteur-algolia", fournisseur="algolia_hn", modele="algolia_hn",
+        tokens_in=None, tokens_out=None, cout=0.0, role="enqueteur_recherche",
+    )
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    recalcul = m["cout_jour_recalcule_tarifs_courants"]
+    assert recalcul["eur"] == 0.0
+    assert recalcul["evenements_anthropic_couverts"] == 0
+    assert recalcul["evenements_anthropic_sans_tokens"] == 0
+
+
+def test_metriques_compteurs_enqueteur(engine_test):
+    """Sous-étape 3.1 : compteurs journaliers de l'Enquêteur (requêtes de
+    recherche, fetchs de page — role="enqueteur_recherche"/"enqueteur_fetch",
+    toujours à coût 0 en V1) et les plafonds configurés, sortis de
+    config/quotas.yaml."""
+    from app import config as cfg
+
+    _construire_jeu_de_test(engine_test)
+    _cout(engine_test, "recherche-1", 0.0, JOUR, role="enqueteur_recherche")
+    _cout(engine_test, "recherche-2", 0.0, JOUR, role="enqueteur_recherche")
+    _cout(engine_test, "fetch-1", 0.0, JOUR, role="enqueteur_fetch")
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    quotas = cfg.quotas()
+    assert m["enqueteur"] == {
+        "requetes_recherche_jour": 2,
+        "plafond_requetes_recherche_par_jour": quotas["max_requetes_recherche_par_jour"],
+        "fetchs_pages_jour": 1,
+        "plafond_fetchs_pages_par_jour": quotas["max_fetchs_pages_par_jour"],
+    }
+    # Gratuit en V1 : ne pollue jamais le coût du jour ni le coût par rôle.
+    assert m["cout_par_role_eur"].get("enqueteur_recherche", 0.0) == 0.0
+    assert m["cout_par_role_eur"].get("enqueteur_fetch", 0.0) == 0.0
+
+
+def test_metriques_compteurs_enqueteur_a_zero_sans_evenement(engine_test):
+    from app import config as cfg
+
+    _construire_jeu_de_test(engine_test)
+    m = calculer_metriques(engine_test, JOUR)
+    quotas = cfg.quotas()
+    assert m["enqueteur"]["requetes_recherche_jour"] == 0
+    assert m["enqueteur"]["fetchs_pages_jour"] == 0
+    assert m["enqueteur"]["plafond_requetes_recherche_par_jour"] == quotas["max_requetes_recherche_par_jour"]
+    assert m["enqueteur"]["plafond_fetchs_pages_par_jour"] == quotas["max_fetchs_pages_par_jour"]
+
+
+def test_metriques_repartition_par_flux_et_expression(engine_test):
+    """Sous-étape 1.4, point 2 : répartition des opportunités par type de
+    flux (douleur/offre), par flux, par expression du lexique (top 10), et
+    nombre d'items `signal_concurrence` stockés -- calculée à partir de la
+    preuve d'ORIGINE posée par le Scout (claim `"Scout: ..."`)."""
+    _creer_opportunite(engine_test, "opp_douleur", jour=JOUR, statut="nouveau", secteur="intersectoriel")
+    # Opportunité fusionnée à partir de DEUX signaux (dedup) : deux preuves
+    # d'origine "Scout:", donc comptée deux fois (voir docstring de
+    # calculer_metriques) -- une fois par flux/expression qui l'a trouvée.
+    _creer_opportunite(engine_test, "opp_fusionnee", jour=JOUR, statut="nouveau", secteur="intersectoriel")
+
+    _creer_source(
+        engine_test, "src_reddit", flux_origine="Reddit r/smallbusiness — recherche « manually »",
+        requete_origine="manually",
+    )
+    _creer_source(
+        engine_test, "src_hn_1", flux_origine="Hacker News — recherche « manually » (Ask HN)",
+        requete_origine="manually",
+    )
+    _creer_source(
+        engine_test, "src_hn_2", flux_origine="Hacker News — recherche « spreadsheet » (commentaires)",
+        requete_origine="spreadsheet",
+    )
+    _creer_source(engine_test, "src_offre", flux_origine="Product Hunt", etiquette="signal_concurrence")
+
+    _rattacher_preuve(engine_test, "opp_douleur", "src_reddit", claim="Scout: douleur reddit")
+    _rattacher_preuve(engine_test, "opp_fusionnee", "src_hn_1", claim="Scout: douleur hn 1")
+    _rattacher_preuve(engine_test, "opp_fusionnee", "src_hn_2", claim="Scout: douleur hn 2")
+    # Une preuve qui n'est PAS de l'origine (posée par l'Analyst, pas le
+    # Scout) ne doit jamais compter ici.
+    _rattacher_preuve(engine_test, "opp_douleur", "src_hn_2", claim="Analyst: preuve supplémentaire")
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    assert m["par_type_flux"] == {"douleur": 3}  # aucune opportunité n'est jamais issue d'un flux `offre`
+    assert m["par_flux"] == {
+        "Reddit r/smallbusiness — recherche « manually »": 1,
+        "Hacker News — recherche « manually » (Ask HN)": 1,
+        "Hacker News — recherche « spreadsheet » (commentaires)": 1,
+    }
+    assert m["top_10_expressions_lexique"] == {"manually": 2, "spreadsheet": 1}
+    # src_offre est stocké le JOUR (date_collecte) : compté même si aucune
+    # opportunité ne le cite jamais.
+    assert m["signaux_concurrence_stockes"] == 1
+
+
+def test_metriques_repartition_par_secteur_provenance(engine_test):
+    """Sous-étape 2.2, point 3 : répartition des opportunités du jour par
+    provenance du secteur (citation_verifiee/flux/defaut, posée en 2.1) --
+    NULL (historique pré-2.1) regroupé sous 'aucune', jamais ignoré."""
+    _creer_opportunite(
+        engine_test, "opp_cv", jour=JOUR, statut="nouveau",
+        secteur="flux_documentaires", secteur_provenance="citation_verifiee",
+    )
+    _creer_opportunite(
+        engine_test, "opp_flux1", jour=JOUR, statut="nouveau",
+        secteur="e_commerce", secteur_provenance="flux",
+    )
+    _creer_opportunite(
+        engine_test, "opp_flux2", jour=JOUR, statut="nouveau",
+        secteur="e_commerce", secteur_provenance="flux",
+    )
+    _creer_opportunite(
+        engine_test, "opp_defaut", jour=JOUR, statut="nouveau",
+        secteur="intersectoriel", secteur_provenance="defaut",
+    )
+    _creer_opportunite(
+        engine_test, "opp_historique", jour=JOUR, statut="nouveau",
+        secteur="intersectoriel",  # secteur_provenance absente -> NULL
+    )
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    assert m["par_secteur_provenance"] == {
+        "citation_verifiee": 1, "flux": 2, "defaut": 1, "aucune": 1,
+    }
+
+
 def test_metriques_jour_vide_ne_plante_pas(engine_test):
     _construire_jeu_de_test(engine_test)
 
@@ -166,6 +415,10 @@ def test_metriques_jour_vide_ne_plante_pas(engine_test):
     assert m["part_hors_intersectoriel"] is None
     assert m["sources_par_dossier"]["part_une_seule_source"] is None
     assert m["cout_jour_eur"] == 0.0
+    assert m["cout_jour_recalcule_tarifs_courants"] == {
+        "eur": 0.0, "ecart_vs_enregistre_eur": 0.0,
+        "evenements_anthropic_couverts": 0, "evenements_anthropic_sans_tokens": 0,
+    }
     assert m["cout_moyen_par_dossier_analyse_eur"] is None
     assert m["cout_par_role_eur"] == {}
     assert m["cout_moyen_par_opportunite_eur"] is None

@@ -34,6 +34,10 @@ class DecisionCritic(str, Enum):
 
 class StatutOpportunite(str, Enum):
     NOUVEAU = "nouveau"
+    # Sous-étape 3.4 : trouvée par le Scout, l'Enquêteur a tourné (avec ou
+    # sans nouvelle source trouvée) -- prête pour l'Analyst. Voir
+    # app/pipeline/orchestrator.py::_phase_enquete.
+    ENQUETE_TERMINEE = "enquete_terminee"
     EN_ANALYSE = "en_analyse"
     INCERTAIN = "incertain"
     REJETE = "rejete"
@@ -65,7 +69,15 @@ class Affirmation(BaseModel):
 
 
 class ScoutSortie(BaseModel):
-    """Sortie attendue du rôle Scout pour un groupe de signaux."""
+    """Sortie attendue du rôle Scout pour un groupe de signaux.
+
+    `secteur`/`secteur_citation` (sous-étape 2.2) : une VRAIE proposition du
+    Scout, appuyée d'une citation mot pour mot du signal — pas un écho du
+    secteur déjà donné en entrée. Optionnels : `None` est préférable à une
+    citation approximative (voir le prompt système). C'est
+    `app.pipeline.normalisation.inferer_secteur` (2.1), branchée dans
+    `app/pipeline/orchestrator.py`, qui vérifie la citation et décide si le
+    secteur proposé est réellement retenu (`citation_verifiee`) ou non."""
 
     opportunity_candidate: str
     buyer: str
@@ -74,7 +86,8 @@ class ScoutSortie(BaseModel):
     why_now: str
     signal_ids: list[str]
     missing_facts: list[str] = Field(default_factory=list)
-    secteur: str
+    secteur: str | None = None
+    secteur_citation: str | None = None
     cluster_id: str | None = None  # None = nouveau groupe proposé
 
 

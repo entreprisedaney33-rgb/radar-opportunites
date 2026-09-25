@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from app.adapters.model_client import AccesModeleIndisponible, ModelClient
 from app.models_schemas import ScoutSortie
 from app.pipeline.budget import BudgetDepasse
+from app.pipeline.normalisation import secteurs_valides
 from app.roles.prompts_communs import RAPPEL_SECURITE
 
 logger = logging.getLogger(__name__)
@@ -27,13 +28,23 @@ PROMPT_SYSTEME = (
     "l'acheteur, quelle douleur concrète, quel mécanisme IA changerait la donne, "
     "pourquoi maintenant. Si une information manque, mets-la dans `missing_facts` "
     "plutôt que de l'inventer. `signal_ids` doit contenir UNIQUEMENT l'identifiant "
-    "du signal fourni ci-dessous."
+    "du signal fourni ci-dessous.\n\n"
+    "`secteur` (sous-étape 2.2) : ta propre analyse du secteur, parmi la liste de "
+    "catégories exacte donnée ci-dessous — jamais une catégorie inventée. Un secteur "
+    "proposé par défaut t'est donné dans le message utilisateur à titre indicatif "
+    "seulement : ne le recopie PAS s'il ne te semble pas correct au vu du texte. "
+    "`secteur_citation` : un extrait copié MOT POUR MOT du signal (30 mots maximum), "
+    "qui justifie ce secteur — jamais reformulé, jamais résumé. Si tu n'es pas sûr du "
+    "secteur, ou si tu ne trouves pas d'extrait exact qui le justifie, laisse `secteur` "
+    "et/ou `secteur_citation` à `null` : `null` vaut mieux qu'une citation approximative."
 )
 
 
 def _prompt_utilisateur(signal_id: str, texte: str, secteur: str) -> str:
+    secteurs = ", ".join(sorted(secteurs_valides()))
     return (
-        f"Secteur proposé : {secteur}\n"
+        f"Catégories de secteur valides : {secteurs}\n"
+        f"Secteur proposé par défaut (indicatif, pas forcément correct) : {secteur}\n"
         f"Signal (id={signal_id}) :\n{texte}\n\n"
         "Réponds avec l'outil `repondre`."
     )
@@ -49,7 +60,12 @@ def _scout_heuristique(signal_id: str, texte: str, secteur: str) -> ScoutSortie:
         why_now=f"signal détecté le {datetime.now(timezone.utc).date().isoformat()}",
         signal_ids=[signal_id],
         missing_facts=["acheteur", "mécanisme IA précis", "économie chiffrée"],
-        secteur=secteur,
+        # Sous-étape 2.2 : le repli heuristique n'analyse rien -- il ne
+        # propose ni secteur ni citation (§ "ne fabrique aucun fait" en tête
+        # de ce fichier). Le secteur final retombe alors sur l'étage "flux"
+        # ou "defaut" de inferer_secteur (2.1), jamais "citation_verifiee".
+        secteur=None,
+        secteur_citation=None,
         cluster_id=None,
     )
 

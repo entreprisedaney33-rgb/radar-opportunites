@@ -37,9 +37,37 @@ max_appels_approfondis_par_jour: 1300
 # Taille d'UN passage (pas un plafond définitif : le retard non traité est
 # repris automatiquement au passage suivant).
 max_signaux_par_passage: 40
+
+# Sous-étape 1.2 (AMELIORATIONS.md) : quota INDÉPENDANT de celui ci-dessus.
+# Un item `offre` ne coûte jamais d'appel modèle (il est seulement stocké
+# comme preuve de concurrence, jamais transformé en opportunité — voir
+# app/pipeline/orchestrator.py::_phase_collecte_et_scout) et ne doit donc
+# jamais réduire la place disponible pour les flux `douleur`, qui eux
+# alimentent le Scout. Même ordre de grandeur que max_signaux_par_passage :
+# rien ne justifie de le limiter plus fort, puisqu'il ne coûte rien.
+max_signaux_offre_par_passage: 40
+
 max_analyses_par_passage: 15
 max_critiques_par_passage: 15
 duree_max_minutes: 60  # plafond de sécurité d'UN SEUL passage (pas de la journée)
+
+# Recherche Reddit sub × expression (sous-étape 1.2) : le produit dépasse
+# 200 flux (13 subs `douleur` de app/sources.yaml × 25 expressions de
+# app/lexique_douleur.yaml ≈ 325) — voir
+# app/pipeline/planificateur_recherche.py pour la rotation.
+intervalle_heures_recherche_reddit: 6  # un flux n'est jamais revisité avant ce délai
+max_flux_recherche_par_passage: 15  # combinaisons (sub, expression) interrogées par passage
+budget_appels_recherche_reddit_par_flux: 5  # résultats gardés par combinaison interrogée
+
+# Recherche Hacker News tag × expression (sous-étape 1.4, connecteur créé en
+# 1.3) : même planificateur générique que Reddit ci-dessus
+# (app/pipeline/planificateur_recherche.py), quotas séparés parce que le
+# volume est bien plus petit (2 tags `comment`/`ask_hn` × 25 expressions =
+# 50 combinaisons, contre 325 pour Reddit) — tout tient en un seul passage
+# tous les intervalle_heures_recherche_hn.
+intervalle_heures_recherche_hn: 6
+max_flux_recherche_par_passage_hn: 10
+budget_appels_recherche_hn_par_flux: 5
 
 # Rythme entre deux passages, pour ne jamais marteler des sources qui n'ont
 # pas changé.
@@ -53,3 +81,56 @@ echantillon_rejetes_pour_controle: 0.10
 # Réessais réseau : plafonnés, avec délai croissant, sur 429/5xx.
 retry_max_tentatives: 3
 retry_delai_base_secondes: 2
+
+# L'Enquêteur (sous-étape 3.1, deux compteurs journaliers indépendants du
+# budget en euros (fournisseurs gratuits en V1, sous-étape 3.2), chacun avec
+# son propre plafond dur (app/pipeline/budget.py::BudgetTracker) -- branchés
+# dans le pipeline réel depuis la sous-étape 3.4
+# (app/pipeline/orchestrator.py::_phase_enquete).
+#
+# Relevés à la sous-étape 3.6 (600->1500, 400->1000) : par dossier enquêté,
+# jusqu'à 33 requêtes de recherche (5 de base -- 2 "demande" + 3 "concurrence"
+# -- × jusqu'à 3 fournisseurs facturés à ce compteur depuis que le magasin
+# interne en est exclu ci-dessous, + jusqu'à 18 de plus si 3 concurrents sont
+# identifiés, sous-étape 3.4b) et jusqu'à 16 fetchs (8 + 8 phase prix)
+# peuvent être engagés -- les anciennes valeurs (600/400) auraient été
+# épuisées après ~20-25 dossiers enquêtés dans une même journée UTC, bien en
+# dessous des ~650 dossiers/jour que le plafond de 1300 appels approfondis
+# (ci-dessus) autorise en théorie. Valeurs de départ du plan (AMELIORATIONS.md,
+# 600/400) puis de cette révision (1500/1000) : ni l'une ni l'autre n'a encore
+# été mesurée en conditions réelles -- à recalibrer à 48 h (mesure de la
+# sous-étape 3.6).
+max_requetes_recherche_par_jour: 1500
+max_fetchs_pages_par_jour: 1000
+
+# Fetch + extraction des pages retenues par l'Enquêteur (sous-étape 3.3) :
+# précautions par page, indépendantes des compteurs journaliers posés en 3.1
+# (app/pipeline/budget.py::BudgetTracker, branchés ici depuis la sous-étape
+# 3.4). Valeurs de départ du plan, non mesurées en conditions réelles — à
+# confirmer/ajuster à la sous-étape 3.6 comme les autres valeurs de départ de
+# l'Enquêteur.
+max_resultats_enquete_par_opportunite: 8  # "max 8 par opportunité" (texte du plan)
+enqueteur_fetch_timeout_secondes: 8  # "timeout court" : plus serré que les 10s de get_with_retry
+enqueteur_fetch_taille_max_octets: 2000000  # 2 Mo : au-delà, page jamais stockée (voir app/adapters/http.py::get_avec_limite_taille)
+enqueteur_fetch_delai_secondes: 1.0  # entre deux fetchs consécutifs d'un même tour d'enquête
+
+# Fournisseur "magasin interne" de l'Enquêteur (sous-étape 3.2) : similarité
+# lexicale (app/pipeline/dedupe.py::similarite_lexicale, même mesure que le
+# dédoublonnage) entre la requête générée et les items `signal_concurrence`
+# déjà stockés (sous-étape 1.1), sans aucune requête réseau. Seuil plus bas
+# que celui du dédoublonnage (SEUIL_REVUE=0.55, app/pipeline/dedupe.py) : on
+# y compare deux textes de longueur comparable (deux descriptions
+# d'opportunité), alors qu'ici la requête est courte (générée par
+# app/enqueteur/gabarits.py) et le candidat un extrait de signal plus long —
+# le cosinus sur sacs de mots baisse mécaniquement avec l'asymétrie de
+# longueur. Point de départ prudent, non mesuré en conditions réelles — à
+# confirmer/ajuster à la sous-étape 3.6.
+seuil_similarite_magasin_interne: 0.15
+
+# Branchement de l'Enquêteur dans le pipeline (sous-étape 3.4) : nombre de
+# résultats demandés à CHAQUE fournisseur actif pour CHAQUE requête générée
+# par app/enqueteur/gabarits.py (avant la sélection finale, plafonnée par
+# max_resultats_enquete_par_opportunite ci-dessus). Valeur de départ du plan,
+# non mesurée en conditions réelles — à confirmer/ajuster à la sous-étape 3.6
+# comme les autres valeurs de départ de l'Enquêteur.
+enqueteur_resultats_par_requete: 5

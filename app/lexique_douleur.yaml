@@ -1,0 +1,83 @@
+# Lexique d'expressions de douleur (sous-étape 1.2 d'AMELIORATIONS.md) :
+# sert à composer les requêtes du connecteur de recherche Reddit
+# (app/adapters/reddit_recherche.py, produit sub × expression). Chargé et
+# validé par app/lexique_douleur.py (clé/langue manquante ou en double =
+# erreur au démarrage, jamais un défaut silencieux).
+#
+# Point de départ du cahier des charges (18 expressions), complété à 25.
+
+- cle: heures_par_semaine_en
+  expression: "hours a week"
+  langue: en
+- cle: manually_en
+  expression: "manually"
+  langue: en
+- cle: spreadsheet_en
+  expression: "spreadsheet"
+  langue: en
+- cle: is_there_a_tool_en
+  expression: "is there a tool"
+  langue: en
+- cle: how_do_you_handle_en
+  expression: "how do you handle"
+  langue: en
+- cle: copy_paste_en
+  expression: "copy paste"
+  langue: en
+- cle: every_month_i_have_to_en
+  expression: "every month I have to"
+  langue: en
+- cle: tedious_en
+  expression: "tedious"
+  langue: en
+- cle: looking_for_someone_to_en
+  expression: "looking for someone to"
+  langue: en
+- cle: still_doing_by_hand_en
+  expression: "still doing this by hand"
+  langue: en
+- cle: no_good_solution_en
+  expression: "no good solution"
+  langue: en
+- cle: better_way_en
+  expression: "there has to be a better way"
+  langue: en
+- cle: way_to_automate_en
+  expression: "any way to automate"
+  langue: en
+- cle: heures_par_semaine_fr
+  expression: "des heures par semaine"
+  langue: fr
+- cle: a_la_main_fr
+  expression: "à la main"
+  langue: fr
+- cle: existe_t_il_un_outil_fr
+  expression: "existe-t-il un outil"
+  langue: fr
+- cle: on_fait_ca_sur_excel_fr
+  expression: "on fait ça sur Excel"
+  langue: fr
+- cle: comment_vous_gerez_fr
+  expression: "comment vous gérez"
+  langue: fr
+- cle: chronophage_fr
+  expression: "chronophage"
+  langue: fr
+- cle: je_cherche_quelquun_pour_fr
+  expression: "je cherche quelqu'un pour"
+  langue: fr
+- cle: temps_fou_fr
+  expression: "on perd un temps fou"
+  langue: fr
+- cle: aucune_solution_fr
+  expression: "aucune solution"
+  langue: fr
+- cle: deja_resolu_ca_fr
+  expression: "quelqu'un a déjà résolu ça"
+  langue: fr
+- cle: moyen_dautomatiser_fr
+  expression: "y a-t-il un moyen d'automatiser"
+  langue: fr
+- cle: on_fait_ca_manuellement_fr
+  expression: "on fait ça manuellement"
+  langue: fr

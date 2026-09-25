@@ -22,6 +22,8 @@ def get_engine() -> Engine:
 # donc les ajouter nous-mêmes, une fois, si elles manquent).
 _COLONNES_ADDITIVES = {
     "usage_events": ["role", "opportunity_id"],
+    "sources": ["flux_origine", "requete_origine", "etiquette"],
+    "opportunities": ["secteur_provenance", "secteur_citation"],
 }
 
 

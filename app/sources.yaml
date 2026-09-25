@@ -1,0 +1,173 @@
+# Sources typées (sous-étape 1.1 d'AMELIORATIONS.md) : chaque flux déclare
+# s'il produit des signaux de "douleur" (quelqu'un a mal, alimente le Scout)
+# ou d'"offre" (quelqu'un vend — stocké comme preuve de concurrence,
+# jamais transformé en opportunité, voir app/pipeline/orchestrator.py).
+# Remplace la liste "rss" qui vivait dans config/sources_autorisees.yaml
+# (qui ne distinguait pas le type de signal).
+#
+# secteur_par_defaut : une catégorie exacte de config/secteurs.yaml, ou
+# null. Pas encore utilisé par le code (arrive en étape 2 : le secteur
+# devient une affirmation sourcée) — validé dès maintenant pour ne pas
+# laisser une faute de frappe dormir jusque-là.
+#
+# Chargé et validé par app/sources.py::charger_sources (type ou secteur
+# inconnu = erreur au démarrage, jamais un défaut silencieux).
+
+- id: hn_rss
+  nom: "Hacker News (front page)"
+  url: "https://hnrss.org/frontpage"
+  type: offre  # reclassé en sous-étape 1.3 : surtout des lancements/annonces en pratique (§1, constat 2). Voir app/adapters/hn_recherche.py pour la vraie source de douleur HN (recherche ciblée par expression).
+  secteur_par_defaut: null
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: hn_show_rss
+  nom: "Hacker News (Show HN — produits/outils montrés par leurs créateurs)"
+  url: "https://hnrss.org/show"
+  type: offre
+  secteur_par_defaut: null
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: producthunt_rss
+  nom: "Product Hunt (flux public)"
+  url: "https://www.producthunt.com/feed"
+  type: offre
+  secteur_par_defaut: null
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: techcrunch_rss
+  nom: "TechCrunch (actualité tech/business générale)"
+  url: "https://techcrunch.com/feed/"
+  type: offre
+  secteur_par_defaut: null
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_smallbusiness_rss
+  nom: "Reddit r/smallbusiness (douleurs réelles de patrons de petites entreprises)"
+  url: "https://www.reddit.com/r/smallbusiness/.rss"
+  type: douleur
+  secteur_par_defaut: operations_petites_entreprises
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_accounting_rss
+  nom: "Reddit r/Accounting (flux documentaires, comptabilité)"
+  url: "https://www.reddit.com/r/Accounting/.rss"
+  type: douleur
+  secteur_par_defaut: flux_documentaires
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_ecommerce_rss
+  nom: "Reddit r/ecommerce (e-commerce, SAV, retours)"
+  url: "https://www.reddit.com/r/ecommerce/.rss"
+  type: douleur
+  secteur_par_defaut: e_commerce
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+# Sous-étape 1.2 : 10 subreddits supplémentaires (mêmes principes que les 3
+# ci-dessus). Servent à la fois de flux frontpage classiques ET de liste de
+# subreddits pour le connecteur de recherche sub × expression
+# (app/sources.py::subreddits_douleur — une seule liste de vérité, jamais
+# une deuxième dupliquée pour la recherche).
+
+- id: reddit_msp_rss
+  nom: "Reddit r/msp (prestataires informatiques managés)"
+  url: "https://www.reddit.com/r/msp/.rss"
+  type: douleur
+  secteur_par_defaut: outils_internes_it
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_sysadmin_rss
+  nom: "Reddit r/sysadmin (administration système)"
+  url: "https://www.reddit.com/r/sysadmin/.rss"
+  type: douleur
+  secteur_par_defaut: outils_internes_it
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_bookkeeping_rss
+  nom: "Reddit r/Bookkeeping (tenue de comptes)"
+  url: "https://www.reddit.com/r/Bookkeeping/.rss"
+  type: douleur
+  secteur_par_defaut: flux_documentaires
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_tax_rss
+  nom: "Reddit r/tax (fiscalité)"
+  url: "https://www.reddit.com/r/tax/.rss"
+  type: douleur
+  secteur_par_defaut: flux_documentaires
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_entrepreneur_rss
+  nom: "Reddit r/Entrepreneur (patrons, créateurs d'entreprise)"
+  url: "https://www.reddit.com/r/Entrepreneur/.rss"
+  type: douleur
+  secteur_par_defaut: operations_petites_entreprises
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_freelance_rss
+  nom: "Reddit r/freelance (indépendants)"
+  url: "https://www.reddit.com/r/freelance/.rss"
+  type: douleur
+  secteur_par_defaut: operations_petites_entreprises
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_shopify_rss
+  nom: "Reddit r/shopify (boutiques Shopify)"
+  url: "https://www.reddit.com/r/shopify/.rss"
+  type: douleur
+  secteur_par_defaut: e_commerce
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_fba_rss
+  nom: "Reddit r/FulfillmentByAmazon (vendeurs Amazon FBA)"
+  url: "https://www.reddit.com/r/FulfillmentByAmazon/.rss"
+  type: douleur
+  secteur_par_defaut: e_commerce
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_propertymanagement_rss
+  nom: "Reddit r/PropertyManagement (gestion locative)"
+  url: "https://www.reddit.com/r/PropertyManagement/.rss"
+  type: douleur
+  secteur_par_defaut: operations_petites_entreprises
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10
+
+- id: reddit_logistics_rss
+  nom: "Reddit r/logistics (logistique)"
+  url: "https://www.reddit.com/r/logistics/.rss"
+  type: douleur
+  secteur_par_defaut: operations_petites_entreprises
+  langue: en
+  actif: true
+  budget_appels_par_nuit: 10

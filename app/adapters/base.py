@@ -19,6 +19,10 @@ class SignalBrut:
     date_publication: datetime | None
     type_source: str  # rss|demo|apify|autre
     droits_collecte: str  # ex. "flux RSS public, conditions du flux"
+    flux_origine: str  # nom du flux d'origine (sous-étape 1.1, app/sources.yaml)
+    type_flux: str = "douleur"  # douleur|offre — toujours surchargé depuis la config du flux
+    requete_origine: str | None = None  # texte de la requête de recherche, s'il y a lieu (à partir de 1.2)
+    secteur_par_defaut: str | None = None  # secteur par défaut du flux (app/sources.yaml, sous-étape 2.1)
 
 
 class Adaptateur(Protocol):

@@ -4,8 +4,13 @@ from app.pipeline.budget import BudgetDepasse, BudgetTracker
 from app.storage import repo
 
 
-def _tracker(engine, run_id, *, plafond_eur=1.0, plafond_appels=1000):
-    return BudgetTracker(engine, run_id, plafond_eur=plafond_eur, plafond_appels_approfondis=plafond_appels)
+def _tracker(engine, run_id, *, plafond_eur=1.0, plafond_appels=1000,
+             plafond_requetes_recherche=600, plafond_fetchs_pages=400):
+    return BudgetTracker(
+        engine, run_id, plafond_eur=plafond_eur, plafond_appels_approfondis=plafond_appels,
+        plafond_requetes_recherche_par_jour=plafond_requetes_recherche,
+        plafond_fetchs_pages_par_jour=plafond_fetchs_pages,
+    )
 
 
 def test_engager_au_dela_du_plafond_leve_budget_depasse(engine_test):
@@ -113,3 +118,62 @@ def test_plafond_appels_approfondis_ne_compte_pas_le_scout(engine_test):
         )
     # Toujours aucun appel "approfondi" engagé -> le premier passe encore.
     tracker.verifier_et_engager(0.001, role="analyst")
+
+
+def test_plafond_requetes_recherche_par_jour_independant_du_budget_eur(engine_test):
+    """Sous-étape 3.1 : les compteurs de l'Enquêteur sont indépendants du
+    budget en euros — gratuits en V1 (sous-étape 3.2), un solde € très large
+    ne doit jamais les contourner."""
+    run_id = repo.creer_run(engine_test, mode="reel", version_code="test", version_config="test", quotas={})
+    tracker = _tracker(engine_test, run_id, plafond_eur=1000.0, plafond_requetes_recherche=2)
+
+    tracker.verifier_et_engager_requete_recherche()
+    tracker.enregistrer_requete_recherche(fournisseur="hn_algolia")
+    tracker.verifier_et_engager_requete_recherche()
+    tracker.enregistrer_requete_recherche(fournisseur="hn_algolia")
+
+    with pytest.raises(BudgetDepasse):
+        tracker.verifier_et_engager_requete_recherche()
+
+
+def test_plafond_fetchs_pages_par_jour_independant_du_plafond_requetes(engine_test):
+    run_id = repo.creer_run(engine_test, mode="reel", version_code="test", version_config="test", quotas={})
+    tracker = _tracker(engine_test, run_id, plafond_requetes_recherche=1, plafond_fetchs_pages=1)
+
+    tracker.verifier_et_engager_requete_recherche()
+    tracker.enregistrer_requete_recherche(fournisseur="reddit")
+    # Le plafond des requêtes est atteint, mais celui des fetchs est distinct.
+    tracker.verifier_et_engager_fetch_page()
+    tracker.enregistrer_fetch_page(fournisseur="reddit")
+
+    with pytest.raises(BudgetDepasse):
+        tracker.verifier_et_engager_fetch_page()
+
+
+def test_requetes_recherche_partagent_le_plafond_journalier_entre_deux_runs(engine_test):
+    """Même logique que le budget en euros (0.7) : le plafond porte sur la
+    journée UTC entière, tous runs confondus, pas sur un seul run."""
+    run1 = repo.creer_run(engine_test, mode="reel", version_code="test", version_config="test", quotas={})
+    tracker1 = _tracker(engine_test, run1, plafond_requetes_recherche=1)
+    tracker1.verifier_et_engager_requete_recherche()
+    tracker1.enregistrer_requete_recherche(fournisseur="hn_algolia")
+
+    run2 = repo.creer_run(engine_test, mode="reel", version_code="test", version_config="test", quotas={})
+    tracker2 = _tracker(engine_test, run2, plafond_requetes_recherche=1)
+    with pytest.raises(BudgetDepasse):
+        tracker2.verifier_et_engager_requete_recherche()
+
+
+def test_enregistrer_requete_recherche_et_fetch_page_persistent_avec_cout_zero(engine_test):
+    run_id = repo.creer_run(engine_test, mode="reel", version_code="test", version_config="test", quotas={})
+    tracker = _tracker(engine_test, run_id)
+
+    tracker.verifier_et_engager_requete_recherche()
+    tracker.enregistrer_requete_recherche(fournisseur="hn_algolia")
+    tracker.verifier_et_engager_fetch_page()
+    tracker.enregistrer_fetch_page(fournisseur="magasin_interne")
+
+    assert tracker.requetes_recherche_jour_engagees() == 1
+    assert tracker.fetchs_pages_jour_engages() == 1
+    # Gratuit en V1 : ne consomme jamais le budget en euros.
+    assert tracker.depense_jour_engagee() == pytest.approx(0.0)

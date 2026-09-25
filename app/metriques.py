@@ -14,6 +14,14 @@ Avec `--comparer`, les métriques du jour comparé sont calculées et
 écrites de la même façon, puis les deux jours sont affichés côte à côte
 (pour vérifier ce qui a réellement bougé après un changement).
 
+`cout_jour_eur` est la somme des coûts journalisés au tarif en vigueur au
+moment de CHAQUE appel (voir app/adapters/model_client.py) ; à côté,
+`cout_jour_recalcule_tarifs_courants` recalcule le même jour à partir des
+tokens réellement stockés (`usage_events.tokens_in`/`tokens_out`) multipliés
+par les tarifs COURANTS de `config/tarifs.yaml` — pour rester comparable
+d'un jour à l'autre malgré une correction de tarif (sous-étape 3.6,
+préalable, AMELIORATIONS.md).
+
 Connexion à la base : lit `RADAR_DATABASE_URL` dans l'environnement, sinon
 le fichier `~/.config/radar-opportunites/env` écrit par
 `scripts/creer_acces_lecture.py` (sous-étape 0.5) — jamais `DATABASE_URL`
@@ -30,10 +38,13 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import Engine
 
-from app.storage.schema import opportunities, opportunity_evidence, scores, usage_events
+from app import config as cfg
+from app.adapters.model_client import estimer_cout_eur
+from app.enqueteur.fetch import ETIQUETTE_PREUVE_ENQUETE, ETIQUETTE_PREUVE_PRIX
+from app.storage.schema import opportunities, opportunity_evidence, scores, sources, usage_events
 
 RACINE = Path(__file__).resolve().parent.parent
 DOSSIER_RAPPORTS = RACINE / "rapports" / "metriques"
@@ -127,25 +138,103 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
         lignes_couts = cx.execute(
             select(
                 usage_events.c.role, usage_events.c.opportunity_id, usage_events.c.cout_declare_ou_estime,
+                usage_events.c.fournisseur, usage_events.c.modele_ou_actor,
+                usage_events.c.tokens_in, usage_events.c.tokens_out,
             ).where(
                 usage_events.c.date_creation >= debut, usage_events.c.date_creation < fin
             )
         ).all()
 
+        # Sous-étape 1.4, point 2 : d'où viennent les opportunités du jour —
+        # jointure sur la preuve d'ORIGINE posée par le Scout à la création
+        # (claim "Scout: ...", app/pipeline/orchestrator.py::_phase_collecte_et_scout).
+        # Une opportunité fusionnée (dedup, app/pipeline/dedupe.py) peut
+        # porter plusieurs de ces preuves d'origine (une par signal fusionné) :
+        # chacune compte ici, donc une opportunité peut apparaître dans
+        # plusieurs flux/expressions à la fois — lecture "d'où viennent les
+        # signaux repérés", pas une partition stricte des opportunités.
+        lignes_origine = []
+        if opp_ids:
+            lignes_origine = cx.execute(
+                select(
+                    sources.c.flux_origine, sources.c.requete_origine, sources.c.etiquette,
+                )
+                .select_from(opportunity_evidence.join(sources, opportunity_evidence.c.source_id == sources.c.id))
+                .where(
+                    opportunity_evidence.c.opportunity_id.in_(opp_ids),
+                    opportunity_evidence.c.claim.like("Scout: %"),
+                )
+            ).all()
+
+        nb_signaux_concurrence = cx.execute(
+            select(func.count()).select_from(sources).where(
+                sources.c.etiquette == "signal_concurrence",
+                sources.c.date_collecte >= debut, sources.c.date_collecte < fin,
+            )
+        ).scalar_one()
+
+        # Sous-étape 3.4, point 5 : sources par dossier (déjà prévu en 0.2)
+        # ventilées par fournisseur de l'Enquêteur (algolia_hn|reddit|
+        # magasin_interne|fetch_direct_pricing) -- une ligne
+        # `opportunity_evidence` par preuve d'enquête rattachée à une
+        # opportunité repérée CE jour (même périmètre que `preuves_par_opp`
+        # ci-dessus, pas limité aux preuves elles-mêmes collectées ce
+        # jour-là). Sous-étape 3.4b : `ETIQUETTE_PREUVE_PRIX` incluse ici en
+        # plus de `ETIQUETTE_PREUVE_ENQUETE` -- une preuve de la famille
+        # `prix` reste une preuve d'enquête au sens de cette ventilation,
+        # seulement étiquetée différemment pour la distinguer côté stockage.
+        lignes_preuves_enquete = []
+        if opp_ids:
+            lignes_preuves_enquete = cx.execute(
+                select(sources.c.flux_origine)
+                .select_from(opportunity_evidence.join(sources, opportunity_evidence.c.source_id == sources.c.id))
+                .where(
+                    opportunity_evidence.c.opportunity_id.in_(opp_ids),
+                    sources.c.etiquette.in_([ETIQUETTE_PREUVE_ENQUETE, ETIQUETTE_PREUVE_PRIX]),
+                )
+            ).all()
+
     nb_reperees = len(opps)
     nb_analysees = len(scores_par_opp)
-    cout_jour = round(sum(c for (_, _, c) in lignes_couts), 4)
+    cout_jour = round(sum(c for (_, _, c, _, _, _, _) in lignes_couts), 4)
 
     # Traçabilité par rôle et par opportunité (colonnes ajoutées en
     # sous-étape 0.7, NULL pour tout l'historique antérieur — regroupé sous
     # "sans_role" plutôt qu'ignoré, pour que le total reste vérifiable).
     cout_par_role: dict[str, float] = {}
     cout_par_opportunite: dict[str, float] = {}
-    for role, opp_id, cout in lignes_couts:
+    for role, opp_id, cout, _, _, _, _ in lignes_couts:
         cle_role = role or "sans_role"
         cout_par_role[cle_role] = round(cout_par_role.get(cle_role, 0.0) + cout, 4)
         if opp_id:
             cout_par_opportunite[opp_id] = cout_par_opportunite.get(opp_id, 0.0) + cout
+
+    # Sous-étape 3.6 (préalable, AMELIORATIONS.md) : recalcul du coût du jour
+    # à partir des tokens réellement stockés (usage_events.tokens_in/tokens_out)
+    # multipliés par les tarifs COURANTS de config/tarifs.yaml — contrairement
+    # à `cout_jour` ci-dessus (figé au tarif en vigueur au moment de chaque
+    # appel, voir app/adapters/model_client.py::estimer_cout_eur). Objectif :
+    # rendre comparable un jour d'avant une correction de tarif (ex. 25/09,
+    # avant la correction Sonnet 5 3$/15$→2$/10$ de la sous-étape 0.7) et un
+    # jour d'après. Portée : uniquement les appels modèle réels
+    # (fournisseur="anthropic", scout|analyst|critic) — les compteurs de
+    # l'Enquêteur (role enqueteur_recherche|enqueteur_fetch) ne coûtent
+    # jamais rien et n'ont jamais de tokens (voir app/pipeline/budget.py).
+    # Une ligne "anthropic" sans tokens stockés (appel réseau qui a échoué,
+    # voir model_client.py) ne peut pas être recalculée : elle est comptée à
+    # part plutôt qu'ignorée silencieusement, pour que la couverture du
+    # recalcul reste vérifiable.
+    cout_jour_recalcule = 0.0
+    nb_evenements_anthropic_couverts = 0
+    nb_evenements_anthropic_sans_tokens = 0
+    for _, _, _, fournisseur, modele, tokens_in, tokens_out in lignes_couts:
+        if fournisseur != "anthropic":
+            continue
+        if tokens_in is None or tokens_out is None:
+            nb_evenements_anthropic_sans_tokens += 1
+            continue
+        cout_jour_recalcule += estimer_cout_eur(modele, tokens_in, tokens_out)
+        nb_evenements_anthropic_couverts += 1
 
     par_statut: dict[str, int] = {}
     for o in opps:
@@ -164,6 +253,48 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
     for o in opps:
         par_secteur[o["secteur"]] = par_secteur.get(o["secteur"], 0) + 1
 
+    # Sous-étape 2.2, point 3 : répartition par provenance du secteur
+    # (citation_verifiee|flux|defaut, posée en 2.1) -- NULL pour toute
+    # opportunité créée avant la migration additive de 2.1, regroupée sous
+    # "aucune" plutôt qu'ignorée.
+    par_secteur_provenance: dict[str, int] = {}
+    for o in opps:
+        cle = o["secteur_provenance"] or "aucune"
+        par_secteur_provenance[cle] = par_secteur_provenance.get(cle, 0) + 1
+
+    # Sous-étape 1.4, point 2 : type de flux (douleur/offre — dérivé de
+    # `etiquette`, seul endroit où cette distinction est réellement stockée,
+    # voir app/storage/schema.py::sources ; un flux `offre` ne produisant
+    # jamais de signal, ce classement reste par construction 100 % `douleur`
+    # tant qu'aucune fuite n'existe ailleurs dans le pipeline — utile comme
+    # garde-fou de cohérence, pas seulement comme mesure), par flux nommé, et
+    # les 10 expressions du lexique de douleur les plus productives.
+    par_type_flux: dict[str, int] = {}
+    par_flux: dict[str, int] = {}
+    par_expression: dict[str, int] = {}
+    for flux_origine, requete_origine, etiquette in lignes_origine:
+        type_flux = "offre" if etiquette == "signal_concurrence" else "douleur"
+        par_type_flux[type_flux] = par_type_flux.get(type_flux, 0) + 1
+        cle_flux = flux_origine or "inconnu"
+        par_flux[cle_flux] = par_flux.get(cle_flux, 0) + 1
+        if requete_origine:
+            par_expression[requete_origine] = par_expression.get(requete_origine, 0) + 1
+    top_10_expressions = dict(sorted(par_expression.items(), key=lambda kv: kv[1], reverse=True)[:10])
+
+    par_fournisseur_enquete: dict[str, int] = {}
+    for (flux_origine,) in lignes_preuves_enquete:
+        cle = flux_origine or "inconnu"
+        par_fournisseur_enquete[cle] = par_fournisseur_enquete.get(cle, 0) + 1
+
+    # Sous-étape 3.1 : compteurs journaliers de l'Enquêteur, branchés dans le
+    # pipeline réel depuis la sous-étape 3.4
+    # (app/pipeline/orchestrator.py::_phase_enquete). Dérivés de
+    # `lignes_couts` (déjà interrogé ci-dessus,
+    # role="enqueteur_recherche"/"enqueteur_fetch", coût toujours 0 en V1).
+    quotas_config = cfg.quotas()
+    nb_requetes_recherche = sum(1 for role, *_ in lignes_couts if role == "enqueteur_recherche")
+    nb_fetchs_pages = sum(1 for role, *_ in lignes_couts if role == "enqueteur_fetch")
+
     return {
         "jour": jour.isoformat(),
         "opportunites_reperees": nb_reperees,
@@ -179,12 +310,24 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
             "nb_superieur_80": sum(1 for v in scores_prudents if v > 80),
         },
         "par_secteur": par_secteur,
+        "par_secteur_provenance": par_secteur_provenance,
+        "par_type_flux": par_type_flux,
+        "par_flux": par_flux,
+        "top_10_expressions_lexique": top_10_expressions,
+        "signaux_concurrence_stockes": nb_signaux_concurrence,
+        "enqueteur": {
+            "requetes_recherche_jour": nb_requetes_recherche,
+            "plafond_requetes_recherche_par_jour": quotas_config["max_requetes_recherche_par_jour"],
+            "fetchs_pages_jour": nb_fetchs_pages,
+            "plafond_fetchs_pages_par_jour": quotas_config["max_fetchs_pages_par_jour"],
+        },
         "part_hors_intersectoriel": round(nb_hors_intersectoriel / nb_reperees, 4) if nb_reperees else None,
         "sources_par_dossier": {
             "min": min(nb_sources) if nb_sources else None,
             "mediane": _percentile([float(n) for n in nb_sources], 0.5),
             "max": max(nb_sources) if nb_sources else None,
             "part_une_seule_source": round(sum(1 for n in nb_sources if n == 1) / nb_reperees, 4) if nb_reperees else None,
+            "par_fournisseur": par_fournisseur_enquete,  # sous-étape 3.4 : preuves de l'Enquêteur uniquement
         },
         # Le type d'objection n'existe pas encore dans le modèle de données
         # (Objection = texte + source_ids seulement, voir app/models_schemas.py)
@@ -192,6 +335,12 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
         # brief pour Fable 5 (BRIEF-FABLE5-AMELIORER-RADAR.md).
         "objections_critic_par_type": None,
         "cout_jour_eur": cout_jour,
+        "cout_jour_recalcule_tarifs_courants": {
+            "eur": round(cout_jour_recalcule, 4),
+            "ecart_vs_enregistre_eur": round(cout_jour_recalcule - cout_jour, 4),
+            "evenements_anthropic_couverts": nb_evenements_anthropic_couverts,
+            "evenements_anthropic_sans_tokens": nb_evenements_anthropic_sans_tokens,
+        },
         "cout_moyen_par_dossier_analyse_eur": round(cout_jour / nb_analysees, 4) if nb_analysees else None,
         "cout_par_role_eur": cout_par_role,
         "cout_moyen_par_opportunite_eur": (
@@ -228,6 +377,7 @@ _LIGNES_COMPARAISON: list[tuple[str, "callable"]] = [
     ("Sources / dossier — médiane", lambda m: m["sources_par_dossier"]["mediane"]),
     ("Part à une seule source", lambda m: m["sources_par_dossier"]["part_une_seule_source"]),
     ("Coût du jour (€)", lambda m: m["cout_jour_eur"]),
+    ("Coût du jour, tarifs courants (€)", lambda m: m["cout_jour_recalcule_tarifs_courants"]["eur"]),
     ("Coût moyen / dossier analysé (€)", lambda m: m["cout_moyen_par_dossier_analyse_eur"]),
     ("Coût moyen / opportunité (€)", lambda m: m["cout_moyen_par_opportunite_eur"]),
 ]

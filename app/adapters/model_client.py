@@ -10,7 +10,7 @@ cohérente, pas une facture réelle (voir `rapports/DIAGNOSTIC_BUDGET_2026-09-25
 Aucun `cache_control` n'est envoyé dans les requêtes de ce fichier : le cache
 de prompt Anthropic ne s'active jamais ici (il est strictement opt-in côté
 API), donc `cache_creation_input_tokens`/`cache_read_input_tokens` valent
-toujours 0 et n'ont pas à entrer dans `_estimer_cout_eur`.
+toujours 0 et n'ont pas à entrer dans `estimer_cout_eur`.
 """
 from __future__ import annotations
 
@@ -69,7 +69,11 @@ def _normaliser_sortie_outil(brut: object, schema: type[BaseModel]) -> object:
     return resultat
 
 
-def _estimer_cout_eur(modele: str, tokens_in_est: int, tokens_out_est: int) -> float:
+def estimer_cout_eur(modele: str, tokens_in_est: int, tokens_out_est: int) -> float:
+    """Fonction pure, réutilisée par app.metriques (sous-étape 3.6, préalable)
+    pour recalculer un coût passé aux tarifs COURANTS de la config — les
+    tarifs peuvent changer (voir config/tarifs.yaml) sans que les lignes déjà
+    journalisées dans usage_events soient recalculées rétroactivement."""
     config_tarifs = cfg.tarifs()
     prix = config_tarifs["prix_usd_par_million_tokens"].get(modele, PRIX_PAR_DEFAUT)
     usd = (tokens_in_est / 1_000_000) * prix["input"] + (tokens_out_est / 1_000_000) * prix["output"]
@@ -112,7 +116,7 @@ class ModelClient:
             raise AccesModeleIndisponible("ANTHROPIC_API_KEY absente : appeler le mode démo à la place.")
 
         tokens_in_est = (len(prompt_systeme) + len(prompt_utilisateur)) // 4
-        cout_estime = _estimer_cout_eur(modele, tokens_in_est, max_tokens)
+        cout_estime = estimer_cout_eur(modele, tokens_in_est, max_tokens)
         self.budget.verifier_et_engager(cout_estime, role=role)  # lève BudgetDepasse si insuffisant
 
         client = self._get_client()
@@ -141,7 +145,7 @@ class ModelClient:
 
         tokens_in_reel = getattr(resp.usage, "input_tokens", tokens_in_est)
         tokens_out_reel = getattr(resp.usage, "output_tokens", 0)
-        cout_reel = _estimer_cout_eur(modele, tokens_in_reel, tokens_out_reel)
+        cout_reel = estimer_cout_eur(modele, tokens_in_reel, tokens_out_reel)
         self.budget.enregistrer_reel(
             fournisseur="anthropic", modele_ou_actor=modele, appels=1,
             tokens_in=tokens_in_reel, tokens_out=tokens_out_reel,

@@ -19,11 +19,13 @@ from app.storage.schema import (
     assessments,
     controles,
     decisions,
+    etats_flux_recherche,
     opportunities,
     opportunity_evidence,
     runs,
     scores,
     signals,
+    source_requetes,
     sources,
     tirages_controle_rejetes,
     usage_events,
@@ -114,10 +116,22 @@ def upsert_source(
     extrait: str,
     empreinte: str,
     droits_collecte: str,
+    flux_origine: str | None = None,
+    requete_origine: str | None = None,
+    etiquette: str | None = None,
 ) -> tuple[str, bool]:
     """Idempotence : la même URL canonique + la même empreinte de contenu ne
     créent jamais deux lignes (contrainte unique + relecture ici). Renvoie
-    (id, cree)."""
+    (id, cree). `flux_origine`/`requete_origine`/`etiquette` (sous-étape 1.1)
+    ne sont renseignés qu'à la création — une source déjà vue garde ses
+    valeurs d'origine, jamais réécrites.
+
+    Sous-étape 1.4 : si `requete_origine` est fourni (connecteurs de
+    recherche Reddit/HN), la requête est en plus tracée dans
+    `source_requetes` — que la source soit neuve ou déjà vue. Un même post
+    retrouvé par 3 requêtes différentes ne crée toujours qu'UNE SEULE source
+    (et donc jamais plus d'une opportunité), mais les 3 requêtes qui l'ont
+    retrouvé restent toutes visibles."""
     with engine.begin() as cx:
         existante = cx.execute(
             select(sources.c.id).where(
@@ -126,22 +140,62 @@ def upsert_source(
             )
         ).first()
         if existante:
-            return existante[0], False
-        source_id = _uid()
-        cx.execute(
-            insert(sources).values(
-                id=source_id,
-                url_canonique=url_canonique,
-                domaine=domaine,
-                date_publication=date_publication,
-                date_collecte=_now(),
-                type=type_source,
-                extrait=extrait,
-                empreinte=empreinte,
-                droits_collecte=droits_collecte,
+            source_id, cree = existante[0], False
+        else:
+            source_id = _uid()
+            cx.execute(
+                insert(sources).values(
+                    id=source_id,
+                    url_canonique=url_canonique,
+                    domaine=domaine,
+                    date_publication=date_publication,
+                    date_collecte=_now(),
+                    type=type_source,
+                    extrait=extrait,
+                    empreinte=empreinte,
+                    droits_collecte=droits_collecte,
+                    flux_origine=flux_origine,
+                    requete_origine=requete_origine,
+                    etiquette=etiquette,
+                )
             )
-        )
-        return source_id, True
+            cree = True
+
+        if requete_origine is not None:
+            upsert = sqlite_upsert if engine.dialect.name == "sqlite" else postgres_upsert
+            stmt = upsert(source_requetes).values(
+                id=_uid(), source_id=source_id, flux_origine=flux_origine,
+                requete_origine=requete_origine, date_creation=_now(),
+            )
+            stmt = stmt.on_conflict_do_nothing(index_elements=["source_id", "flux_origine", "requete_origine"])
+            cx.execute(stmt)
+
+        return source_id, cree
+
+
+def requetes_pour_source(engine: Engine, source_id: str) -> list[dict]:
+    """Sous-étape 1.4 : toutes les requêtes de recherche distinctes qui ont
+    retrouvé cette source (voir `upsert_source` ci-dessus). Observabilité et
+    tests — le pipeline lui-même n'en a pas besoin pour fonctionner."""
+    with engine.connect() as cx:
+        rows = cx.execute(
+            select(source_requetes).where(source_requetes.c.source_id == source_id)
+        ).mappings().all()
+        return [dict(r) for r in rows]
+
+
+def lister_signaux_concurrence(engine: Engine) -> list[dict]:
+    """Sous-étape 3.2 : tous les items du magasin de preuves étiquetés
+    `signal_concurrence` (flux `offre`, stockés depuis la sous-étape 1.1,
+    jamais transformés en opportunité — voir
+    `app.pipeline.orchestrator._phase_collecte_et_scout`). Sert de bassin de
+    candidats, gratuit et sans réseau, au fournisseur « magasin interne » de
+    l'Enquêteur (`app.enqueteur.fournisseurs_gratuits.FournisseurMagasinInterne`)."""
+    with engine.connect() as cx:
+        rows = cx.execute(
+            select(sources).where(sources.c.etiquette == "signal_concurrence")
+        ).mappings().all()
+        return [dict(r) for r in rows]
 
 
 # ------------------------------------------------------------- signals ---
@@ -183,7 +237,8 @@ def signal_deja_traite(engine: Engine, source_id: str) -> bool:
 # -------------------------------------------------------- opportunities --
 
 def creer_opportunite(engine: Engine, *, titre: str, acheteur: str, probleme: str, mecanisme_ia: str,
-                       secteur: str, statut: str, cluster_id: str | None) -> str:
+                       secteur: str, statut: str, cluster_id: str | None,
+                       secteur_provenance: str | None = None, secteur_citation: str | None = None) -> str:
     opp_id = _uid()
     with engine.begin() as cx:
         cx.execute(
@@ -194,6 +249,8 @@ def creer_opportunite(engine: Engine, *, titre: str, acheteur: str, probleme: st
                 probleme=probleme,
                 mecanisme_ia=mecanisme_ia,
                 secteur=secteur,
+                secteur_provenance=secteur_provenance,
+                secteur_citation=secteur_citation,
                 statut=statut,
                 cluster_id=cluster_id,
                 date_creation=_now(),
@@ -429,6 +486,22 @@ def nombre_appels_approfondis_jour_utc(engine: Engine, jour: date) -> int:
         ).scalar_one()
 
 
+def nombre_evenements_role_jour_utc(engine: Engine, jour: date, *, role: str) -> int:
+    """Nombre d'évènements `usage_events` d'UN rôle donné pour le jour UTC.
+    Sous-étape 3.1 (AMELIORATIONS.md) : sert les deux compteurs de
+    l'Enquêteur (requêtes de recherche, fetchs de page), indépendants du
+    plafond en euros et du plafond d'appels approfondis (0.7, ci-dessus)."""
+    debut, fin = _bornes_jour_utc(jour)
+    with engine.connect() as cx:
+        return cx.execute(
+            select(func.count()).select_from(usage_events).where(
+                usage_events.c.date_creation >= debut,
+                usage_events.c.date_creation < fin,
+                usage_events.c.role == role,
+            )
+        ).scalar_one()
+
+
 # ------------------------------------------------ tirages de contrôle ----
 
 def opportunites_deja_tirees_controle(engine: Engine) -> set[str]:
@@ -470,3 +543,35 @@ def definir_pause_all(engine: Engine, valeur: bool) -> None:
     stmt = stmt.on_conflict_do_update(index_elements=["cle"], set_={"valeur": valeur, "date_maj": _now()})
     with engine.begin() as cx:
         cx.execute(stmt)
+
+
+# ---------------------------------------- planificateur de recherche -----
+
+def lire_dernieres_visites_recherche(engine: Engine) -> dict[str, datetime]:
+    """Sous-étape 1.2 : mémoire du planificateur (`app/pipeline/planificateur_recherche.py`)
+    — un flux absent de ce dictionnaire n'a jamais été visité.
+
+    SQLite (tests, dev local) ne conserve pas le fuseau horaire d'une
+    `DateTime(timezone=True)` : une valeur relue redevient naïve, alors que
+    tout ce qu'on y écrit ici passe par `_now()` (toujours UTC) — on la
+    force donc explicitement en UTC pour que la comparaison avec `maintenant`
+    (toujours "aware" côté appelant) ne plante jamais. Sans effet sur
+    PostgreSQL (production), qui renvoie déjà une valeur "aware"."""
+    with engine.connect() as cx:
+        rows = cx.execute(select(etats_flux_recherche)).all()
+        return {
+            r.cle: (r.derniere_visite if r.derniere_visite.tzinfo else r.derniere_visite.replace(tzinfo=timezone.utc))
+            for r in rows
+        }
+
+
+def marquer_flux_recherche_visites(engine: Engine, cles: list[str], quand: datetime) -> None:
+    """Idempotent (upsert) : rejouer le même passage ne duplique rien."""
+    if not cles:
+        return
+    upsert = sqlite_upsert if engine.dialect.name == "sqlite" else postgres_upsert
+    with engine.begin() as cx:
+        for cle in cles:
+            stmt = upsert(etats_flux_recherche).values(cle=cle, derniere_visite=quand)
+            stmt = stmt.on_conflict_do_update(index_elements=["cle"], set_={"derniere_visite": quand})
+            cx.execute(stmt)

@@ -1,0 +1,112 @@
+"""Sous-étape 1.2 : parseur du connecteur de recherche Reddit, sur une
+fixture Atom construite à la main (format vérifié manuellement le
+25/09/2026, voir Journal 1.2 — aucun réseau dans ces tests), et réaction à
+un 429 simulé (déjà géré par `get_with_retry`, ici on vérifie juste que
+l'adaptateur ne plante jamais et ne boucle pas)."""
+from __future__ import annotations
+
+from app.adapters import http as http_module
+from app.adapters.reddit_recherche import AdaptateurRechercheReddit
+
+FIXTURE_ATOM = b"""<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">
+<updated>2026-09-25T17:51:40+00:00</updated>
+<title>smallbusiness: search results - manually</title>
+<entry>
+  <author><name>/u/exemple_test</name></author>
+  <content type="html">&lt;div&gt;&lt;p&gt;On fait &#231;a &#224; la main chaque semaine, c'est fatigant.&lt;/p&gt;&lt;/div&gt;</content>
+  <id>t3_exemple1</id>
+  <link href="https://www.reddit.com/r/smallbusiness/comments/exemple1/titre_exemple/" />
+  <updated>2026-09-25T06:25:31+00:00</updated>
+  <published>2026-09-25T06:25:31+00:00</published>
+  <title>Titre exemple un</title>
+</entry>
+<entry>
+  <author><name>/u/exemple_test2</name></author>
+  <content type="html">&lt;div&gt;&lt;p&gt;Deuxi&#232;me entr&#233;e de test.&lt;/p&gt;&lt;/div&gt;</content>
+  <id>t3_exemple2</id>
+  <link href="https://www.reddit.com/r/smallbusiness/comments/exemple2/titre_exemple_deux/" />
+  <updated>2026-09-25T05:00:00+00:00</updated>
+  <published>2026-09-25T05:00:00+00:00</published>
+  <title>Titre exemple deux</title>
+</entry>
+</feed>"""
+
+FIXTURE_ATOM_VIDE = b"""<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">
+<updated>2026-09-25T17:51:40+00:00</updated>
+<title>msp: search results - manually</title>
+</feed>"""
+
+
+class _FauxReponse:
+    def __init__(self, content: bytes):
+        self.content = content
+
+
+def test_url_construite_avec_le_gabarit_et_l_expression_encodee():
+    adaptateur = AdaptateurRechercheReddit("smallbusiness", "cle_test", "how do you handle")
+    assert adaptateur.url == (
+        "https://www.reddit.com/r/smallbusiness/search.rss?q=how%20do%20you%20handle&restrict_sr=on&sort=new"
+    )
+    assert adaptateur.id_source == "reddit_recherche:smallbusiness:cle_test"
+
+
+def test_parse_les_entrees_de_la_fixture(monkeypatch):
+    monkeypatch.setattr(
+        "app.adapters.reddit_recherche.get_with_retry",
+        lambda url: _FauxReponse(FIXTURE_ATOM),
+    )
+    adaptateur = AdaptateurRechercheReddit("smallbusiness", "a_la_main_fr", "à la main")
+
+    signaux = adaptateur.collecter(10)
+
+    assert len(signaux) == 2
+    premier = signaux[0]
+    assert premier.url == "https://www.reddit.com/r/smallbusiness/comments/exemple1/titre_exemple/"
+    assert "Titre exemple un" in premier.texte
+    assert premier.type_flux == "douleur"
+    assert premier.requete_origine == "à la main"
+    assert "smallbusiness" in premier.flux_origine
+    assert premier.date_publication is not None
+
+
+def test_respecte_le_budget_appels(monkeypatch):
+    monkeypatch.setattr(
+        "app.adapters.reddit_recherche.get_with_retry",
+        lambda url: _FauxReponse(FIXTURE_ATOM),
+    )
+    adaptateur = AdaptateurRechercheReddit("smallbusiness", "a_la_main_fr", "à la main")
+
+    signaux = adaptateur.collecter(1)
+
+    assert len(signaux) == 1
+
+
+def test_recherche_sans_resultat_renvoie_une_liste_vide(monkeypatch):
+    monkeypatch.setattr(
+        "app.adapters.reddit_recherche.get_with_retry",
+        lambda url: _FauxReponse(FIXTURE_ATOM_VIDE),
+    )
+    adaptateur = AdaptateurRechercheReddit("msp", "manually_en", "manually")
+
+    assert adaptateur.collecter(10) == []
+
+
+def test_429_persistant_ne_plante_pas_et_renvoie_une_liste_vide(monkeypatch):
+    """`get_with_retry` retente déjà avec backoff sur un 429 (§3 : attente,
+    jamais une boucle infinie — plafonné à `max_retries`) ; ici on vérifie
+    que l'adaptateur, au bout de ce plafond, se contente de renvoyer une
+    liste vide plutôt que de laisser l'exception remonter et interrompre la
+    collecte des autres flux."""
+
+    class Reponse429:
+        status_code = 429
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: Reponse429())
+    monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)  # test rapide, pas de vraie attente
+
+    adaptateur = AdaptateurRechercheReddit("smallbusiness", "manually_en", "manually")
+
+    assert adaptateur.collecter(10) == []

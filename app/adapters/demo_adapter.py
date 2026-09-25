@@ -42,6 +42,8 @@ class AdaptateurDemo:
                 date_publication=maintenant,
                 type_source="demo",
                 droits_collecte="donnée de démonstration fictive, aucune collecte réelle",
+                flux_origine="demo_fixtures",
+                type_flux="douleur",
             )
             for url, _secteur, texte in _SIGNAUX_DEMO[:budget_appels]
         ]

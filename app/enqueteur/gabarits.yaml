@@ -1,0 +1,27 @@
+# Gabarits de requêtes de l'Enquêteur (sous-étape 3.1 d'AMELIORATIONS.md).
+#
+# Requêtes déterministes composées par une fonction PURE
+# (app/enqueteur/gabarits.py::generer_requetes) à partir des champs de
+# l'hypothèse du Scout — jamais par un modèle (§7 du cahier des charges :
+# « Laisser un modèle composer les requêtes de l'Enquêteur : ce serait
+# réintroduire l'invention de faits par une porte dérobée »).
+#
+# Placeholders reconnus :
+# - <douleur>, <acheteur>, <mecanisme> : issus de l'hypothèse du Scout.
+# - <nom_concurrent> : issu de la liste de concurrents passée en argument à
+#   generer_requetes -- depuis la sous-étape 3.4b, identifiés par du code
+#   (app.enqueteur.concurrents.identifier_concurrents), jamais de
+#   l'hypothèse elle-même, jamais par un modèle.
+
+demande:
+  - "<douleur> reddit"
+  - "<douleur> ask hn"
+
+concurrence:
+  - "<douleur> tool"
+  - "<douleur> software"
+  - "<douleur> logiciel"
+
+prix:
+  - "<nom_concurrent> pricing"
+  - "<nom_concurrent> tarifs"
