@@ -20,6 +20,7 @@ from app.storage.schema import (
     controles,
     decisions,
     etats_flux_recherche,
+    journal_http,
     opportunities,
     opportunity_evidence,
     runs,
@@ -543,6 +544,38 @@ def definir_pause_all(engine: Engine, valeur: bool) -> None:
     stmt = stmt.on_conflict_do_update(index_elements=["cle"], set_={"valeur": valeur, "date_maj": _now()})
     with engine.begin() as cx:
         cx.execute(stmt)
+
+
+# ------------------------------------------------------ journal HTTP -----
+
+def enregistrer_appel_http(engine: Engine, *, hote: str, flux_ou_fournisseur: str, code_http: int | None,
+                            erreur: str | None, duree_ms: float) -> str:
+    """Sous-étape 3.7 (AMELIORATIONS.md) : une ligne par appel HTTP réel --
+    voir `app/storage/schema.py::journal_http` pour ce qui est (et n'est
+    jamais) enregistré. Appelée uniquement depuis `app/adapters/http.py`."""
+    j_id = _uid()
+    with engine.begin() as cx:
+        cx.execute(
+            insert(journal_http).values(
+                id=j_id, horodatage=_now(), hote=hote, flux_ou_fournisseur=flux_ou_fournisseur,
+                code_http=code_http, erreur=erreur, duree_ms=duree_ms,
+            )
+        )
+    return j_id
+
+
+def lister_appels_http_jour_utc(engine: Engine, jour: date) -> list[dict]:
+    """Sous-étape 3.7, point 2 : lecture brute pour `app.metriques`, qui
+    agrège par flux/fournisseur (nombre d'appels, 429/403/autres erreurs,
+    taux de succès)."""
+    debut, fin = _bornes_jour_utc(jour)
+    with engine.connect() as cx:
+        rows = cx.execute(
+            select(journal_http.c.flux_ou_fournisseur, journal_http.c.code_http, journal_http.c.erreur).where(
+                journal_http.c.horodatage >= debut, journal_http.c.horodatage < fin
+            )
+        ).all()
+        return [{"flux_ou_fournisseur": f, "code_http": c, "erreur": e} for f, c, e in rows]
 
 
 # ---------------------------------------- planificateur de recherche -----

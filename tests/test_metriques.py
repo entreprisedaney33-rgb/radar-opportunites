@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import insert
 
 from app.metriques import calculer_metriques, formater_comparaison, main
-from app.storage.schema import opportunities, opportunity_evidence, scores, sources, usage_events
+from app.storage.schema import journal_http, opportunities, opportunity_evidence, scores, sources, usage_events
 
 JOUR = date(2026, 1, 15)
 JOUR_AUTRE = date(2026, 1, 16)
@@ -55,6 +55,14 @@ def _cout(engine, id_, montant, jour, *, role=None, opportunity_id=None):
             id=id_, run_id="run-test", fournisseur="anthropic", modele_ou_actor="test",
             appels=1, tokens_in=100, tokens_out=50, cout_declare_ou_estime=montant, devise="EUR",
             date_creation=_dt(jour), role=role, opportunity_id=opportunity_id,
+        ))
+
+
+def _appel_http(engine, id_, *, flux_ou_fournisseur, code_http=None, erreur=None, jour=JOUR, duree_ms=42.0):
+    with engine.begin() as cx:
+        cx.execute(insert(journal_http).values(
+            id=id_, horodatage=_dt(jour), hote="exemple.invalid", flux_ou_fournisseur=flux_ou_fournisseur,
+            code_http=code_http, erreur=erreur, duree_ms=duree_ms,
         ))
 
 
@@ -318,6 +326,35 @@ def test_metriques_compteurs_enqueteur_a_zero_sans_evenement(engine_test):
     assert m["enqueteur"]["fetchs_pages_jour"] == 0
     assert m["enqueteur"]["plafond_requetes_recherche_par_jour"] == quotas["max_requetes_recherche_par_jour"]
     assert m["enqueteur"]["plafond_fetchs_pages_par_jour"] == quotas["max_fetchs_pages_par_jour"]
+
+
+def test_appels_http_par_flux_compte_429_403_autres_erreurs_et_succes(engine_test):
+    """Sous-étape 3.7, point 2 : par flux/fournisseur, le jour -- nombre
+    d'appels, 429, 403, autres erreurs, taux de succès."""
+    _construire_jeu_de_test(engine_test)
+    _appel_http(engine_test, "h1", flux_ou_fournisseur="rss:product_hunt", code_http=200)
+    _appel_http(engine_test, "h2", flux_ou_fournisseur="rss:product_hunt", code_http=200)
+    _appel_http(engine_test, "h3", flux_ou_fournisseur="rss:product_hunt", code_http=429)
+    _appel_http(engine_test, "h4", flux_ou_fournisseur="rss:product_hunt", code_http=403)
+    _appel_http(engine_test, "h5", flux_ou_fournisseur="rss:product_hunt", erreur="timeout")
+    _appel_http(engine_test, "h6", flux_ou_fournisseur="reddit_recherche:smallbusiness:manually_en", code_http=200)
+    # Un autre jour -- ne doit jamais compter dans les métriques du JOUR.
+    _appel_http(engine_test, "h7", flux_ou_fournisseur="rss:product_hunt", code_http=200, jour=JOUR_AUTRE)
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    assert m["appels_http_par_flux"]["rss:product_hunt"] == {
+        "appels": 5, "http_429": 1, "http_403": 1, "autres_erreurs": 1, "succes": 2, "taux_succes": 0.4,
+    }
+    assert m["appels_http_par_flux"]["reddit_recherche:smallbusiness:manually_en"] == {
+        "appels": 1, "http_429": 0, "http_403": 0, "autres_erreurs": 0, "succes": 1, "taux_succes": 1.0,
+    }
+
+
+def test_appels_http_par_flux_vide_sans_appel_journalise(engine_test):
+    _construire_jeu_de_test(engine_test)
+    m = calculer_metriques(engine_test, JOUR)
+    assert m["appels_http_par_flux"] == {}
 
 
 def test_metriques_repartition_par_flux_et_expression(engine_test):

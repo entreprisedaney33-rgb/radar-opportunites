@@ -32,7 +32,10 @@ _SIGNAUX_DEMO = [
 class AdaptateurDemo:
     id_source = "demo_fixtures"
 
-    def collecter(self, budget_appels: int) -> list[SignalBrut]:
+    def collecter(self, budget_appels: int, *, engine=None) -> list[SignalBrut]:
+        """`engine` (sous-étape 3.7 d'AMELIORATIONS.md) : accepté pour la même
+        signature que les autres adaptateurs (`app.pipeline.orchestrator._collecter`
+        le passe uniformément) -- inutilisé ici, aucun appel réseau."""
         maintenant = datetime.now(timezone.utc)
         return [
             SignalBrut(

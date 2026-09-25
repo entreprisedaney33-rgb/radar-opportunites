@@ -91,6 +91,35 @@ def test_recherche_sans_resultat_renvoie_une_liste_vide(monkeypatch):
     assert adaptateur.collecter(10) == []
 
 
+def test_collecter_avec_engine_journalise_l_appel(monkeypatch, engine_test):
+    """Sous-étape 3.7, point 1 : passé un `engine` (comme le fait
+    `app.pipeline.orchestrator._collecter` en conditions réelles),
+    `collecter` journalise l'appel dans `journal_http` avec `id_source`
+    comme libellé de flux -- sans `engine` (tous les autres tests de ce
+    fichier), rien n'est journalisé (comportement inchangé)."""
+    from datetime import datetime, timezone
+
+    from app.storage import repo
+
+    class _FauxReponseHTTPComplete:
+        status_code = 200
+        content = FIXTURE_ATOM_VIDE
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: _FauxReponseHTTPComplete())
+    adaptateur = AdaptateurRechercheReddit("smallbusiness", "manually_en", "manually")
+
+    adaptateur.collecter(10, engine=engine_test)
+
+    jour = datetime.now(timezone.utc).date()
+    lignes = repo.lister_appels_http_jour_utc(engine_test, jour)
+    assert lignes == [{
+        "flux_ou_fournisseur": "reddit_recherche:smallbusiness:manually_en", "code_http": 200, "erreur": None,
+    }]
+
+
 def test_429_persistant_ne_plante_pas_et_renvoie_une_liste_vide(monkeypatch):
     """`get_with_retry` retente déjà avec backoff sur un 429 (§3 : attente,
     jamais une boucle infinie — plafonné à `max_retries`) ; ici on vérifie

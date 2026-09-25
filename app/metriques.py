@@ -44,7 +44,7 @@ from sqlalchemy.engine import Engine
 from app import config as cfg
 from app.adapters.model_client import estimer_cout_eur
 from app.enqueteur.fetch import ETIQUETTE_PREUVE_ENQUETE, ETIQUETTE_PREUVE_PRIX
-from app.storage.schema import opportunities, opportunity_evidence, scores, sources, usage_events
+from app.storage.schema import journal_http, opportunities, opportunity_evidence, scores, sources, usage_events
 
 RACINE = Path(__file__).resolve().parent.parent
 DOSSIER_RAPPORTS = RACINE / "rapports" / "metriques"
@@ -165,6 +165,17 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
                     opportunity_evidence.c.claim.like("Scout: %"),
                 )
             ).all()
+
+        # Sous-étape 3.7, point 2 : appels HTTP réels du jour (collecte RSS,
+        # recherche Reddit/HN, recherche et fetch de page de l'Enquêteur),
+        # journalisés par `app/adapters/http.py` dans `journal_http`
+        # (jamais le contenu de la page ni l'URL complète) -- agrégés plus
+        # bas par flux/fournisseur.
+        lignes_http = cx.execute(
+            select(journal_http.c.flux_ou_fournisseur, journal_http.c.code_http, journal_http.c.erreur).where(
+                journal_http.c.horodatage >= debut, journal_http.c.horodatage < fin
+            )
+        ).all()
 
         nb_signaux_concurrence = cx.execute(
             select(func.count()).select_from(sources).where(
@@ -295,6 +306,30 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
     nb_requetes_recherche = sum(1 for role, *_ in lignes_couts if role == "enqueteur_recherche")
     nb_fetchs_pages = sum(1 for role, *_ in lignes_couts if role == "enqueteur_fetch")
 
+    # Sous-étape 3.7, point 2 : par flux/fournisseur -- nombre d'appels, 429,
+    # 403, autres erreurs, taux de succès (code HTTP 2xx/3xx, sans erreur).
+    # Un flux/fournisseur absent de `journal_http` ce jour-là (aucun appel
+    # journalisé) n'apparaît simplement pas dans ce dict, plutôt qu'à 0
+    # partout -- distinction utile : "jamais appelé" n'est pas "toujours en
+    # échec".
+    appels_http_par_flux: dict[str, dict] = {}
+    for flux, code, erreur in lignes_http:
+        cle = flux or "inconnu"
+        stats = appels_http_par_flux.setdefault(
+            cle, {"appels": 0, "http_429": 0, "http_403": 0, "autres_erreurs": 0, "succes": 0}
+        )
+        stats["appels"] += 1
+        if erreur is None and code is not None and 200 <= code < 400:
+            stats["succes"] += 1
+        elif code == 429:
+            stats["http_429"] += 1
+        elif code == 403:
+            stats["http_403"] += 1
+        else:
+            stats["autres_erreurs"] += 1
+    for stats in appels_http_par_flux.values():
+        stats["taux_succes"] = round(stats["succes"] / stats["appels"], 4)
+
     return {
         "jour": jour.isoformat(),
         "opportunites_reperees": nb_reperees,
@@ -321,6 +356,7 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
             "fetchs_pages_jour": nb_fetchs_pages,
             "plafond_fetchs_pages_par_jour": quotas_config["max_fetchs_pages_par_jour"],
         },
+        "appels_http_par_flux": appels_http_par_flux,
         "part_hors_intersectoriel": round(nb_hors_intersectoriel / nb_reperees, 4) if nb_reperees else None,
         "sources_par_dossier": {
             "min": min(nb_sources) if nb_sources else None,

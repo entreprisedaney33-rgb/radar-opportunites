@@ -46,9 +46,12 @@ class AdaptateurRechercheHN:
         self.id_source = f"hn_recherche:{tag}:{expression_cle}"
         self.url = GABARIT_URL.format(q=quote(expression_texte), tag=tag)
 
-    def collecter(self, budget_appels: int) -> list[SignalBrut]:
+    def collecter(self, budget_appels: int, *, engine=None) -> list[SignalBrut]:
+        """`engine` (sous-étape 3.7 d'AMELIORATIONS.md) : voir
+        `app.adapters.rss_adapter.AdaptateurRSS.collecter`."""
+        journal = {"engine": engine, "contexte": self.id_source} if engine is not None else {}
         try:
-            resp = get_with_retry(self.url)
+            resp = get_with_retry(self.url, **journal)
         except ErreurCollecte as exc:
             # Même politique que AdaptateurRechercheReddit : une combinaison
             # indisponible n'arrête jamais la collecte des autres flux — voir

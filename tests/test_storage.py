@@ -192,3 +192,31 @@ def test_tirage_controle_une_seule_fois_par_opportunite(engine_test):
             engine_test, opportunity_id=opp_id, run_id=run_id,
             decision_avant="rejete", decision_apres="rejete",
         )
+
+
+def test_enregistrer_appel_http_et_relecture_du_jour(engine_test):
+    """Sous-étape 3.7 : écriture puis relecture par jour UTC (clé lue par
+    `app.metriques`, même mécanique que `cout_total_jour_utc` ci-dessus).
+    Aucun contenu de page ni URL complète n'est un champ de cette table
+    (voir `app/storage/schema.py::journal_http`) -- seulement l'hôte et un
+    libellé de flux/fournisseur."""
+    jour = datetime.now(timezone.utc).date()
+    repo.enregistrer_appel_http(
+        engine_test, hote="www.reddit.com", flux_ou_fournisseur="reddit_recherche:smallbusiness:manually_en",
+        code_http=200, erreur=None, duree_ms=123.4,
+    )
+    repo.enregistrer_appel_http(
+        engine_test, hote="hn.algolia.com", flux_ou_fournisseur="hn_recherche:comment:manually_en",
+        code_http=None, erreur="timeout", duree_ms=9999.0,
+    )
+
+    lignes = repo.lister_appels_http_jour_utc(engine_test, jour)
+    assert len(lignes) == 2
+    assert {l["flux_ou_fournisseur"] for l in lignes} == {
+        "reddit_recherche:smallbusiness:manually_en", "hn_recherche:comment:manually_en",
+    }
+    ligne_timeout = next(l for l in lignes if l["flux_ou_fournisseur"] == "hn_recherche:comment:manually_en")
+    assert ligne_timeout["code_http"] is None
+    assert ligne_timeout["erreur"] == "timeout"
+
+    assert repo.lister_appels_http_jour_utc(engine_test, date(1999, 1, 1)) == []

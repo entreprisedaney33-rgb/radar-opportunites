@@ -22,9 +22,14 @@ class AdaptateurRSS:
         self.nom = nom
         self.url = url
 
-    def collecter(self, budget_appels: int) -> list[SignalBrut]:
+    def collecter(self, budget_appels: int, *, engine=None) -> list[SignalBrut]:
+        """`engine` (sous-étape 3.7 d'AMELIORATIONS.md) : optionnel, `None`
+        par défaut -- fourni par le pipeline réel (`app.pipeline.orchestrator._collecter`)
+        pour journaliser l'appel dans `journal_http`, jamais par un appel
+        direct dans un test unitaire."""
+        journal = {"engine": engine, "contexte": self.id_source} if engine is not None else {}
         try:
-            resp = get_with_retry(self.url)
+            resp = get_with_retry(self.url, **journal)
         except ErreurCollecte as exc:
             logger.warning("Source %s indisponible : %s", self.id_source, exc)
             return []

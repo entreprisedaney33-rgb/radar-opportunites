@@ -113,7 +113,7 @@ def test_signal_offre_va_au_magasin_de_preuves_jamais_en_opportunite(engine_test
     class FauxAdaptateurOffre:
         id_source = "faux_offre"
 
-        def collecter(self, budget_appels):
+        def collecter(self, budget_appels, **_kw):
             return [SignalBrut(
                 url="https://exemple.invalid/offre/1", domaine="faux",
                 texte="Un concurrent lance un nouvel outil de facturation.",
@@ -158,7 +158,7 @@ def test_signal_douleur_porte_son_flux_origine(engine_test, monkeypatch):
     class FauxAdaptateurDouleur:
         id_source = "faux_douleur"
 
-        def collecter(self, budget_appels):
+        def collecter(self, budget_appels, **_kw):
             return [SignalBrut(
                 url="https://exemple.invalid/douleur/1", domaine="faux",
                 texte="Je passe 6h par semaine à rapprocher des factures à la main.",
@@ -202,7 +202,7 @@ def test_quota_offre_independant_n_affame_jamais_le_quota_douleur(engine_test, m
     class FauxAdaptateurOffre:
         id_source = "faux_offre"
 
-        def collecter(self, budget_appels):
+        def collecter(self, budget_appels, **_kw):
             return [
                 SignalBrut(
                     url=f"https://exemple.invalid/offre/{i}", domaine="faux",
@@ -215,7 +215,7 @@ def test_quota_offre_independant_n_affame_jamais_le_quota_douleur(engine_test, m
     class FauxAdaptateurDouleur:
         id_source = "faux_douleur"
 
-        def collecter(self, budget_appels):
+        def collecter(self, budget_appels, **_kw):
             return [
                 SignalBrut(
                     url=f"https://exemple.invalid/douleur/{i}", domaine="faux",
@@ -345,7 +345,7 @@ def test_resultat_hn_devient_un_signal_dans_le_pipeline(engine_test, monkeypatch
                 "nbHits": 1,
             }
 
-    monkeypatch.setattr(hn_recherche, "get_with_retry", lambda url: FauxReponseHN())
+    monkeypatch.setattr(hn_recherche, "get_with_retry", lambda url, **kw: FauxReponseHN())
     connecteur_hn_reel = hn_recherche.AdaptateurRechercheHN("ask_hn", "manually_en", "manually")
     monkeypatch.setattr(
         orch, "_construire_adaptateurs",
@@ -439,6 +439,50 @@ def test_executer_continu_ne_recree_pas_de_run_si_budget_du_jour_deja_atteint(en
 
         lignes = cx.execute(select(runs.c.id)).all()
     assert [r[0] for r in lignes] == [run_deja_clos]
+
+
+def test_executer_continu_cloture_le_run_encore_en_cours_si_budget_deja_atteint(engine_test, monkeypatch):
+    """Sous-étape 3.7, point 3 : si le run du jour est encore `en_cours` (le
+    worker a été redémarré sans que ce run n'ait été clôturé proprement) ET
+    que le budget du jour est déjà atteint, ce chemin marque désormais ce run
+    `termine` (`resume_json.budget_atteint = True`) au lieu de le laisser
+    `en_cours` pendant toute l'attente de minuit UTC -- bug réel observé le
+    25/09/2026 (voir §9 d'AMELIORATIONS.md, sous-étape 7.1)."""
+    from app.pipeline import orchestrator as orch
+    from app import config as cfg
+
+    quotas = cfg.quotas()
+    run_en_cours = repo.creer_run(engine_test, mode="reel", version_code="t", version_config="t", quotas={})
+    repo.inserer_usage_event(
+        engine_test, run_id=run_en_cours, fournisseur="anthropic", modele_ou_actor="m", appels=1,
+        tokens_in=1, tokens_out=1, cout=quotas["budget_eur_par_jour"], role="analyst",
+    )
+    # `run_en_cours` reste "en_cours" -- jamais clôturé, simulant un
+    # redémarrage du worker en plein passage.
+
+    class ArretTest(Exception):
+        pass
+
+    def faux_sleep(_secondes):
+        raise ArretTest()
+
+    monkeypatch.setattr(orch.time, "sleep", faux_sleep)
+
+    with pytest.raises(ArretTest):
+        orch.executer_continu(engine_test, forcer_demo=True)
+
+    run_relu = repo.get_run(engine_test, run_en_cours)
+    assert run_relu["statut"] == "termine"
+    assert run_relu["resume_json"]["budget_atteint"] is True
+
+    # Aucun nouveau run créé : un seul existe toujours en base.
+    with engine_test.connect() as cx:
+        from sqlalchemy import select
+
+        from app.storage.schema import runs
+
+        lignes = cx.execute(select(runs.c.id)).all()
+    assert [r[0] for r in lignes] == [run_en_cours]
 
 
 def test_executer_continu_ne_laisse_rien_en_plan_et_boucle(engine_test, monkeypatch):

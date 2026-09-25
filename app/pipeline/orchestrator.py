@@ -221,6 +221,7 @@ def _construire_adaptateurs(
 
 
 def _collecter(
+    engine: Engine,
     adaptateurs: list[tuple[object, int, SourceConfig | None]],
     max_signaux_douleur: int,
     max_signaux_offre: int,
@@ -234,7 +235,11 @@ def _collecter(
     compteur ; un flux dont le quota de son type est déjà plein est ignoré
     pour la suite du passage, mais les flux de l'AUTRE type continuent
     d'être collectés normalement (la boucle ne s'arrête jamais entièrement
-    tant qu'il reste de la place pour au moins un des deux types)."""
+    tant qu'il reste de la place pour au moins un des deux types).
+
+    `engine` (sous-étape 3.7) : transmis à chaque adaptateur pour qu'il
+    journalise ses appels HTTP dans `journal_http`
+    (`app/adapters/http.py`/`app/storage/repo.py::enregistrer_appel_http`)."""
     bruts_douleur: list[SignalBrut] = []
     bruts_offre: list[SignalBrut] = []
     for adaptateur, budget_source, config_source in adaptateurs:
@@ -245,7 +250,7 @@ def _collecter(
         if restant <= 0:
             continue
         try:
-            nouveaux = adaptateur.collecter(min(budget_source, restant))
+            nouveaux = adaptateur.collecter(min(budget_source, restant), engine=engine)
         except Exception as exc:  # une source en panne n'arrête pas la collecte des autres
             logger.warning("Source %s indisponible: %s", getattr(adaptateur, "id_source", adaptateur), exc)
             resume.sources_indisponibles.append(str(getattr(adaptateur, "id_source", adaptateur)))
@@ -314,7 +319,7 @@ def _phase_collecte_et_scout(
     )
     max_signaux_offre = quotas["max_signaux_offre_par_passage"]
     adaptateurs = _construire_adaptateurs(engine, options.forcer_demo, quotas)
-    bruts = _collecter(adaptateurs, max_signaux_douleur, max_signaux_offre, resume)
+    bruts = _collecter(engine, adaptateurs, max_signaux_douleur, max_signaux_offre, resume)
 
     opportunites_du_passage: list[dict] = []  # dédup en continu à l'intérieur de CE passage
 
@@ -669,6 +674,25 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
             # précédent étant `termine`) repartirait avec un compteur à zéro
             # alors que la dépense du jour est déjà au plafond (voir
             # rapports/DIAGNOSTIC_BUDGET_2026-09-25.md).
+            #
+            # Sous-étape 3.7, point 3 : si un run du jour est encore
+            # `en_cours` (le worker a été redémarré sans que ce run n'ait été
+            # clôturé), ce chemin le marque désormais `termine`
+            # (`resume_json.budget_atteint = True`) au lieu de le laisser
+            # `en_cours` pendant toute l'attente de minuit UTC -- avant cette
+            # correction, seul le chemin symétrique plus bas (budget atteint
+            # EN COURS d'un passage) clôturait le run ; celui-ci, lui, ne
+            # touchait jamais son statut. Bug réel observé le 25/09/2026 (run
+            # resté `en_cours`, coût du jour à 35,37 € au-dessus du plafond,
+            # voir §9 d'AMELIORATIONS.md, sous-étape 7.1).
+            run_existant = repo.run_en_cours_le_plus_recent(engine)
+            if run_existant:
+                repo.terminer_run(
+                    engine, run_existant["id"], statut="termine",
+                    couts=run_existant.get("couts_json") or {},
+                    erreurs=run_existant.get("erreurs_json") or [],
+                    resume={**(run_existant.get("resume_json") or {}), "budget_atteint": True},
+                )
             logger.info(
                 "Budget du jour atteint : %.2f € / %.2f €, reprise à minuit UTC.",
                 depense_jour, plafond_jour,

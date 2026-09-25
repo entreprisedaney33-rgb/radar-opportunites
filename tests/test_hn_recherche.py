@@ -158,6 +158,36 @@ def test_reponse_non_json_ne_plante_pas(monkeypatch):
     assert adaptateur.collecter(10) == []
 
 
+def test_collecter_avec_engine_journalise_l_appel(monkeypatch, engine_test):
+    """Sous-étape 3.7, point 1 : passé un `engine` (comme le fait
+    `app.pipeline.orchestrator._collecter` en conditions réelles),
+    `collecter` journalise CHAQUE appel de recherche (un par tag valide,
+    `comment` puis `ask_hn` -- voir `AdaptateurRechercheHN`, un seul flux
+    logique par instance) dans `journal_http`, avec `id_source` comme
+    libellé."""
+    from datetime import datetime, timezone
+
+    from app.storage import repo
+
+    class _FauxReponseComplete:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return FIXTURE_VIDE
+
+    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: _FauxReponseComplete())
+    adaptateur = AdaptateurRechercheHN("comment", "manually_en", "manually")
+
+    adaptateur.collecter(10, engine=engine_test)
+
+    jour = datetime.now(timezone.utc).date()
+    lignes = repo.lister_appels_http_jour_utc(engine_test, jour)
+    assert lignes == [{"flux_ou_fournisseur": "hn_recherche:comment:manually_en", "code_http": 200, "erreur": None}]
+
+
 def test_429_persistant_ne_plante_pas_et_renvoie_une_liste_vide(monkeypatch):
     """`get_with_retry` retente déjà avec backoff sur un 429 (§3 : attente,
     jamais une boucle infinie — plafonné à `max_retries`) ; ici on vérifie

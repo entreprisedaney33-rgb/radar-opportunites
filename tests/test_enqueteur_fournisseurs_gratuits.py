@@ -186,6 +186,34 @@ def test_algolia_hn_429_persistant_sur_un_tag_n_empeche_pas_l_autre(monkeypatch)
     assert len(resultats) == 1
 
 
+def test_algolia_hn_avec_engine_journalise_chaque_tag(monkeypatch, engine_test):
+    """Sous-étape 3.7, point 1 : `FournisseurAlgoliaHN(engine)` (comme le
+    construit `construire_registre_fournisseurs_gratuits` en conditions
+    réelles) journalise CHAQUE appel (un par tag) dans `journal_http`, avec
+    un libellé distinct par tag -- sans `engine` (tous les autres tests de
+    cette section), rien n'est journalisé."""
+
+    class _FauxReponseComplete:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return FIXTURE_HN_VIDE
+
+    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: _FauxReponseComplete())
+
+    FournisseurAlgoliaHN(engine_test).rechercher("réconciliation factures", limite=10)
+
+    jour = datetime.now(timezone.utc).date()
+    lignes = repo.lister_appels_http_jour_utc(engine_test, jour)
+    assert {l["flux_ou_fournisseur"] for l in lignes} == {
+        "enqueteur_recherche:algolia_hn:comment", "enqueteur_recherche:algolia_hn:ask_hn",
+    }
+    assert all(l["code_http"] == 200 and l["erreur"] is None for l in lignes)
+
+
 # ------------------------------------------------------------------ Reddit
 
 FIXTURE_REDDIT_ATOM = b"""<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">
@@ -267,6 +295,25 @@ def test_reddit_429_persistant_ne_plante_pas(monkeypatch):
     monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)
 
     assert FournisseurReddit().rechercher("x", limite=10) == []
+
+
+def test_reddit_avec_engine_journalise_l_appel(monkeypatch, engine_test):
+    """Sous-étape 3.7, point 1 : voir `test_algolia_hn_avec_engine_journalise_chaque_tag`."""
+
+    class _FauxReponseComplete:
+        status_code = 200
+        content = FIXTURE_REDDIT_ATOM_VIDE
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: _FauxReponseComplete())
+
+    FournisseurReddit(engine_test).rechercher("réconciliation factures", limite=10)
+
+    jour = datetime.now(timezone.utc).date()
+    lignes = repo.lister_appels_http_jour_utc(engine_test, jour)
+    assert lignes == [{"flux_ou_fournisseur": "enqueteur_recherche:reddit", "code_http": 200, "erreur": None}]
 
 
 # ------------------------------------------------------------- Magasin interne

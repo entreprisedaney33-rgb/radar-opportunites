@@ -125,11 +125,19 @@ def extraire_texte_principal(html: str) -> tuple[str, str]:
 
 def recuperer_page(
     resultat: ResultatRecherche, *, timeout: float | None = None, max_octets: int | None = None,
+    engine: Engine | None = None,
 ) -> PageCollectee | None:
     """Une seule page. Ne lève jamais : renvoie `None` pour toute page
     interdite par `robots.txt`, injoignable (timeout, 404, 5xx...), hors
     taille, ou vide après extraction — point 2 du texte de 3.3 (« n'est
-    jamais stockée »), appliqué ici, avant le stockage lui-même."""
+    jamais stockée »), appliqué ici, avant le stockage lui-même.
+
+    `engine` (sous-étape 3.7) : optionnel, `None` par défaut -- fourni par
+    `collecter_preuves` pour journaliser ce fetch dans `journal_http`, avec
+    `resultat.fournisseur` comme libellé (le `robots.txt` lu au-dessus n'est
+    lui jamais journalisé : ce n'est pas "une page" au sens de ce plan, et sa
+    fréquente absence -- 404, permission par défaut -- fausserait le taux de
+    succès mesuré par flux/fournisseur)."""
     quotas = cfg.quotas()
     timeout = timeout if timeout is not None else quotas["enqueteur_fetch_timeout_secondes"]
     max_octets = max_octets if max_octets is not None else quotas["enqueteur_fetch_taille_max_octets"]
@@ -138,8 +146,11 @@ def recuperer_page(
         logger.info("Enquêteur : robots.txt interdit %s, page ignorée.", resultat.url)
         return None
 
+    journal = (
+        {"engine": engine, "contexte": f"enqueteur_fetch:{resultat.fournisseur}"} if engine is not None else {}
+    )
     try:
-        contenu = get_avec_limite_taille(resultat.url, max_octets=max_octets, timeout=timeout)
+        contenu = get_avec_limite_taille(resultat.url, max_octets=max_octets, timeout=timeout, **journal)
     except ErreurCollecte as exc:
         logger.info("Enquêteur : page injoignable ou trop grande (%s) : %s", resultat.url, exc)
         return None
@@ -238,7 +249,7 @@ def collecter_preuves(
                 break
         if i > 0:
             time.sleep(delai_entre_fetchs)
-        page = recuperer_page(resultat)
+        page = recuperer_page(resultat, engine=engine)
         if budget is not None:
             budget.enregistrer_fetch_page(fournisseur=resultat.fournisseur)
         if page is None:

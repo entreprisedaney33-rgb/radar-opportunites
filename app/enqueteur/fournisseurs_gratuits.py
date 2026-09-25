@@ -71,14 +71,26 @@ class FournisseurAlgoliaHN:
     nom = "algolia_hn"
     sans_reseau = False  # vrai appel réseau -- consomme max_requetes_recherche_par_jour
 
+    def __init__(self, engine: Engine | None = None):
+        """`engine` (sous-étape 3.7 d'AMELIORATIONS.md) : optionnel, `None`
+        par défaut (comportement inchangé pour tout appelant existant, y
+        compris les tests unitaires qui construisent ce fournisseur
+        directement) -- fourni par `construire_registre_fournisseurs_gratuits`
+        pour journaliser les appels réels dans `journal_http`."""
+        self.engine = engine
+
     def rechercher(self, requete: str, limite: int) -> list[ResultatRecherche]:
         resultats: list[ResultatRecherche] = []
         for tag in _TAGS_HN:
             if len(resultats) >= limite:
                 break
             url = GABARIT_URL_HN.format(q=quote(requete), tag=tag)
+            journal = (
+                {"engine": self.engine, "contexte": f"enqueteur_recherche:{self.nom}:{tag}"}
+                if self.engine is not None else {}
+            )
             try:
-                resp = get_with_retry(url)
+                resp = get_with_retry(url, **journal)
             except ErreurCollecte as exc:
                 logger.warning("Enquêteur Algolia HN (%s) indisponible pour %r : %s", tag, requete, exc)
                 continue
@@ -132,10 +144,17 @@ class FournisseurReddit:
     nom = "reddit"
     sans_reseau = False  # vrai appel réseau -- consomme max_requetes_recherche_par_jour
 
+    def __init__(self, engine: Engine | None = None):
+        """`engine` (sous-étape 3.7) : voir `FournisseurAlgoliaHN.__init__`."""
+        self.engine = engine
+
     def rechercher(self, requete: str, limite: int) -> list[ResultatRecherche]:
         url = GABARIT_URL_REDDIT_SITEWIDE.format(q=quote(requete))
+        journal = (
+            {"engine": self.engine, "contexte": f"enqueteur_recherche:{self.nom}"} if self.engine is not None else {}
+        )
         try:
-            resp = get_with_retry(url)
+            resp = get_with_retry(url, **journal)
         except ErreurCollecte as exc:
             logger.warning("Enquêteur Reddit indisponible pour %r : %s", requete, exc)
             return []
@@ -222,8 +241,12 @@ def construire_registre_fournisseurs_gratuits(engine: Engine) -> RegistreFournis
     `app.pipeline.orchestrator._phase_enquete` depuis la sous-étape 3.4 (une
     instance par passage, pas un singleton -- même choix que noté en 3.1)."""
     registre = RegistreFournisseurs()
-    registre.enregistrer(DefinitionFournisseur(nom="algolia_hn", fabrique=FournisseurAlgoliaHN, actif_par_defaut=True))
-    registre.enregistrer(DefinitionFournisseur(nom="reddit", fabrique=FournisseurReddit, actif_par_defaut=True))
+    registre.enregistrer(
+        DefinitionFournisseur(nom="algolia_hn", fabrique=lambda: FournisseurAlgoliaHN(engine), actif_par_defaut=True)
+    )
+    registre.enregistrer(
+        DefinitionFournisseur(nom="reddit", fabrique=lambda: FournisseurReddit(engine), actif_par_defaut=True)
+    )
     registre.enregistrer(
         DefinitionFournisseur(
             nom="magasin_interne",

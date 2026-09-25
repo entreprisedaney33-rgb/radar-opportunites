@@ -254,6 +254,54 @@ def test_collecter_preuves_stocke_uniquement_les_pages_valides(engine_test, monk
     assert row["url_canonique"] == "https://a.example/bonne"
 
 
+def test_collecter_preuves_journalise_le_fetch_de_page(engine_test, monkeypatch):
+    """Sous-étape 3.7, point 1 : `collecter_preuves` -> `recuperer_page`
+    transmet bien `engine` au VRAI `get_avec_limite_taille` (celui de
+    `app.adapters.http`, pas un double qui le remplacerait entièrement) --
+    ici seul `requests.get` est simulé, pour vérifier que le fetch de page
+    est journalisé dans `journal_http`, avec le fournisseur d'origine
+    (`resultat.fournisseur`) comme libellé. Le `robots.txt` lu au passage,
+    lui, n'est jamais journalisé (voir la docstring de `recuperer_page`)."""
+    import requests
+
+    from app.adapters import http as http_module
+    from app.storage import repo
+
+    class _FauxRobots:
+        status_code = 404
+        text = ""
+
+        def raise_for_status(self):
+            raise requests.HTTPError("404")
+
+    class _FauxPage:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size):
+            yield b"<html><body><p>Contenu valide et suffisant pour ce test.</p></body></html>"
+
+        def close(self):
+            pass
+
+    def _get(url, **kw):
+        return _FauxRobots() if url.endswith("/robots.txt") else _FauxPage()
+
+    monkeypatch.setattr(http_module.requests, "get", _get)
+    monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)
+    monkeypatch.setattr(fetch_module.time, "sleep", lambda *_a, **_kw: None)
+
+    resultats = [_resultat("https://a.example/bonne", fournisseur="reddit")]
+    ids = collecter_preuves(engine_test, resultats)
+
+    assert len(ids) == 1
+    jour = datetime.now(timezone.utc).date()
+    lignes = repo.lister_appels_http_jour_utc(engine_test, jour)
+    assert lignes == [{"flux_ou_fournisseur": "enqueteur_fetch:reddit", "code_http": 200, "erreur": None}]
+
+
 def test_collecter_preuves_etiquette_prix_transmise_a_chaque_page(engine_test, monkeypatch):
     """Sous-étape 3.4b : `etiquette` (par défaut `ETIQUETTE_PREUVE_ENQUETE`)
     est transmise telle quelle à `stocker_page` pour chaque page de l'appel."""

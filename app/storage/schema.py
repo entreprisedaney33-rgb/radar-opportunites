@@ -211,6 +211,27 @@ etats_flux_recherche = Table(
 # additive nécessaire, `metadata.create_all` la crée directement) : un flux
 # jamais visité est simplement absent de cette table.
 
+journal_http = Table(
+    "journal_http",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("horodatage", DateTime(timezone=True), nullable=False),
+    Column("hote", String, nullable=False),  # ex. "www.reddit.com", "hn.algolia.com", ou le domaine fetché
+    Column("flux_ou_fournisseur", String, nullable=False),  # ex. "reddit_recherche:smallbusiness:manually_en"
+    Column("code_http", Integer, nullable=True),
+    Column("erreur", String, nullable=True),  # "timeout" | "erreur_reseau" — absent si un code HTTP a été reçu
+    Column("duree_ms", Float, nullable=False),
+)
+# Sous-étape 3.7 (AMELIORATIONS.md) : une ligne par appel HTTP réel de la
+# collecte (RSS, recherche Reddit/HN) et de l'Enquêteur (recherche, fetch de
+# page) — écrite depuis `app/adapters/http.py`, le seul point de passage de
+# tous ces appels (garde-fou : aucun appel direct à `requests` ailleurs).
+# Jamais de contenu de page ni d'URL complète (peut porter des paramètres
+# sensibles) : seulement l'hôte et un libellé de flux/fournisseur. Table
+# neuve, pas de migration additive nécessaire (même raisonnement que
+# `etats_flux_recherche`/`tirages_controle_rejetes` ci-dessus). Jamais relue
+# par le pipeline lui-même — uniquement par `app.metriques` (observabilité).
+
 tirages_controle_rejetes = Table(
     "tirages_controle_rejetes",
     metadata,

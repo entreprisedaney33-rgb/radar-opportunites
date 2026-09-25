@@ -89,7 +89,7 @@ Chaque signal passe intégralement par Analyst + Critic. Pour brasser dix fois p
 | 4 | L'entonnoir : volume sans coût | 3 | 3 à 4 | quelques centimes/jour | 48 h après 4.4 |
 | 5 | Étalonner le Critic | 3, 4 | 5 à 6 | centimes par banc | après 5.3, puis 48 h après 5.6 |
 | 6 | Réviser le score si le mur persiste | 7 jours après 5 | 1 à 2 | 0 € | après 6.1 |
-| 7 | Onglet Radar (Jarvis) : nouveaux champs | 5 | 3 | 0 € | après 7.3 |
+| 7 | Onglet Radar (Jarvis) : nouveaux champs | 3 (avancée avant 5, voir note ci-dessous) | 3 | 0 € | après 7.3 |
 
 Les étapes se font dans cet ordre. Une étape n'est pas entamée tant que la précédente n'est pas marquée FAIT dans le Journal global (§8), sauf mention explicite.
 
@@ -104,6 +104,22 @@ de développement (1.1→1.4, puis 2.1→2.2, puis 3.1→3.5, chacune codée,
 testée et commitée séparément comme avant), ni les garde-fous de
 déploiement (§5, §0.2.6) : seul le nombre de synchronisations réelles vers
 GitHub/Render pour ce bloc passe de 3 à 1.
+
+**Décision de Mathéo (2026-09-25, avant 7.1) :** l'étape 7 (onglet Radar
+dans Jarvis) est **avancée avant l'étape 5** (étalonnage du Critic) — le
+tableau ci-dessus disait « dépend de 5 », ce n'est plus le cas : 7 dépend
+maintenant de l'étape 3 (l'Enquêteur, seule chose qu'il fallait avoir en
+base pour afficher des dossiers avec plusieurs sources), pas de l'étalonnage
+du Critic. Raison : Mathéo veut voir le radar tourner (état, entonnoir,
+dossiers) avant de passer du temps à étalonner un Critic sur des dossiers
+qu'il n'a pas encore pu observer lui-même. Ce n'est pas un changement de
+périmètre de 7.1/7.2 (toujours en lecture seule sur ce qui existe déjà en
+base) : les champs qui dépendraient réellement de l'étape 5 (objections
+typées, décision par le code, taux d'accord Critic/code) n'existent pas
+encore et ne sont donc pas dans 7.1 — seuls les champs déjà produits par les
+étapes 1 à 3 (secteur+provenance, sources par étiquette, entonnoir, coûts)
+sont exposés. L'étape 5 reprendra sa place dans l'ordre juste après l'étape
+7 (7.3 déployé), sans qu'aucune sous-étape de 5 n'ait besoin d'être refaite.
 
 ---
 
@@ -1659,7 +1675,216 @@ Tests sans réseau : identification des concurrents sur fixtures, plafond de
 
 Procédure §5, sources gratuites uniquement. 48 h après : médiane et p90 des sources par dossier, ventilation par fournisseur, p90 du score prudent, nombre de dossiers > 60, coût/jour, consommation des plafonds requêtes/fetchs. Mathéo transmet à Fable ; la décision d'activer le moteur payant se prend à ce moment-là, pas avant.
 
-Journal — sous-étape 3.6 : *(à remplir)*
+### Journal — sous-étape 3.6
+- Statut : PARTIEL
+- Date : 2026-09-25
+- Commit(s) : `74ecf25f` `[préalable 3.6] app.metriques recalcule le coût du
+  jour aux tarifs courants` ; `d0fd2ab4` `[3.6] Exclut le magasin interne du
+  compteur de requêtes réseau ; relève les plafonds Enquêteur` ; `4a80de1d`
+  `[3.6] Espacement proactif par hôte, partagé collecte + Enquêteur`. Ce
+  déploiement fusionne 1.6 (étape 1), 2.3 (étape 2) et 3.6 (étape 3) en un
+  seul, décision de Mathéo du 25/09 (§2) — synchronisé depuis `labo-ia` HEAD
+  `4a80de1d` vers le dépôt public `entreprisedaney33-rgb/radar-opportunites`
+  (commit `44705a68f9cc`) le 2026-09-25 à 20:56 UTC, avec l'« OK pour
+  déployer » de Mathéo dans la session. Build Render confirmé terminé par
+  Mathéo le jour même.
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Les étapes 1 (signaux de douleur), 2 (secteur sourcé) et 3 (l'Enquêteur,
+  plusieurs preuves par dossier) sont en ligne en même temps. Trois ajustements
+  faits pendant cette session avant le déploiement : le coût du jour se
+  recalcule maintenant aux tarifs à jour (comparable malgré la correction de
+  0.7), les plafonds de l'Enquêteur ont été relevés et corrigés (magasin
+  interne exclu à tort du compteur réseau, plafonds 600/400 → 1500/1000), et
+  un vrai délai d'attente a été ajouté avant chaque appel à Reddit/Hacker
+  News pour ne jamais les marteler.
+- Fichiers créés / modifiés : voir les 3 commits ci-dessus — en résumé :
+  `app/metriques.py`, `app/adapters/model_client.py` (préalable) ;
+  `app/enqueteur/enqueteur.py`, `app/enqueteur/fournisseurs.py`,
+  `app/enqueteur/fournisseurs_gratuits.py`, `config/quotas.yaml` (point 1-2
+  du périmètre élargi par Mathéo) ; `app/adapters/http.py`,
+  `tests/conftest.py` (point 4) ; tests associés dans chaque commit.
+- Tests : 10 ajoutés au total sur cette sous-étape (3 préalable + 3 points
+  1/2 + 4 point 4, voir le détail dans chaque commit) — suite par défaut :
+  **282 verts / 0 rouge** (272 avant cette sous-étape) — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») :
+  tableau des quotas actifs au moment du déploiement —
+  `budget_eur_par_jour=25,0` ; `max_appels_approfondis_par_jour=1300`
+  (≈19,44 €/jour aux tarifs courants) ; `max_requetes_recherche_par_jour=1500`
+  (relevé de 600, magasin interne désormais exclu du compteur) ;
+  `max_fetchs_pages_par_jour=1000` (relevé de 400) ;
+  `max_resultats_enquete_par_opportunite=8` ; `enqueteur_resultats_par_requete=5` ;
+  `seuil_similarite_magasin_interne=0,15` ; tarifs Sonnet 5 2$/10$, Haiku 4.5
+  1$/5$, taux 0,877 EUR/USD (inchangés depuis 0.7) ; aucun fournisseur payant
+  actif (Brave Search jamais enregistré dans le registre réel). Espacement
+  proactif : 6 s/`www.reddit.com`, 1 s/`hn.algolia.com`, 2 s par défaut.
+  Aucun chiffre de production mesuré depuis ce déploiement (voir écart
+  ci-dessous) — la mesure réelle à 48 h reste à faire.
+- Écart par rapport au plan (et pourquoi) :
+  1. Périmètre élargi trois fois par Mathéo avant l'« OK pour déployer »,
+     chacune documentée dans son propre commit (voir ci-dessus) : (a) le
+     préalable demandé par Mathéo (recalcul du coût aux tarifs courants,
+     hors texte littéral de 3.6) ; (b) exclusion du magasin interne du
+     compteur `max_requetes_recherche_par_jour` + relèvement des deux
+     plafonds Enquêteur (600→1500, 400→1000), suite à un calcul montrant que
+     les anciennes valeurs auraient pu s'épuiser après ~20-25 dossiers/jour ;
+     (c) espacement proactif par hôte dans `app/adapters/http.py`, suite au
+     constat qu'aucun délai proactif n'existait nulle part (ni collecte ni
+     Enquêteur) avant cette session — seulement un backoff réactif sur 429.
+  2. Point 7 de la procédure §5 (« vérifier sur Render que le Background
+     Worker a redémarré, que le premier passage s'est terminé sans erreur,
+     et que la base répond ») : Mathéo a confirmé la fin du build Render
+     dans la session, mais la vérification demandée en parallèle par le
+     texte de cette sous-étape (« lance en local `python -m app.metriques
+     --jour <aujourd'hui>` pour vérifier que la base répond et que les
+     nouvelles colonnes existent ») a échoué — **même panne de connexion
+     directe à la base de production que celle déjà rencontrée en 0.5/0.7**
+     (`psycopg.OperationalError: SSL connection has been closed
+     unexpectedly` vers `dpg-daqro2navr4c739aopt0-a.frankfurt-postgres.render.com`),
+     alors que le push HTTPS vers GitHub, lui, avait fonctionné sans
+     problème. Cause non identifiée (pare-feu réseau propre à cette session,
+     ou panne côté Render — pas distinguable d'ici, comme noté en 0.7). Pas
+     un signal d'échec du déploiement en tant que tel (Render lui-même a
+     confirmé le build), juste une vérification que cette session ne peut
+     pas faire elle-même. Voir §9.
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 — (a) même
+  panne de connexion directe à la base de production que 0.5/0.7, cette fois
+  sur la vérification post-déploiement de 3.6 : si tu veux une confirmation
+  immédiate que les nouvelles colonnes/tables existent bien et que le worker
+  tourne, lance toi-même `python -m app.metriques --jour 2026-09-25` (ou
+  demande-le à une session qui a accès à la base) ; (b) la mesure réelle à
+  48 h (médiane/p90 des sources par dossier, ventilation par fournisseur,
+  p90 du score prudent, dossiers > 60, coût/jour, consommation des plafonds
+  requêtes/fetchs — cf. texte de 3.6 et le point 2 de la demande de Mathéo
+  du 25/09) reste entièrement à faire, dans une session du 2026-09-27 ou
+  plus tard, pour remplir en une fois les Journaux de 1.6, 2.3 ET 3.6 comme
+  prévu par le §5 point 9.
+
+#### Sous-étape 3.7 — Codes HTTP par flux et statut de run
+
+Ajoutée après coup (26/09/2026), après 3.6 : observabilité de la collecte
+(codes HTTP par flux/fournisseur) et correction d'un vrai bug de statut de
+run resté ouvert en §9 depuis la sous-étape 7.1.
+
+1. Chaque appel de collecte (flux RSS, recherche Reddit, recherche HN) et
+   chaque appel de l'Enquêteur (recherche, fetch de page) enregistre dans
+   une table additive `journal_http` : horodatage, hôte, flux ou
+   fournisseur, code HTTP (ou « timeout » / « erreur réseau »), durée. Aucun
+   contenu de page, aucune URL avec paramètres sensibles.
+2. `app.metriques` affiche par jour et par flux/fournisseur : nombre
+   d'appels, nombre de 429, de 403, d'autres erreurs, et le taux de succès.
+   Le workflow `jarvis-radar-recap` pourra lire cette table (à faire côté
+   Jarvis plus tard, pas ici).
+3. Le chemin « budget du jour atteint » de l'orchestrateur (tout en haut de
+   la boucle de `executer_continu`) met à jour `runs.statut` (`termine`, avec
+   `budget_atteint`) au lieu de laisser `en_cours` ; test dédié.
+
+Tests sans réseau. Suite verte, 0 €.
+
+### Journal — sous-étape 3.7
+- Statut : FAIT
+- Date : 2026-09-26
+- Commit(s) : `[3.7] Codes HTTP par flux et statut de run`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Le radar note maintenant, pour chaque appel réseau (RSS, recherche Reddit/
+  HN, recherche et fetch de page de l'Enquêteur), le code de réponse reçu
+  (ou « timeout »/« erreur réseau ») — jamais le contenu de la page — pour
+  qu'`app.metriques` puisse dire quel flux échoue et à quel rythme. Au
+  passage, j'ai corrigé un vrai bug signalé depuis la sous-étape 7.1 : quand
+  le budget du jour est déjà atteint au redémarrage du robot, le run resté
+  ouvert n'était jamais refermé — il l'est désormais.
+- Fichiers créés / modifiés : `app/storage/schema.py` (table `journal_http`,
+  neuve — aucune migration additive nécessaire), `app/storage/repo.py`
+  (`enregistrer_appel_http`, `lister_appels_http_jour_utc`),
+  `app/adapters/http.py` (`get_with_retry`/`get_avec_limite_taille` :
+  `engine`/`contexte` optionnels, journalisation du dernier code HTTP ou du
+  type d'échec, jamais au détriment de l'appel lui-même — une panne de la
+  journalisation est absorbée), `app/adapters/rss_adapter.py`,
+  `app/adapters/reddit_recherche.py`, `app/adapters/hn_recherche.py`,
+  `app/adapters/demo_adapter.py` (signature `collecter(..., engine=None)`
+  uniforme), `app/enqueteur/fournisseurs_gratuits.py` (`FournisseurAlgoliaHN`/
+  `FournisseurReddit` prennent désormais `engine` en constructeur, transmis
+  par `construire_registre_fournisseurs_gratuits`), `app/enqueteur/fetch.py`
+  (`recuperer_page`/`collecter_preuves` transmettent `engine`),
+  `app/pipeline/orchestrator.py` (`_collecter` transmet `engine` à chaque
+  adaptateur ; correction du chemin « budget du jour atteint » de
+  `executer_continu`), `app/metriques.py` (`appels_http_par_flux`), plus les
+  tests listés ci-dessous.
+- Tests : 19 ajoutés (8 dans `tests/test_http.py` — succès journalise le
+  code, sans `engine`/`contexte` rien n'est journalisé, 429 persistant
+  journalise le code 429 (pas une erreur), 404 journalise le code 404 (pas
+  une erreur réseau), timeout journalise « timeout » sans code, une erreur
+  réseau hors timeout journalise « erreur_reseau », une page trop grosse
+  journalise le code reçu avant la coupure, une panne de la journalisation
+  elle-même n'affecte jamais l'appel HTTP ; 1 dans `tests/test_storage.py`
+  — écriture puis relecture par jour UTC ; 2 dans `tests/test_metriques.py`
+  — agrégation 429/403/autres erreurs/taux de succès par flux, et vide sans
+  appel journalisé ; 1 dans `tests/test_pipeline_integration.py` — le run
+  encore `en_cours` est bien clôturé si le budget du jour est déjà atteint
+  au redémarrage ; 1 chacun dans `tests/test_reddit_recherche.py` et
+  `tests/test_hn_recherche.py` — l'adaptateur journalise bien quand un
+  `engine` est fourni ; 2 dans `tests/test_enqueteur_fournisseurs_gratuits.py`
+  — Algolia HN (un par tag) et Reddit journalisent avec `engine` ; 1 dans
+  `tests/test_enqueteur_fetch.py` — `collecter_preuves` journalise le vrai
+  fetch de page (pas un double qui remplacerait `get_avec_limite_taille`
+  entièrement), jamais le `robots.txt` lu au passage ; 2 dans le nouveau
+  `tests/test_rss_adapter.py` — avec et sans `engine`) — suite par défaut :
+  301 verts / 0 rouge (282 avant cette sous-étape) — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : aucun
+  chiffre de production (rien encore déployé — voir la section
+  Déploiement ci-dessous).
+- Écart par rapport au plan (et pourquoi) :
+  1. Le point 1 ne précise pas la granularité d'une « ligne » : retenue UNE
+     ligne par appel logique à `get_with_retry`/`get_avec_limite_taille`
+     (tentatives et backoff internes compris), pas une ligne par tentative
+     HTTP — cohérent avec « chaque appel de collecte » au sens où
+     Mathéo/Fable l'observeraient (un flux RSS interrogé une fois par
+     passage, pas 3 fois parce qu'il a fallu 3 tentatives).
+  2. Le `robots.txt` lu par l'Enquêteur avant chaque fetch de page
+     (`app/enqueteur/fetch.py::_robots_autorise`) n'est délibérément PAS
+     journalisé : ce n'est pas « une page » au sens de ce texte, et son
+     absence très fréquente (convention : pas de `robots.txt` = permission)
+     aurait faussé le taux de succès mesuré par flux/fournisseur sans
+     apporter d'information utile. Documenté dans le code.
+  3. Distinction retenue pour le champ `erreur` (non précisée par le texte) :
+     un code HTTP réellement reçu (429 compris s'il persiste jusqu'à
+     épuisement des tentatives, ou tout code d'erreur comme 404/500 qui
+     déclenche `raise_for_status`) est toujours journalisé comme un CODE,
+     jamais comme une « erreur réseau » — seule l'ABSENCE de toute réponse
+     (timeout, panne de connexion) vaut « timeout »/« erreur_reseau ». Une
+     page coupée pour dépassement de taille (`PageTropGrande`) journalise de
+     la même façon le code réellement reçu avant la coupure (`erreur=None`).
+  4. Pour ne pas obliger tout appelant existant à passer un `engine` (et
+     casser des tests unitaires qui construisent un adaptateur/fournisseur
+     directement, sans base) : `engine`/`contexte` restent optionnels partout
+     (`None` par défaut, comportement inchangé), et chaque appelant ne les
+     transmet à `get_with_retry`/`get_avec_limite_taille` que lorsqu'un
+     `engine` réel lui a été fourni. En pratique, le pipeline réel
+     (`app.pipeline.orchestrator`) fournit toujours un `engine` réel à
+     chaque adaptateur/fournisseur, donc tout appel en production est
+     journalisé ; seuls les tests unitaires qui appellent un adaptateur
+     directement (sans passer par l'orchestrateur) n'écrivent rien — c'est
+     le comportement voulu, pas une lacune.
+  5. Point 3 : le texte ne précise pas où trouver le run « encore en_cours » à
+     ce moment précis de la boucle — retenu `repo.run_en_cours_le_plus_recent`
+     (déjà utilisé juste après pour décider de reprendre ou créer un run),
+     qui renvoie le run `en_cours` le plus récent quelle que soit sa date —
+     cohérent avec le scénario réel qui a motivé ce point (§9, sous-étape
+     7.1 : un run resté `en_cours` d'une journée antérieure au redémarrage).
+  6. `resume_json` du run clôturé par le point 3 : les clés déjà présentes
+     (si `mettre_a_jour_progression` en avait écrit avant l'arrêt du worker)
+     sont conservées telles quelles, seule `budget_atteint` est forcée à
+     `True` — cohérent avec le format déjà utilisé par le chemin symétrique
+     plus bas (`_resume_vers_dict`), sans essayer de reconstruire un
+     `ResumeRun` complet à partir d'un JSON partiel.
+- Question pour Mathéo / Fable (sinon « aucune ») : aucune — résout la
+  question ouverte en §9 (sous-étape 7.1) sur le statut de run non mis à
+  jour, et la limite notée dans la même section sur l'absence de code HTTP
+  persisté (barrées ci-dessous).
+- Déploiement : PAS FAIT dans cette sous-étape — en attente de l'« OK pour
+  déployer » de Mathéo (§5). Migration additive uniquement (table neuve) :
+  redéploiement sans risque, le Background Worker attend déjà minuit UTC
+  (budget du jour très probablement déjà atteint au moment de la lecture de
+  ce Journal) — voir §5 pour la procédure.
 
 ---
 
@@ -1787,26 +2012,266 @@ Journal — sous-étape 6.2 : *(à remplir)*
 ### Étape 7 — Onglet Radar (Jarvis) : afficher ce qui est nouveau
 
 **Objectif.** Que Mathéo voie dans son Jarvis (côté LABO uniquement, jamais MCS) les nouvelles informations : provenance du secteur, nombre de sources, objections typées, preuves manquantes, rendement de l'entonnoir.
-**Pré-requis :** étape 5 en production. Projet Jarvis distinct du radar : respecter son propre `CLAUDE.md` et son protocole de déploiement (non-régression MCS, pixel-identique côté LABO, contrôles de fumée sur les 2 tenants, comme pour les builds 78 à 81).
+**Pré-requis :** étape 3 en production (avancée avant l'étape 5, décision de Mathéo du 25/09 — voir §2). Projet Jarvis distinct du radar : respecter son propre `CLAUDE.md` et son protocole de déploiement (non-régression MCS, pixel-identique côté LABO, contrôles de fumée sur les 2 tenants, comme pour les builds 78 à 81).
 **Coût :** 0 €.
 
 #### Sous-étape 7.1 — Le workflow `jarvis-radar-recap` expose les nouveaux champs
 
 Lecture seule sur la base du radar, comme aujourd'hui. Ajouter : secteur + provenance, nombre de sources, décision (code) + recommandation (Critic), objections, preuves manquantes, indicateurs du jour issus de la même logique que `app.metriques` (ou lecture du JSON exporté). Aucune écriture.
 
-Journal — sous-étape 7.1 : *(à remplir)*
+### Journal — sous-étape 7.1
+- Statut : FAIT
+- Date : 2026-09-25
+- Commit(s) : aucun côté `radar-opportunites` (rien touché dans ce dépôt) —
+  workflow n8n `🎛️ Jarvis Web · Radar (opportunités)` (id `Qm6yJZBqjbHeBR0j`)
+  modifié directement via l'API n8n, sous verrou (`interne/infra/VERROU.md`,
+  posé puis libéré dans la session).
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Le webhook du Radar renvoie maintenant tout ce qu'il faut pour le nouvel
+  onglet : état du robot, 3 jauges (budget/appels/Enquêteur), l'entonnoir du
+  jour, et pour chaque dossier ses preuves rangées par catégorie. En testant
+  en vrai, j'ai trouvé et corrigé un vrai bug de performance (une requête
+  bloquée 4 minutes) avant de te le livrer.
+- Fichiers créés / modifiés : aucun fichier local (le workflow vit dans n8n,
+  pas dans ce dépôt) — la requête SQL et le code JS déployés sont conservés
+  dans le scratchpad de session pour référence, pas commités.
+- Tests : aucun test automatisé (n8n n'a pas de suite de tests comme
+  `radar-opportunites`) — vérifié par appels réels au webhook (`curl`, code
+  d'accès dédié `labo-audit-fumee`, jamais un vrai compte Mathéo/Dorian) à
+  chaque itération, puis par un test visuel complet dans le navigateur
+  (voir Journal 7.2) — dépense : 0 € (lecture seule, aucun appel modèle).
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : mesuré
+  en conditions réelles le 25/09 vers 21h30 UTC — réponse finale à **~2-5
+  secondes** (payload ~1,3 Mo, 150 dossiers sur les 484 du jour, voir écart
+  ci-dessous) contre >4 minutes (bloquée, annulée) à la première tentative.
+- Écart par rapport au plan (et pourquoi) :
+  1. Le texte ne demande pas explicitement une seule requête, mais **une
+     seule requête SQL, un seul nœud Postgres** s'est imposé en cours de
+     route : chaîner plusieurs nœuds Postgres après un nœud qui renvoie
+     plusieurs lignes (ex. un nœud "dossiers du jour" avec 484 lignes) fait
+     exécuter CHAQUE nœud suivant une fois PAR LIGNE reçue en entrée
+     (comportement standard n8n, pas un bug de ce workflow) — trouvé en
+     testant en réel : une requête de comptage par flux, censée tourner une
+     fois, tournait 484 fois et revenait 484 fois identique ; une requête
+     "série 7 jours" bloquait plus de 4 minutes. Corrigé en regroupant les 6
+     requêtes prévues en une seule, avec un seul `json_build_object` en
+     sortie (1 seule ligne, donc 1 seule exécution de tout ce qui suit).
+  2. Liste des dossiers **plafonnée à 150** (triés par score) plutôt que les
+     484 du jour : un jour à fort volume (objectif étape 4 : 500+
+     signaux/jour) produirait un payload de plusieurs Mo (mesuré : 3,8 Mo
+     pour 484 dossiers) — inutile à faire défiler sur un téléphone, coûteux
+     à re-télécharger toutes les 60 s. Le total réel reste visible dans
+     l'entonnoir (`opportunites_reperees`), seule la liste détaillée est
+     coupée. À ajuster si 150 s'avère trop bas ou trop haut à l'usage.
+  3. "Erreurs 429/403 par flux" (demandé dans le texte) : **impossible tel
+     quel** — aucun code HTTP n'est jamais persisté en base côté
+     radar-opportunites (vérifié dans le code : `get_with_retry` journalise
+     un `logger.warning`, jamais une ligne en base). Repli honnête exposé à
+     la place : nombre d'échecs de collecte par flux CE JOUR (`resume_json.
+     sources_indisponibles` du run du jour), toutes causes confondues, pas
+     seulement 429/403. Une vraie ventilation par code demanderait de
+     stocker le code HTTP côté `radar-opportunites` (hors périmètre Jarvis
+     de cette session — à considérer comme un chantier séparé si Mathéo la
+     veut vraiment).
+  4. "Hôte du worker" (`run.statut`) trouvé **non fiable seul** en testant en
+     réel : `app/pipeline/orchestrator.py::executer_continu` a deux chemins
+     qui détectent "budget atteint dans la journée", mais un seul des deux
+     (celui EN COURS d'un passage) marque le run `termine` — l'autre (la
+     vérification tout en haut de la boucle, avant même de recréer/réutiliser
+     le run du jour) laisse le run existant sur son dernier statut connu.
+     Observé en direct : un run resté `en_cours` alors que le coût du jour
+     (35,37 €) dépassait déjà le plafond (25 €) et qu'aucun évènement n'avait
+     été journalisé depuis 4h+ — l'onglet aurait affiché « le radar
+     travaille » alors qu'il attendait minuit UTC. Corrigé côté Jarvis (pas
+     touché côté `radar-opportunites`, hors périmètre) : l'état vérifie
+     D'ABORD si le coût/les appels du jour dépassent leur plafond, quel que
+     soit `run.statut`. Signalé en §9 pour Fable/Mathéo : un vrai correctif
+     côté Python (marquer le run `termine` aussi dans ce chemin-là)
+     simplifierait toute future lecture externe du statut.
+  5. "Décision (code) + recommandation (Critic)" et "preuves manquantes"
+     (demandés dans le texte) : **n'existent pas encore** dans le modèle de
+     données (étape 5, pas encore faite — décision explicite de Mathéo
+     d'avancer 7 avant 5, voir §2). Non exposés, pas inventés. `objections`
+     (déjà réel depuis le Critic actuel) et `prochain test` (déjà réel côté
+     Analyst), eux, sont bien exposés.
+  6. Groupement des preuves par "signal d'origine / enquête / concurrence /
+     prix" (demandé littéralement) : `concurrence` n'est PAS une étiquette
+     stockée en base (seules `NULL`/`preuve_enquete`/`prix` existent,
+     vérifié dans le schéma). Reconstruit de façon déterministe (jamais
+     deviné) à partir des gabarits FIXES de `app/enqueteur/gabarits.yaml` :
+     une preuve `preuve_enquete` dont la requête d'origine se termine par
+     "tool"/"software"/"logiciel" (famille `concurrence`) est rangée à part
+     de celles qui se terminent par "reddit"/"ask hn" (famille `demande`,
+     affichée sous le nom "enquête").
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 — (a) le run
+  peut rester `en_cours` en base alors que le budget du jour est dépassé
+  (écart 4 ci-dessus) ; (b) pas de code HTTP persisté nulle part, donc
+  aucune vraie ventilation 429/403 possible sans un changement côté
+  `radar-opportunites` (écart 3).
 
 #### Sous-étape 7.2 — Interface
 
 Sur les cartes : badge de provenance du secteur, compteur de sources. Dans le détail : objections typées, preuves manquantes, historique décision avant / après ré-enquête. Dans le bandeau d'état : rendement de l'entonnoir du jour (repérés → analysés → éligibles) et coût. Rien ne change pour MCS.
 
-Journal — sous-étape 7.2 : *(à remplir)*
+### Journal — sous-étape 7.2
+- Statut : FAIT
+- Date : 2026-09-25
+- Commit(s) : (à committer dans `labo-ia`, hors dépôt `radar-opportunites`)
+  `produits/jarvis/telecommande-pages/index.html` — refonte complète de
+  l'onglet Radar (LABO uniquement, verrou `verrou-app.py LABO` pris puis
+  libéré dans la session).
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  L'onglet Radar est refait entièrement : un bandeau en haut dit tout de
+  suite ce que fait le robot avec 3 jauges (budget, appels, Enquêteur), puis
+  l'entonnoir du jour, puis les dossiers en cartes avec un badge de secteur
+  (une petite marque ✓ quand c'est une vraie citation vérifiée), filtrables
+  par statut/secteur. Le détail d'un dossier montre les preuves rangées par
+  catégorie, l'objection du Critic, le prochain test à faire. Testé pour de
+  vrai dans un navigateur, avec de vraies données du jour.
+- Fichiers créés / modifiés : `produits/jarvis/telecommande-pages/index.html`
+  (CSS : classes `.radar-*` seulement, aucune variable `:root` touchée ;
+  HTML : markup du panneau `#radarview` refait ; JS : toutes les fonctions
+  `radar*` réécrites pour la nouvelle forme de réponse du webhook).
+- Tests : pas de suite automatisée pour ce fichier (app web statique) —
+  `node --check` sur le script principal (1,18 Mo) et sur le nouveau bloc
+  seul : syntaxe correcte ; brace-balance vérifiée sur le bloc `<style>` ;
+  **test réel dans le navigateur** (serveur statique local, connexion avec
+  le code de test dédié `labo-audit-fumee`, jamais un vrai compte) : bandeau
+  d'état correct (« en pause jusqu'à minuit UTC — budget du jour atteint »,
+  cohérent avec les vraies données), 3 jauges correctes, entonnoir correct
+  (484 → 484 → 0 → 576 → 0), mini-hero correct, filtre par statut testé
+  (« Rejeté » isole bien les bons dossiers), détail d'un dossier testé
+  (hypothèse, preuves groupées « Signal d'origine (1) » / « Enquête (13) »
+  avec liens cliquables, motif, prochain test), tendance 7 jours testée
+  (barres du 19 au 25/09, seul le 25 peuplé — cohérent avec un radar en
+  production continue depuis ce jour-là seulement), rendu vérifié aussi en
+  largeur mobile (375px) — dépense : 0 €.
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : aucun
+  (interface, ne produit pas de données).
+- Écart par rapport au plan (et pourquoi) :
+  1. "Une seule couleur d'accent" : tenue strictement à `var(--blue)`
+     (déjà la couleur de repli du Radar avant cette session) — le seul autre
+     accent visible est `var(--gold-a)` sur la jauge budget/appels/Enquêteur
+     UNIQUEMENT quand elle dépasse 90 % de son plafond (repli déjà utilisé
+     ailleurs dans l'app pour "attention", pas une deuxième couleur
+     d'accent décorative) et sur la petite marque ✓ de citation vérifiée.
+  2. "Infobulle" pour les termes techniques : implémentée en bouton "i"
+     cliquable qui affiche/masque une ligne d'explication juste en dessous,
+     plutôt qu'un `title=` HTML natif — un `title` est invisible au toucher
+     sur mobile (pas de survol de souris), ce qui aurait rendu l'infobulle
+     inutilisable sur le téléphone de Mathéo.
+  3. "Rafraîchissement automatique toutes les 60 s" : implémenté tel quel
+     (`setInterval` 60000 ms, coupé à la fermeture du panneau). Point de
+     vigilance signalé en §9 : le payload mesuré fait ~1,3 Mo — à 60 s
+     d'intervalle en continu, ça représente une vraie consommation de
+     données mobiles si le panneau reste ouvert longtemps sur un réseau
+     cellulaire. Pas changé sans demande explicite (le texte dit "60 s"),
+     mais à surveiller à l'usage.
+  4. Étiquette "concurrence" sur les preuves : voir écart 6 de la sous-étape
+     7.1 (reconstruite côté n8n à partir des gabarits fixes, pas une
+     étiquette stockée) — l'interface affiche simplement ce que le webhook
+     lui donne, aucune logique de classement recréée côté app.
+  5. Export texte : conservé (demande explicite), réécrit pour la nouvelle
+     forme de données et pour respecter les filtres actifs au moment du
+     clic (si un filtre est actif, le rapport exporté ne liste que les
+     dossiers filtrés — pas demandé littéralement mais cohérent avec
+     l'esprit "ce que je vois, je peux l'exporter").
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 — coût de
+  données mobiles du rafraîchissement 60 s/1,3 Mo, à confirmer que ça te va
+  ou à espacer. **Résolu ci-dessous** (demande explicite de Mathéo, même
+  soir) : rafraîchissement découpé en 3 vues séparées.
+
+**Mise à jour (25/09/2026, même soir, sur demande explicite de Mathéo) —
+rafraîchissement découpé en 3 vues, poids mesuré de chaque appel :**
+le webhook `jarvis-radar-recap` accepte désormais un champ `vue` (`etat` |
+`dossiers` | `detail`, `etat` par défaut) au lieu d'une seule grosse réponse.
+Chaîne modifiée : `Controle radar recap` valide aussi `vue` et, pour
+`detail`, un `opportunity_id` au format strict `^[0-9a-f]{32}$` (uuid4().hex,
+`app/storage/repo.py`) — refusé (même chemin que pour un code d'accès
+invalide) si absent ou mal formé, AVANT d'atteindre la requête SQL qui
+l'interpole (aucun caractère hors `[0-9a-f]` ne peut donc jamais l'atteindre
+— testé en réel avec une valeur non-hexadécimale : correctement refusé).
+Deux nœuds `IF` routent ensuite vers 3 requêtes/assembleurs indépendants :
+- **`etat`** (bandeau, 3 jauges, entonnoir, compteurs par flux) — rafraîchie
+  **toutes les 60 s**. Mesuré en réel : **990 octets, 0,40 s.**
+- **`dossiers`** (liste résumée SANS preuves/objections — tous les dossiers
+  d'aujourd'hui + les 30 meilleurs des 7 derniers jours, dédoublonnés par un
+  classement commun) — rafraîchie **toutes les 5 min ou au bouton
+  actualiser**. Mesuré en réel (484 dossiers, tous aujourd'hui le jour du
+  test — aucun historique antérieur) : **~220 Ko, 1,40 s** (contre 1,3 Mo
+  avant ce découpage — préuves/objections/affirmations retirées de cette
+  vue).
+- **`detail`** (preuves groupées, affirmations, objection, prochain test —
+  UN seul dossier) — chargée **uniquement à l'ouverture de sa carte**, mise
+  en cache côté app pour qu'un aller-retour ouvrir/fermer ne réappelle pas le
+  réseau. Mesuré en réel sur un dossier à 14 preuves : **~10 Ko, 0,28 s.**
+- Fichiers/nœuds modifiés : workflow n8n (toujours hors dépôt) — `Controle
+  radar recap` (JS étendu), 2 nouveaux nœuds `IF` (`Vue = detail ?`,
+  `Vue = dossiers ?`), 3 requêtes Postgres + 3 nœuds Code dédiés remplaçant
+  la requête unique de 7.1 ; `produits/jarvis/telecommande-pages/index.html`
+  (JS réécrit : `radarLoadEtat`/`radarLoadDossiers` avec 2 minuteries
+  séparées 60 s/5 min, chargement du détail à la demande avec cache par id,
+  export texte adapté — ne contient plus le détail par dossier, voir écart
+  ci-dessous).
+- Testé en réel dans le navigateur après ce découpage (même protocole que
+  7.2 : code de test dédié, serveur statique local) : bandeau/jauges/
+  entonnoir corrects, liste des dossiers correcte, clic sur une carte affiche
+  bien « Chargement… » puis le détail une fois la vue `detail` reçue,
+  re-clic (fermer/rouvrir) instantané (cache, pas de 2ᵉ appel réseau) —
+  vérifié en lisant le code, pas observable visuellement sans instrumentation
+  réseau supplémentaire.
+- Écart par rapport au plan (et pourquoi) : le rapport texte téléchargeable
+  ne contient plus le détail (preuves/objection/prochain test) de chaque
+  dossier, seulement ce que la carte affiche déjà — aller chercher le détail
+  de CHAQUE dossier filtré au moment du téléchargement romprait le principe
+  même de cette demande (« le détail... à l'ouverture du panneau, pas
+  avant ») en déclenchant potentiellement des dizaines d'appels réseau d'un
+  coup. Signalé plutôt que fait à moitié.
 
 #### Sous-étape 7.3 — Déploiement Jarvis 🚦
 
 Protocole Jarvis complet. Journal : numéro de build, résultats des contrôles.
 
-Journal — sous-étape 7.3 : *(à remplir)*
+### Journal — sous-étape 7.3
+- Statut : FAIT
+- Date : 2026-09-25 (déploiement effectué peu après minuit UTC, donc daté 2026-09-26 côté horloge machine au moment du push)
+- Commit(s) : `labo-ia` — `e1239090` (déploiement build 82, LABO), `be86d104`
+  (`CHANGELOG-DEPLOIEMENTS.md`) ; `jarvis-app` (dépôt public de déploiement,
+  cloné pour l'occasion dans `~/Desktop/clones/jarvis-app`, absent
+  auparavant sur ce poste) — commit `7b6ffb7`, **build 82**.
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Le nouvel onglet Radar est en ligne (build 82) : bandeau d'état, jauges,
+  entonnoir, cartes filtrables, détail par dossier chargé à la demande,
+  rafraîchissement en 3 vitesses. Tous les contrôles de non-régression sont
+  passés au vert (MCS et LABO, aucun des deux tenants touché par erreur).
+- Fichiers créés / modifiés : aucun changement de contenu supplémentaire à
+  cette sous-étape (7.3 est un déploiement, pas du code) — le script
+  `interne/outils/push-jarvis-app-protege.py` a lui-même incrémenté `BUILD`
+  (81→82) dans `produits/jarvis/telecommande-pages/index.html` et
+  `version.json`, et ajouté la ligne de `interne/infra/CHANGELOG-DEPLOIEMENTS.md`.
+- Tests : protocole complet exécuté par `push-jarvis-app-protege.py`
+  (`--tenant LABO`), tous verts : pixel-identique LABO (28 variables `:root`
+  inchangées) ; non-régression backend MCS réelle (232 lignes catalogue,
+  153 007,18 € HT) ; contrôles de fumée automatisés Playwright — 10/10
+  onglets MCS au-dessus de leur seuil + écran LABO (125 éléments dans
+  `#app`, seuil 50), 0 erreur console des deux côtés ; référence de
+  facturation du mois courant MCS (30 contrats, 22 141,75 € HT) ; TVA VMC à
+  10 % par défaut (21 contrats, aucun à 20 % sans correction explicite) ;
+  contrôle aperçu HTML = PDF réel. Aucun `--skip-checks-*` utilisé — dépense :
+  0 € (aucun appel modèle dans ce protocole).
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : build
+  **82**, poussé sur `entreprisedaney33-rgb/jarvis-app` (public).
+- Écart par rapport au plan (et pourquoi) : le clone local de `jarvis-app`
+  (`--repo-dir`, requis par le script) n'existait pas encore sur ce poste —
+  cloné dans `~/Desktop/clones/jarvis-app` (hors du dépôt `labo-ia`, comme
+  prévu par la doc : « chaque produit déployé a son propre petit dépôt
+  externe »), conservé sur le disque pour les prochains déploiements plutôt
+  que supprimé après coup.
+- Question pour Mathéo / Fable (sinon « aucune ») : aucune.
+
+**Étape 7 complète (7.1 → 7.3).** Prochaine étape dans l'ordre du plan
+(§2) : reprendre l'étape 5 (étalonnage du Critic), sauf décision contraire
+de Mathéo.
 
 ---
 
@@ -1900,7 +2365,8 @@ Baseline du 25/09/2026 (à confirmer par 0.3). Les cibles sont des ordres de gra
 | 3.4 | FAIT | 2026-09-25 | `[3.4]` | Enquêteur branché pour de vrai : Scout → Enquêteur → Analyst → Critic ; jamais de dossier bloqué (testé, panne simulée sur 6/6) ; score prudent prouvé supérieur avec plusieurs sources (bout en bout) ; famille `prix` non utilisée (pas de mécanisme d'identification de concurrents écrit dans le texte), voir §9 |
 | 3.4b | FAIT | 2026-09-25 | `[3.4b]` | Identification de concurrents par du code (magasin interne + marqueur d'offre par mot entier, ≤3, dédoublonnés par domaine) ; famille `prix` (pricing+tarifs) + fetch direct `<domaine>/pricing` (robots.txt respecté) ; pages étiquetées `prix`, reçues par l'Analyst comme les autres ; résout la question laissée ouverte en 3.4 |
 | 3.5 | FAIT | 2026-09-25 | `[3.5]` | Fournisseur Brave Search créé et testé, `actif_par_defaut=False`, jamais enregistré dans le registre réel (« ne pas activer » respecté) ; offre Brave vérifiée (palier gratuit illimité retiré en 02/2026, désormais 5$/1000 requêtes + 5$ de crédit mensuel, carte exigée), voir §9 ; contrôle anti-clé du diff ajouté à `deployer_vers_github.sh`, vérifié par un essai réel sur dépôt local jetable |
-| 3.6 🚦 | À FAIRE | | | |
+| 3.6 🚦 | PARTIEL | 2026-09-25 | `74ecf25f` `d0fd2ab4` `4a80de1d` | Déployé (repo public commit `44705a68f9cc`, 20:56 UTC, build Render confirmé par Mathéo) ; vérification locale `app.metriques` bloquée par la même panne de connexion base que 0.5/0.7 ; mesure 48h et Journaux 1.6/2.3 restent à faire, voir §9 |
+| 3.7 | FAIT | 2026-09-26 | `[3.7]` | `journal_http` (table neuve) : code HTTP ou timeout/erreur_reseau par appel de collecte et d'Enquêteur ; `app.metriques` par flux/fournisseur (429/403/autres erreurs/taux de succès) ; corrige le run laissé `en_cours` quand le budget du jour est déjà atteint au redémarrage (résout §9, 7.1) — pas encore déployé, en attente de l'OK de Mathéo |
 | 4.1 | À FAIRE | | | |
 | 4.2 | À FAIRE | | | |
 | 4.3 | À FAIRE | | | |
@@ -1913,9 +2379,9 @@ Baseline du 25/09/2026 (à confirmer par 0.3). Les cibles sont des ordres de gra
 | 5.6 🚦 | À FAIRE | | | |
 | 6.1 🚦 STOP | À FAIRE | | | |
 | 6.2 | À FAIRE | | | |
-| 7.1 | À FAIRE | | | |
-| 7.2 | À FAIRE | | | |
-| 7.3 🚦 | À FAIRE | | | |
+| 7.1 | FAIT | 2026-09-25 | (n8n, hors dépôt) | Workflow `jarvis-radar-recap` étendu puis redécoupé le même soir en 3 vues (`etat`/`dossiers`/`detail`, demande Mathéo) ; vrai bug de perf n8n trouvé et corrigé (chaînage de nœuds Postgres multiplié par le nombre de lignes -> requête bloquée 4 min) ; poids mesuré : etat 990o/0,4s, dossiers ~220Ko/1,4s, detail ~10Ko/0,3s ; étape avancée avant 5 (décision Mathéo, voir §2) |
+| 7.2 | FAIT | 2026-09-25 | `produits/jarvis/telecommande-pages/index.html` | Refonte complète de l'onglet Radar (LABO) : bandeau d'état + 3 jauges, entonnoir visuel, cartes filtrables secteur/statut, détail chargé à la demande (mis en cache), tendance 7j, infobulles tap-to-reveal ; rafraîchissement découpé 60s (léger) / 5min (liste) ; testé en réel dans le navigateur avec le code de test dédié |
+| 7.3 🚦 | FAIT | 2026-09-25 | `e1239090` `be86d104` (labo-ia) / `7b6ffb7` (jarvis-app) | Déployé, **build 82** — protocole complet vert (pixel-identique LABO, non-régression MCS, fumée 10/10 + LABO, TVA VMC, aperçu=PDF) ; étape 7 complète |
 
 Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE existe déjà (une première session a pu être lancée avant l'arrivée de ce fichier), Claude Code vérifie qu'ils couvrent bien la liste de 0.2, complète ce qui manque, marque les sous-étapes en conséquence, et ne refait pas ce qui est fait.
 
@@ -1925,6 +2391,69 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
 
 À remplir par Claude Code, une ligne par question, datée, avec la sous-étape concernée. Mathéo transmet cette section à Fable telle quelle. Une question résolue est barrée, jamais effacée.
 
+- ~~2026-09-25 (sous-étape 7.1) : `app/pipeline/orchestrator.py::executer_continu`
+  a deux chemins qui détectent "budget du jour atteint", mais un seul (celui
+  qui survient EN COURS d'un passage) marque le run `termine` en base ;
+  l'autre (la vérification tout en haut de la boucle `while True`, avant même
+  de recréer/réutiliser le run du jour) laisse le run existant sur son
+  dernier statut connu, potentiellement `en_cours` alors que le worker
+  attend en réalité minuit UTC sans plus rien faire — observé en conditions
+  réelles le 25/09 (run resté `en_cours`, coût du jour à 35,37 € au-dessus du
+  plafond de 25 €, aucun évènement journalisé depuis plus de 4h). Contourné
+  côté Jarvis (l'onglet Radar vérifie directement le coût/les appels du jour
+  en plus du statut du run), mais un vrai correctif serait de marquer aussi
+  ce chemin `termine` dans `app/pipeline/orchestrator.py` — pas fait ici
+  (hors périmètre Jarvis de cette session).~~ **Corrigé en sous-étape 3.7**
+  (2026-09-26, point 3) : ce chemin appelle désormais
+  `repo.run_en_cours_le_plus_recent` et, s'il trouve un run encore
+  `en_cours`, le clôture (`termine`, `resume_json.budget_atteint = True`)
+  avant d'entrer dans l'attente de minuit UTC — testé
+  (`tests/test_pipeline_integration.py::test_executer_continu_cloture_le_run_encore_en_cours_si_budget_deja_atteint`).
+  Le contournement côté Jarvis (7.2) reste en place, il ne dépend plus d'un
+  statut de run erroné.
+- ~~2026-09-25 (sous-étape 7.1) : aucun code HTTP (429/403/autre) n'est jamais
+  persisté en base par `radar-opportunites` (`get_with_retry` ne fait que
+  journaliser un `logger.warning`) — la demande du texte de 7.1 ("compte du
+  jour par flux avec erreurs 429/403") n'est donc pas réalisable telle
+  quelle. L'onglet affiche à la place un compte d'échecs de collecte par
+  flux CE JOUR (`resume_json.sources_indisponibles`), toutes causes
+  confondues. Une vraie ventilation par code demanderait de stocker le code
+  HTTP côté `radar-opportunites` (nouvelle colonne ou table, migration
+  additive) -- à considérer comme un chantier séparé si cette granularité
+  est vraiment utile à l'usage.~~ **Résolu en sous-étape 3.7** (2026-09-26,
+  points 1 et 2) : table additive `journal_http` (horodatage, hôte, flux ou
+  fournisseur, code HTTP ou timeout/erreur_reseau, durée — jamais le contenu
+  de la page) alimentée par `app/adapters/http.py` à chaque appel de
+  collecte et d'Enquêteur ; `app.metriques` expose désormais
+  `appels_http_par_flux` (appels, 429, 403, autres erreurs, taux de succès).
+  Reste à faire, côté Jarvis et hors périmètre de cette sous-étape (le texte
+  de 3.7 le dit explicitement, point 2) : le workflow `jarvis-radar-recap`
+  ne lit pas encore cette table.
+- ~~2026-09-25 (sous-étape 7.2) : le rafraîchissement automatique de l'onglet
+  Radar (60 s, demande explicite) télécharge un payload mesuré à ~1,3 Mo à
+  chaque fois -- en continu sur un réseau cellulaire, ça peut représenter une
+  vraie consommation de données si le panneau reste ouvert longtemps.
+  Implémenté tel que demandé (60 s), mais signalé pour que Mathéo confirme
+  que ça lui convient ou demande un intervalle plus espacé.~~ **Résolu le
+  25/09 (même soir, demande explicite de Mathéo)** : rafraîchissement
+  découpé en 3 vues (`etat` 60 s/990 octets, `dossiers` 5 min/~220 Ko,
+  `detail` à l'ouverture d'un dossier/~10 Ko) -- voir Journal 7.1/7.2 mis à
+  jour. Le budget de données du 60 s tombe à moins de 1 Ko/appel.
+- 2026-09-25 (sous-étape 3.6, déploiement fusionné 1.6+2.3+3.6) : le
+  déploiement a réussi (Render a confirmé le build), mais cette session n'a
+  pas pu vérifier elle-même que la base de production répond et que les
+  nouvelles colonnes/tables existent — `python -m app.metriques --jour
+  2026-09-25` échoue avec `psycopg.OperationalError: SSL connection has been
+  closed unexpectedly` vers `dpg-daqro2navr4c739aopt0-a.frankfurt-postgres.render.com`,
+  **même panne déjà rencontrée en 0.5 et 0.7** (le push HTTPS vers GitHub,
+  lui, fonctionne). Cause non identifiée (réseau propre à cette session, ou
+  panne côté Render — pas distinguable d'ici). À faire par Mathéo ou une
+  session qui a accès à la base : relancer cette même commande pour
+  confirmer. Par ailleurs, la mesure réelle à 48 h (médiane/p90 des sources
+  par dossier, ventilation par fournisseur, p90 du score prudent, dossiers
+  > 60, coût/jour, consommation des plafonds requêtes/fetchs) reste
+  entièrement à faire, dans une session à partir du 2026-09-27, pour remplir
+  en une fois les Journaux de 1.6, 2.3 ET 3.6 (§5, point 9).
 - ~~2026-09-25 (sous-étape 1.1) : les flux `offre` et `douleur` se partagent
   aujourd'hui le même quota `max_signaux_par_passage` (rien dans cette
   sous-étape ne les sépare). Avec 3 flux `offre` sur 7, une part du quota
