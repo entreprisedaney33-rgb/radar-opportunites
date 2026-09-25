@@ -7,8 +7,13 @@
 # `scripts/deployer_vers_github.sh` (voir CLAUDE.md).
 #
 # Tarifs vérifiés sur render.com/pricing le 2026-09-25 (voir ARCHITECTURE.md) :
-# Postgres basic_256mb = 6 $/mois ; Cron Job "starter" (0.5c-512mb) facturé
-# à la seconde, ~0,60 $/mois pour 2h/nuit max.
+# Postgres basic_256mb = 6 $/mois ; Background Worker "starter" (0.5c-512mb)
+# ~7 $/mois (tourne en continu, facturé comme un service toujours actif).
+#
+# Cron Job remplacé par un Background Worker le 25/09/2026 (soir) : un Cron
+# Job a un plafond dur de 12h/exécution imposé par Render et n'est pas fait
+# pour tourner en continu (demande explicite : "il ne faut jamais qu'il
+# s'arrête") — voir ARCHITECTURE.md, section "Choix".
 
 databases:
   - name: radar-opportunites-db
@@ -17,14 +22,13 @@ databases:
     region: frankfurt   # aligné sur les autres bases du compte (n8n-db)
 
 services:
-  - type: cron
-    name: radar-opportunites-nightly
+  - type: worker
+    name: radar-opportunites-worker
     runtime: python
     plan: starter
     region: frankfurt
-    schedule: "0 1 * * *"   # 01:00 UTC ; converti en Europe/Paris dans le rapport (voir app/reports/html_report.py)
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python -m app.cli run-once"
+    startCommand: "python -m app.cli run-forever"
     envVars:
       - key: DATABASE_URL
         fromDatabase:

@@ -22,7 +22,11 @@ class BudgetTracker:
         self.engine = engine
         self.run_id = run_id
         self.plafond_eur = plafond_eur
-        self._depense_engagee = 0.0  # inclut les estimations pas encore confirmées
+        # Un run peut couvrir plusieurs passages (worker continu, §"jamais
+        # s'arrêter") : on repart toujours du total déjà dépensé sous CE
+        # run_id, jamais de 0 — sinon un plafond journalier pourrait être
+        # dépassé silencieusement d'un passage à l'autre.
+        self._depense_engagee = repo.cout_total_run(engine, run_id)
 
     def solde_restant(self) -> float:
         return self.plafond_eur - self._depense_engagee

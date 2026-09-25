@@ -24,6 +24,12 @@ def _construire_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--max-deep-dives", type=int, default=None, dest="max_deep_dives")
     p_run.add_argument("--rapport", default=None, help="Chemin du rapport HTML (défaut: rapport_<run_id>.html)")
 
+    p_forever = sous.add_parser(
+        "run-forever",
+        help="Tourne en continu (Background Worker) : un run par journée UTC, passages enchaînés indéfiniment",
+    )
+    p_forever.add_argument("--demo", action="store_true", help="Force les données de démonstration (DEMO) au lieu des sources réelles")
+
     sous.add_parser("migrate", help="Crée les tables manquantes dans la base configurée (DATABASE_URL)")
     return parser
 
@@ -73,6 +79,15 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"Run {run_id} terminé. Rapport : {chemin_rapport}")
         print(f"Résumé : {resume}")
+        return 0
+
+    if args.commande == "run-forever":
+        from app.pipeline.orchestrator import executer_continu
+        from app.storage.db import get_engine, migrer
+
+        engine = get_engine()
+        migrer(engine)
+        executer_continu(engine, forcer_demo=args.demo)
         return 0
 
     return 1

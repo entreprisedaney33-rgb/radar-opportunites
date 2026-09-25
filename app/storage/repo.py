@@ -75,6 +75,27 @@ def get_run(engine: Engine, run_id: str) -> dict | None:
         return dict(row) if row else None
 
 
+def run_en_cours_le_plus_recent(engine: Engine) -> dict | None:
+    """Le worker continu reprend ce run s'il existe déjà (redémarrage du
+    process) au lieu d'en recréer un — jamais deux runs 'en_cours' en même
+    temps pour la même journée."""
+    with engine.connect() as cx:
+        row = cx.execute(
+            select(runs).where(runs.c.statut == "en_cours").order_by(runs.c.debut.desc()).limit(1)
+        ).mappings().first()
+        return dict(row) if row else None
+
+
+def mettre_a_jour_progression(engine: Engine, run_id: str, *, couts: dict, resume: dict) -> None:
+    """Met à jour un run TOUJOURS 'en_cours' (jamais `fin`/`statut`) pour que
+    le tableau de bord reflète la progression pendant qu'un passage tourne —
+    distinct de `terminer_run`, qui clôt le run pour de bon."""
+    with engine.begin() as cx:
+        cx.execute(
+            update(runs).where(runs.c.id == run_id).values(couts_json=couts, resume_json=resume)
+        )
+
+
 # ------------------------------------------------------------- sources ----
 
 def upsert_source(

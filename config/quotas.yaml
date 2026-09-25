@@ -1,19 +1,33 @@
-# Quotas et plafonds d'une exécution nocturne. Relevés le 2026-09-25 avec
-# Mathéo : 25 €/nuit (au lieu de 5 €), un seul passage par nuit (pas
-# plusieurs fois par jour) — s'arrête dès que le budget OU un des quotas
-# ci-dessous est atteint, jamais les deux à la fois nécessairement. En
-# pratique, le budget réel dépensé sera probablement bien en dessous de 25 €
-# la plupart des nuits : les vérifications de qualité (filtre de preuves,
-# Critic) limitent le nombre de dossiers avant que l'argent ne soit le vrai
-# frein — c'est voulu (§1 du cahier des charges : la qualité prime sur le
-# volume). Ce ne sont pas des estimations de prix fournisseur.
+# Quotas et plafonds. Passage en fonctionnement CONTINU le 2026-09-25
+# (demande explicite de Mathéo : "il ne faut jamais qu'il s'arrête") — le
+# radar tourne désormais sur un Background Worker Render (pas un Cron Job,
+# qui a un plafond dur de 12h/exécution imposé par Render lui-même et n'est
+# pas fait pour tourner en continu). Un seul "run" couvre toute une journée
+# UTC ; à l'intérieur, plusieurs PASSAGES s'enchaînent (collecte + Scout,
+# puis Analyst/Critic sur tout le retard en attente — jamais un dossier
+# abandonné à mi-chemin, voir app/pipeline/orchestrator.py::_selectionner_pour_analyse
+# qui reprend systématiquement le retard des passages précédents).
+#
+# En pratique, le budget réel dépensé sera probablement bien en dessous du
+# plafond la plupart des jours : les vérifications de qualité (filtre de
+# preuves, Critic) et le volume réel de signaux disponibles limitent le
+# nombre de dossiers avant que l'argent ne soit le vrai frein — c'est voulu
+# (§1 du cahier des charges : la qualité prime sur le volume). Ce ne sont
+# pas des estimations de prix fournisseur.
 
-budget_eur_par_nuit: 25.0
-max_signaux_ingeres: 400
-max_nouvelles_opportunites: 60
-max_analyses_approfondies: 30
-max_critiques: 30
-duree_max_minutes: 180
+budget_eur_par_jour: 25.0
+
+# Taille d'UN passage (pas un plafond définitif : le retard non traité est
+# repris automatiquement au passage suivant).
+max_signaux_par_passage: 40
+max_analyses_par_passage: 15
+max_critiques_par_passage: 15
+duree_max_minutes: 60  # plafond de sécurité d'UN SEUL passage (pas de la journée)
+
+# Rythme entre deux passages, pour ne jamais marteler des sources qui n'ont
+# pas changé.
+pause_apres_passage_vide_minutes: 10
+pause_apres_passage_actif_secondes: 30
 
 # Part des candidats REJETÉS par le filtre de preuves qu'on envoie quand même
 # à l'Analyst/Critic, pour détecter un filtre trop sévère (§2, pipeline).
@@ -22,7 +36,3 @@ echantillon_rejetes_pour_controle: 0.10
 # Réessais réseau : plafonnés, avec délai croissant, sur 429/5xx.
 retry_max_tentatives: 3
 retry_delai_base_secondes: 2
-
-# Fenêtre nocturne : horaire de référence en UTC (Render exécute les Cron
-# Jobs en UTC). Converti et affiché en Europe/Paris dans les rapports.
-horaire_declenchement_utc: "01:00"

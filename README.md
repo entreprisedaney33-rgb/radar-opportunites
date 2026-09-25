@@ -39,6 +39,15 @@ PYTHONPATH=. python -m app.cli migrate      # crée les tables si nécessaire
 PYTHONPATH=. python -m app.cli run-once --max-signals 20 --max-deep-dives 2
 ```
 
+En production, `run-once` n'est utilisé que pour tester manuellement. Le
+Background Worker tourne avec `run-forever` (un seul run par journée UTC,
+plusieurs passages enchaînés indéfiniment, jamais de dossier laissé à
+mi-chemin — voir `ARCHITECTURE.md`) :
+
+```bash
+PYTHONPATH=. python -m app.cli run-forever   # tourne sans jamais s'arrêter (Ctrl+C pour stopper en local)
+```
+
 ## Tests
 
 ```bash
@@ -76,8 +85,8 @@ CSV/JSON, décision humaine, bouton pause.
 ## Où sont les décisions importantes
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — constat Phase 0 (compte Render
-  réel, accès disponibles/manquants), choix Cron seul, ressources
-  proposées et leur coût, ce qui reste à décider avant la première nuit.
+  réel, accès disponibles/manquants), choix Background Worker (§"Choix"),
+  ressources créées et leur coût, ce qui reste à décider.
 - [`SCORING.md`](SCORING.md) — les ancres exactes du score, tenues
   identiques au code de `app/scoring/engine.py`.
 - `config/*.yaml` — secteurs, poids du score, quotas/budget nocturne,
