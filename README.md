@@ -50,6 +50,19 @@ sécurité (citation hors périmètre neutralisée, dédoublonnage, budget,
 reprise après panne, PAUSE_ALL) sont vérifiées mécaniquement, sans dépendre
 d'un fournisseur externe.
 
+## Déployer une modification (Phase 3, Render réel)
+
+Render ne se connecte jamais à `labo-ia` (voir `ARCHITECTURE.md`). Après
+avoir testé en local :
+
+```bash
+./scripts/deployer_vers_github.sh "ce que ce déploiement change"
+```
+
+Synchronise ce dossier vers
+[`entreprisedaney33-rgb/radar-opportunites`](https://github.com/entreprisedaney33-rgb/radar-opportunites)
+(auto-déploiement activé côté Render sur push vers `main`).
+
 ## Interface interne (optionnelle, Phase 3)
 
 ```bash

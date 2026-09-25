@@ -1,13 +1,19 @@
-# Quotas et plafonds d'une exécution nocturne. Proposition initiale À
-# CONFIRMER par les fondateurs avant toute activation payante (voir
-# ARCHITECTURE.md). Ce ne sont pas des estimations de prix fournisseur.
+# Quotas et plafonds d'une exécution nocturne. Relevés le 2026-09-25 avec
+# Mathéo : 25 €/nuit (au lieu de 5 €), un seul passage par nuit (pas
+# plusieurs fois par jour) — s'arrête dès que le budget OU un des quotas
+# ci-dessous est atteint, jamais les deux à la fois nécessairement. En
+# pratique, le budget réel dépensé sera probablement bien en dessous de 25 €
+# la plupart des nuits : les vérifications de qualité (filtre de preuves,
+# Critic) limitent le nombre de dossiers avant que l'argent ne soit le vrai
+# frein — c'est voulu (§1 du cahier des charges : la qualité prime sur le
+# volume). Ce ne sont pas des estimations de prix fournisseur.
 
-budget_eur_par_nuit: 5.0
-max_signaux_ingeres: 100
-max_nouvelles_opportunites: 15
-max_analyses_approfondies: 5
-max_critiques: 5
-duree_max_minutes: 120
+budget_eur_par_nuit: 25.0
+max_signaux_ingeres: 400
+max_nouvelles_opportunites: 60
+max_analyses_approfondies: 30
+max_critiques: 30
+duree_max_minutes: 180
 
 # Part des candidats REJETÉS par le filtre de preuves qu'on envoie quand même
 # à l'Analyst/Critic, pour détecter un filtre trop sévère (§2, pipeline).

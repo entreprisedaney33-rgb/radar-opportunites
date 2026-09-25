@@ -57,26 +57,69 @@ Python séquentiel. Render Workflows apporterait de la distribution
 contraintes des Cron Jobs Render). Migration vers Workflows seulement si un
 volume nocturne futur le justifie.
 
-## Ressources Render nouvelles proposées (aucune créée à ce stade)
+## Ressources Render créées le 2026-09-25 (tarifs vérifiés sur render.com/pricing ce jour-là)
 
-| Ressource | Rôle | Ordre de grandeur (à vérifier sur le compte réel avant activation) |
+Fondateurs prévenus du coût avant création (échange du 2026-09-25) : accord donné.
+
+| Ressource | Rôle | Coût réel |
 |---|---|---|
-| 1 nouveau PostgreSQL, séparé de `n8n-db` | tables du §5 (runs, sources, signals, opportunities, …) | Render facture ses plans Postgres au mois ; le plan le plus bas payant tourne autour de quelques euros/mois — **à confirmer sur la page tarifaire Render au moment de la création**, pas une estimation fiable ici. |
-| 1 nouveau Cron Job | `run-once` nocturne, fenêtre 2h max | Facturé à la minute d'exécution sur l'instance choisie (le plus petit type suffit largement) ; avec ~60h d'exécution max par mois (2h × 30 nuits), le coût mensuel est une fraction du prix d'une instance équivalente tournant 24/7 — **montant exact à vérifier au moment de l'activation**, pas garanti ici. |
-| 1 petit service web privé (optionnel, Phase 3) | sert `app/web/server.py` (rapport HTML + export + bouton pause), protégé par mot de passe | Le plus petit plan web payant de Render ; **seulement si les fondateurs veulent l'interface en ligne plutôt qu'un rapport HTML local** — sinon, le rapport peut rester un fichier généré à chaque run, consulté en local. |
+| Postgres `radar-opportunites-db` (`dpg-daqro2navr4c739aopt0-a`, Frankfurt) | tables du §5, séparées de `n8n-db` | plan `basic_256mb` = **6 $/mois** |
+| Cron Job `radar-opportunites-nightly` (`crn-daqrq2bncjis73b7bq90`) | `python -m app.cli run-once`, 01:00 UTC (~03:00 Europe/Paris en été, 02:00 en hiver) | plan `starter` (0,5 CPU/512 Mo), facturé à la seconde, **~0,60 $/mois** pour 2h/nuit max |
+| Service web privé | pas créé | Optionnel — le rapport reste un fichier HTML généré à chaque run pour l'instant. |
 
-**Aucun de ces trois éléments n'est créé avant que les fondateurs valident
-un budget et un plafond nocturne** (§4 du cahier des charges, et règle
-générale de cette session : toute ressource facturée nouvelle demande un
-accord explicite avant activation).
+**Total nouveau : ~7 $/mois de frais fixes**, séparé du budget de 25 €/nuit
+pour les appels Claude (relevé de 5 à 25 € le 2026-09-25 à la demande de
+Mathéo — un seul passage par nuit, pas plusieurs ; s'arrête dès que le
+budget ou un des quotas de volume est atteint ; voir `config/quotas.yaml`
+pour le détail et pourquoi la dépense réelle restera probablement bien en
+dessous de 25 € la plupart des nuits).
 
-## Ce qui reste à décider avant la première nuit automatisée
+### Dépôt de déploiement
 
-1. **Budget nocturne réel** : `config/quotas.yaml` propose 5 €/nuit, 100
-   signaux, 15 opportunités, 5 analyses, 5 critiques, 2h — ce sont des
-   valeurs de départ modifiables, pas une estimation de coût fournisseur.
+Render ne se connecte jamais à `labo-ia` (données clients sensibles). Le
+Cron Job est branché sur
+[`entreprisedaney33-rgb/radar-opportunites`](https://github.com/entreprisedaney33-rgb/radar-opportunites)
+(public — Render ne peut pas lire un dépôt privé sans un accord GitHub
+manuel côté fondateurs, voir §"Décision prise" plus bas). La copie de
+travail reste dans `labo-ia/produits/radar-opportunites/` ; synchroniser
+avec `./scripts/deployer_vers_github.sh "message"` après chaque changement
+à déployer.
+
+### Premier run réel (test manuel avant l'ouverture des quotas de nuit, 2026-09-25)
+
+Lancé via l'API Render (`POST /v1/services/{id}/jobs`), quotas par défaut de
+`config/quotas.yaml` (pas de `--dry-run`, sources RSS réelles + Claude
+réel) : **10 signaux lus, 10 opportunités créées, 5 analyses et 5 critiques
+terminées, budget non dépassé, aucune source indisponible.** Un bug réel
+trouvé et corrigé dans la foulée : le modèle enveloppait parfois sa réponse
+structurée dans une clé unique (`{"repondre": {...}}` ou
+`{"parameter": {...}}`) ou rendait une liste sous forme de chaîne JSON —
+`app/adapters/model_client.py::_normaliser_sortie_outil` corrige ça avant
+la validation stricte (5 tests dédiés). Avant la correction, ces dossiers
+tombaient sur le repli heuristique (jamais un crash, jamais un fait
+inventé — juste moins riche) ; la correction a été synchronisée vers le
+dépôt de déploiement.
+
+### Décision prise : dépôt de déploiement public
+
+Le nouveau dépôt devait être privé par défaut (le code encode la stratégie
+de scoring), mais Render ne peut pas construire depuis un dépôt privé sans
+un accord GitHub App donné manuellement depuis le compte du propriétaire
+(étape hors API, impossible à faire depuis cette session). Les fondateurs
+ont choisi de le passer en public le 2026-09-25, comme `x402-seller`.
+
+## Ce qui reste à décider
+
+1. **Le Cron Job est actif dès ce soir (01:00 UTC)**, `RADAR_PAUSE_ALL=0` —
+   pour le mettre en pause après avoir relu le dossier de test du
+   2026-09-25 : passer `RADAR_PAUSE_ALL` à `1` dans les variables
+   d'environnement du service sur le dashboard Render, ou lancer
+   l'interface web (`app/web/server.py`) une fois déployée pour le bouton
+   pause.
 2. **Apify** : à activer seulement si un compte + Actor + plafond par
    exécution sont configurés (`config/sources_autorisees.yaml → apify.actif`).
+3. **Interface web** : pas encore déployée (rapport HTML seul pour
+   l'instant) — +7 $/mois si les fondateurs la veulent en ligne.
 3. **Interface web (Phase 3)** : rapport HTML local suffisant pour démarrer,
    ou service web Render dédié tout de suite ? Change le nombre de
    ressources payantes à créer.
