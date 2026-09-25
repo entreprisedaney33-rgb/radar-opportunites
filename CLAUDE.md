@@ -3,6 +3,9 @@
 > Index court. Détail complet dans [`README.md`](README.md) (mise en route),
 > [`ARCHITECTURE.md`](ARCHITECTURE.md) (constat Phase 0, coûts, décisions en
 > attente) et [`SCORING.md`](SCORING.md) (ancres du score).
+>
+> Le plan d'évolution en cours est dans [`AMELIORATIONS.md`](AMELIORATIONS.md)
+> — le lire avant toute modification.
 
 Produit interne : radar nocturne qui repère des opportunités économiques où
 l'IA change concrètement le coût/délai/qualité d'un problème identifié, les
