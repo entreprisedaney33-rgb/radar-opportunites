@@ -100,6 +100,73 @@ def test_aucun_dossier_jamais_abandonne_pour_toujours(engine_test):
     assert encore_en_attente == []
 
 
+def test_tirage_controle_exclut_les_opportunites_deja_tirees(engine_test):
+    """Sous-étape 0.7 : une opportunité rejetée déjà retirée une fois par
+    l'échantillon de contrôle n'est plus jamais re-proposée."""
+    from app.pipeline import orchestrator as orch
+
+    opp_deja_tiree = repo.creer_opportunite(
+        engine_test, titre="a", acheteur="x", probleme="p", mecanisme_ia="m",
+        secteur="e_commerce", statut="rejete", cluster_id=None,
+    )
+    opp_jamais_tiree = repo.creer_opportunite(
+        engine_test, titre="b", acheteur="x", probleme="p", mecanisme_ia="m",
+        secteur="e_commerce", statut="rejete", cluster_id=None,
+    )
+    run_id = repo.creer_run(engine_test, mode="reel", version_code="t", version_config="t", quotas={})
+    repo.inserer_tirage_controle_rejete(
+        engine_test, opportunity_id=opp_deja_tiree, run_id=run_id,
+        decision_avant="rejete", decision_apres="incertain",
+    )
+
+    selection = orch._selectionner_pour_analyse(engine_test, max_analyses=10, fraction_echantillon_rejetes=1.0)
+
+    ids = {o["id"] for o in selection}
+    assert opp_deja_tiree not in ids
+    assert opp_jamais_tiree in ids
+    tire = next(o for o in selection if o["id"] == opp_jamais_tiree)
+    assert tire["tirage_controle"] is True
+    assert tire["decision_avant"] == "rejete"
+
+
+def test_executer_continu_ne_recree_pas_de_run_si_budget_du_jour_deja_atteint(engine_test, monkeypatch):
+    """Sous-étape 0.7, point 2 : au (re)démarrage du worker, si la dépense du
+    jour UTC est déjà au plafond, aucun nouveau run n'est créé — le worker
+    entre directement dans la boucle d'attente du changement de jour."""
+    from app.pipeline import orchestrator as orch
+    from app import config as cfg
+
+    quotas = cfg.quotas()
+    run_deja_clos = repo.creer_run(engine_test, mode="reel", version_code="t", version_config="t", quotas={})
+    repo.inserer_usage_event(
+        engine_test, run_id=run_deja_clos, fournisseur="anthropic", modele_ou_actor="m", appels=1,
+        tokens_in=1, tokens_out=1, cout=quotas["budget_eur_par_jour"], role="analyst",
+    )
+    repo.terminer_run(engine_test, run_deja_clos, statut="termine", couts={}, erreurs=[], resume={})
+
+    class ArretTest(Exception):
+        pass
+
+    def faux_sleep(_secondes):
+        raise ArretTest()
+
+    monkeypatch.setattr(orch.time, "sleep", faux_sleep)
+
+    with pytest.raises(ArretTest):
+        orch.executer_continu(engine_test, forcer_demo=True)
+
+    # Un seul run existe toujours en base : celui créé avant l'appel — le
+    # worker n'en a pas créé de nouveau alors que le budget du jour est
+    # déjà au plafond.
+    with engine_test.connect() as cx:
+        from sqlalchemy import select
+
+        from app.storage.schema import runs
+
+        lignes = cx.execute(select(runs.c.id)).all()
+    assert [r[0] for r in lignes] == [run_deja_clos]
+
+
 def test_executer_continu_ne_laisse_rien_en_plan_et_boucle(engine_test, monkeypatch):
     """`executer_continu` ne retourne jamais normalement : on la fait
     s'arrêter en simulant une pause juste après le premier passage, et on

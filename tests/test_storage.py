@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from app.storage import repo
 
@@ -51,3 +51,62 @@ def test_signal_deja_traite_detecte_une_source_deja_lue(engine_test):
         date_signal=datetime.now(timezone.utc), normalisation={},
     )
     assert repo.signal_deja_traite(engine_test, source_id) is True
+
+
+def test_cout_total_jour_utc_additionne_tous_les_runs(engine_test):
+    """Sous-étape 0.7 : la clé du plafond dur est le jour calendaire UTC,
+    pas le run — deux runs différents le même jour comptent ensemble."""
+    jour = datetime.now(timezone.utc).date()
+    run1 = repo.creer_run(engine_test, mode="reel", version_code="t", version_config="t", quotas={})
+    run2 = repo.creer_run(engine_test, mode="reel", version_code="t", version_config="t", quotas={})
+    repo.inserer_usage_event(
+        engine_test, run_id=run1, fournisseur="anthropic", modele_ou_actor="m", appels=1,
+        tokens_in=10, tokens_out=10, cout=0.30, role="analyst",
+    )
+    repo.inserer_usage_event(
+        engine_test, run_id=run2, fournisseur="anthropic", modele_ou_actor="m", appels=1,
+        tokens_in=10, tokens_out=10, cout=0.20, role="critic",
+    )
+    assert repo.cout_total_jour_utc(engine_test, jour) == 0.50
+    assert repo.cout_total_jour_utc(engine_test, date(1999, 1, 1)) == 0.0
+
+
+def test_nombre_appels_approfondis_jour_utc_compte_analyst_et_critic_seulement(engine_test):
+    jour = datetime.now(timezone.utc).date()
+    run_id = repo.creer_run(engine_test, mode="reel", version_code="t", version_config="t", quotas={})
+    for role in ("scout", "analyst", "critic", "analyst"):
+        repo.inserer_usage_event(
+            engine_test, run_id=run_id, fournisseur="anthropic", modele_ou_actor="m", appels=1,
+            tokens_in=1, tokens_out=1, cout=0.001, role=role,
+        )
+    # Une ligne d'historique sans role (avant la migration) ne doit jamais compter.
+    repo.inserer_usage_event(
+        engine_test, run_id=run_id, fournisseur="anthropic", modele_ou_actor="m", appels=1,
+        tokens_in=1, tokens_out=1, cout=0.001, role=None,
+    )
+    assert repo.nombre_appels_approfondis_jour_utc(engine_test, jour) == 3
+
+
+def test_tirage_controle_une_seule_fois_par_opportunite(engine_test):
+    opp_id = repo.creer_opportunite(
+        engine_test, titre="t", acheteur="a", probleme="p", mecanisme_ia="m",
+        secteur="e_commerce", statut="rejete", cluster_id=None,
+    )
+    run_id = repo.creer_run(engine_test, mode="reel", version_code="t", version_config="t", quotas={})
+
+    assert repo.opportunites_deja_tirees_controle(engine_test) == set()
+    repo.inserer_tirage_controle_rejete(
+        engine_test, opportunity_id=opp_id, run_id=run_id,
+        decision_avant="rejete", decision_apres="incertain",
+    )
+    assert repo.opportunites_deja_tirees_controle(engine_test) == {opp_id}
+
+    # Un deuxième tirage sur la MÊME opportunité viole la contrainte d'unicité.
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    with pytest.raises(IntegrityError):
+        repo.inserer_tirage_controle_rejete(
+            engine_test, opportunity_id=opp_id, run_id=run_id,
+            decision_avant="rejete", decision_apres="rejete",
+        )

@@ -133,7 +133,23 @@ Lire l'intégralité du code du projet (sans rien modifier) et écrire `rapports
 - liste des catégories de secteur exactement telles qu'écrites dans le code.
 Si l'un de ces points n'est pas clair dans le code, l'écrire tel quel dans la carte. Ce fichier sera lu au début de chaque sous-étape suivante.
 
-Journal — sous-étape 0.1 : *(à remplir)*
+### Journal — sous-étape 0.1
+- Statut : FAIT
+- Date : 2026-09-25
+- Commit(s) : `[0.1][0.2][0.3] Carte du dépôt, app.metriques complet (secteur + --comparer), lecture de la baseline`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  J'ai lu tout le code sans rien changer et écrit une carte d'une page qui
+  explique où vit chaque pièce (Scout, Analyst, Critic, score, dédoublonnage,
+  budget) et comment tourne le robot qui travaille la nuit. J'ai repéré un
+  point de vigilance réel : le script de mise en ligne ne protège pas
+  spécifiquement un fichier `.env` s'il en traîne un à la racine — détail
+  plus bas.
+- Fichiers créés / modifiés : `rapports/CARTE_DU_DEPOT.md` (créé)
+- Tests : 0 ajoutés (lecture seule, rien à tester) — suite par défaut : 44 verts / 0 rouge — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : aucun
+- Écart par rapport au plan (et pourquoi) : aucun
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 (script de
+  déploiement et fichier `.env`)
 
 #### Sous-étape 0.2 — La commande de métriques
 
@@ -146,13 +162,322 @@ Créer `python -m app.metriques --jour AAAA-MM-JJ` (lecture seule sur la base, a
 - coût du jour, coût moyen par dossier analysé.
 Ajouter un paramètre `--comparer AAAA-MM-JJ` qui affiche les deux jours côte à côte. Tests unitaires sur une base de fixtures (SQLite en mémoire ou équivalent, selon ce que fait déjà la suite).
 
-Journal — sous-étape 0.2 : *(à remplir)*
+### Journal — sous-étape 0.2
+- Statut : FAIT
+- Date : 2026-09-25
+- Commit(s) : `[0.1][0.2][0.3] Carte du dépôt, app.metriques complet (secteur + --comparer), lecture de la baseline`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  La commande qui prend une photo chiffrée d'une journée existait déjà (une
+  session précédente l'avait créée avant l'arrivée de ce plan). Il manquait
+  deux choses de la liste demandée : voir combien de dossiers sont dans
+  chaque secteur, et comparer deux journées côte à côte en une seule
+  commande. Les deux sont ajoutées et testées, rien d'autre n'a changé.
+- Fichiers créés / modifiés : `app/metriques.py`, `tests/test_metriques.py`
+- Tests : 4 ajoutés (répartition par secteur, comparaison affichée côte à
+  côte, commande complète avec `--comparer`, date invalide sur
+  `--comparer`) — suite par défaut : 44 verts / 0 rouge — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : aucun
+  (cette sous-étape ajoute une capacité de mesure, elle ne mesure rien
+  elle-même — les chiffres sont en 0.3)
+- Écart par rapport au plan (et pourquoi) : aucun. La commande existait déjà
+  avant l'arrivée de ce fichier (voir la note sous le tableau du §8) ; il ne
+  manquait que la répartition par secteur et `--comparer`, tous deux ajoutés
+  ici.
+- Question pour Mathéo / Fable (sinon « aucune ») : aucune
 
 #### Sous-étape 0.3 — La baseline 🚦
 
 Lancer la commande sur la journée en cours et sur la veille si elle existe. Écrire `rapports/metriques/BASELINE.md` : date, tableau des indicateurs, et trois lignes de lecture — la part de dossiers à une seule source confirme-t-elle le constat 1 ? Le maximum de score observé est-il cohérent avec un plafond à 50 ? Quelle part des opportunités vient de chaque flux ? Ne rien modifier d'autre. Mathéo transmet ce fichier à Fable avant l'étape 1.
 
-Journal — sous-étape 0.3 : *(à remplir)*
+### Journal — sous-étape 0.3
+- Statut : PARTIEL
+- Date : 2026-09-25
+- Commit(s) : `[0.1][0.2][0.3] Carte du dépôt, app.metriques complet (secteur + --comparer), lecture de la baseline`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Les deux premières questions ont une réponse claire, chiffres à l'appui :
+  oui, le manque de preuves explique bien le plafond de score à 45. La
+  troisième (part par flux) n'a pas pu être calculée aujourd'hui — cette
+  information n'existe pas encore dans la base, question posée en §9.
+- Fichiers créés / modifiés : `rapports/metriques/BASELINE.md` (section
+  « Trois lignes de lecture » ajoutée, rien d'autre touché)
+- Tests : 0 ajoutés (fichier texte, rien à tester) — suite par défaut : 44 verts / 0 rouge — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : ceux
+  déjà présents dans `rapports/metriques/2026-09-25.json` et
+  `BASELINE.md` (120 repérées, 64 analysées, score prudent max 45, médiane
+  25, 100 % des dossiers à une seule source, 10,83 % hors intersectoriel,
+  4,55 € dépensés ce jour-là)
+- Écart par rapport au plan (et pourquoi) : la troisième ligne de lecture
+  (« quelle part des opportunités vient de chaque flux ») n'a pas pu être
+  calculée — voir §9.
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 (part par flux,
+  sous-étape 0.3)
+
+#### Sous-étape 0.4 — Préalables de sécurité et d'accès
+
+Ajoutée après coup (25/09/2026), avant l'étape 1 : deux trous d'accès repérés en 0.1/0.3 sont bouchés avant d'aller plus loin.
+
+1. `scripts/deployer_vers_github.sh` : exclure explicitement de la synchronisation tout fichier `.env`, `.env.*` et tout motif listé dans un nouveau fichier `scripts/exclusions_deploiement.txt`. Après la copie et avant le push, vérifier qu'aucun fichier de ce type n'est présent dans le dépôt de déploiement ; sinon s'arrêter avec un message clair (aucun push). Ajouter `.env*` au `.gitignore` des deux dépôts (copie de travail et dépôt de déploiement — ce dernier reçoit le `.gitignore` de la copie de travail à chaque synchronisation, donc une seule modification suffit ici). Tester le script sur une arborescence fixture, avec et sans `.env`.
+2. `app.metriques` lit la base via la variable d'environnement `RADAR_DATABASE_URL`, jamais `DATABASE_URL` (droits d'écriture) et jamais de repli. Si elle est absente : message clair et sortie propre (code de retour 1), aucune autre tentative de connexion. Aucune URL ni identifiant réel dans le code, les tests ou la config — seulement des gabarits explicitement factices (comme celui déjà présent pour `DATABASE_URL` dans `env.example`). Le Journal de cette sous-étape contient les lignes SQL pour créer un utilisateur Postgres en lecture seule sur la base du radar, à exécuter par Mathéo lui-même.
+
+### Journal — sous-étape 0.4
+- Statut : FAIT
+- Date : 2026-09-25
+- Commit(s) : `[0.4] Préalables de sécurité : anti-secret au déploiement, app.metriques en lecture seule dédiée`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Le script qui met le code en ligne refuse maintenant de pousser quoi que
+  ce soit si un fichier `.env` (ou un autre fichier sensible) traînait dans
+  la copie — double vérification, testée. La commande de mesure du radar
+  utilise désormais son propre accès, séparé et en lecture seule, à la base
+  de données : les lignes SQL pour créer cet accès sont plus bas, à toi de
+  les lancer.
+- Fichiers créés / modifiés : `scripts/deployer_vers_github.sh` (modifié),
+  `scripts/verifier_absence_fichiers_interdits.sh` (créé), `scripts/exclusions_deploiement.txt`
+  (créé), `.gitignore` (`.env` → `.env*`), `app/metriques.py` (modifié),
+  `env.example` (ajout de `RADAR_DATABASE_URL`), `tests/test_deploiement.py`
+  (créé), `tests/test_metriques.py` (modifié)
+- Tests : 8 ajoutés (6 sur la protection anti-secret du déploiement — bout
+  en bout avec/sans `.env`, et le deuxième filet testé seul sur 4 cas ; 2 sur
+  `app.metriques` sans `RADAR_DATABASE_URL`, avec et sans `DATABASE_URL`
+  définie en parallèle) — suite par défaut : 52 verts / 0 rouge — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : aucun
+- Écart par rapport au plan (et pourquoi) : aucun
+- Question pour Mathéo / Fable (sinon « aucune ») : aucune
+
+#### Sous-étape 0.6 — Diagnostic du dépassement de budget
+
+Ajoutée après coup (25/09/2026), avant l'étape 1 : creuser la question ouverte laissée en 0.5 (coût du jour à 31,18 € au moment de cette écriture, au-dessus du plafond dur de 25 €/jour). Lecture seule (rôle `radar_lecture`) : aucune modification de code applicatif, aucun appel modèle, aucun déploiement. Répondre, chiffres à l'appui, dans `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md` :
+1. Comment `app.metriques` calcule le coût du jour (table, champ, agrégation), et comment le module budget compte la dépense avant chaque appel (table, champ, et surtout la clé : par run ou par jour UTC ?). Les deux regardent-ils la même chose ?
+2. Combien de runs ont été créés aujourd'hui en UTC, à quelle heure, avec le coût de chacun. Un redémarrage du worker (chaque déploiement) crée-t-il un nouveau run dont le compteur de budget repart de zéro ?
+3. Répartition du coût par rôle (Scout / Analyst / Critic) et par heure.
+4. Pour chaque opportunité, combien de fois chaque rôle a été appelé. Opportunités traitées plus de deux fois : lesquelles, combien de fois, pourquoi. Top 10.
+5. Le coût enregistré est-il une dépense réelle (tokens facturés) ou une estimation avant appel ?
+6. Conclusion en cinq lignes : le plafond a-t-il été réellement dépassé, par quel mécanisme, et quelle correction proposer, sans l'implémenter.
+
+### Journal — sous-étape 0.6
+- Statut : FAIT
+- Date : 2026-09-25
+- Commit(s) : `[0.6] Diagnostic du dépassement de budget (lecture seule)`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Le plafond de 25 €/jour est vérifié par run, pas par journée. Un
+  redémarrage du robot après qu'un run a atteint le plafond en ouvre un
+  nouveau qui repart de 0 € — c'est arrivé aujourd'hui (5 runs, 32,17 €
+  au total au lieu de 25 €). Un petit tirage de contrôle sur les dossiers
+  déjà rejetés (voulu, mais sans limite) ajoute environ 1,5 € en plus,
+  part mineure du dépassement.
+- Fichiers créés / modifiés : `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`
+  (créé), `AMELIORATIONS.md` (sous-étape 0.6 + Journal + §8)
+- Tests : 0 ajoutés (diagnostic en lecture seule, rien à tester) — suite
+  par défaut : 65 verts / 0 rouge (non relancée dans cette sous-étape,
+  aucun code touché) — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : voir
+  `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md` — 5 runs aujourd'hui UTC
+  (0,349 € / 0,549 € / 1,881 € / 24,991 € / 4,401 € en cours), coût total
+  du jour 32,17 € au moment de l'écriture, 10 opportunités avec
+  Analyst/Critic appelés >2 fois (≈1,5 € de surcoût lié au tirage de
+  contrôle des rejetés)
+- Écart par rapport au plan (et pourquoi) : aucun
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 — correction
+  proposée (plafond par jour UTC cumulant tous les runs, pas par run) à
+  valider avant implémentation ; hors périmètre de cette sous-étape
+  (lecture seule)
+
+**SQL pour Mathéo — utilisateur Postgres en lecture seule** (à exécuter
+soi-même, connecté à la base `radar_opportunites` sur Render — Dashboard →
+base `radar-opportunites-db` → Connect → psql — avec l'utilisateur normal,
+propriétaire de la base ; Claude Code ne s'est pas connecté à cette base et
+ne l'exécute pas) :
+
+```sql
+-- Remplacer <mot_de_passe_a_choisir> par un mot de passe fort choisi par
+-- Mathéo -- jamais communiqué à Claude Code, jamais dans un fichier
+-- versionné.
+CREATE ROLE radar_lecture WITH LOGIN PASSWORD '<mot_de_passe_a_choisir>';
+GRANT CONNECT ON DATABASE radar_opportunites TO radar_lecture;
+GRANT USAGE ON SCHEMA public TO radar_lecture;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO radar_lecture;
+-- Pour que les tables créées plus tard (migrations additives, règle 0.2.7)
+-- restent aussi lisibles par ce rôle sans reprendre ces commandes :
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO radar_lecture;
+```
+
+Puis définir, là où `app.metriques` sera lancé (poste local de Mathéo, ou
+variable d'environnement Render si lancé depuis un shell Render) :
+
+```
+RADAR_DATABASE_URL=postgresql+psycopg://radar_lecture:<mot_de_passe_a_choisir>@<même hôte et port que DATABASE_URL>/radar_opportunites
+```
+
+**Incertitude non vérifiée** : je n'ai pas les moyens de tester si le compte
+Postgres standard fourni par Render a le droit `CREATEROLE` nécessaire pour
+exécuter `CREATE ROLE` directement (variable selon le plan Render). Si
+`psql` répond `permission denied`, il faudra soit passer par le support
+Render, soit vérifier s'il propose une fonction dédiée pour créer un
+utilisateur en lecture seule depuis son dashboard.
+
+#### Sous-étape 0.5 — Utilisateur de base en lecture seule (script à usage unique)
+
+1. `scripts/creer_acces_lecture.py` lit l'URL d'administration UNIQUEMENT depuis `RADAR_ADMIN_URL`, ou, sans cette variable et lancé par un humain, la demande via `getpass` (saisie masquée). Il ne l'affiche jamais, ne la journalise jamais, ne l'écrit dans aucun fichier.
+2. Avant toute écriture, il se connecte et vérifie que la base contient bien les tables du radar (noms exacts dans `rapports/CARTE_DU_DEPOT.md`). Sinon, il s'arrête sans rien faire — protection contre une connexion à la mauvaise base (n8n / MCS).
+3. Il génère un mot de passe avec `secrets.token_hex(24)`, puis, dans une seule transaction : crée le rôle `radar_lecture` (ou remplace son mot de passe s'il existe déjà), `GRANT CONNECT` sur la base, `GRANT USAGE` sur le schéma `public`, `GRANT SELECT` sur toutes les tables, `ALTER DEFAULT PRIVILEGES` pour que les futures tables soient lisibles aussi. Aucune autre instruction SQL.
+4. Il construit l'URL en lecture seule (même hôte, même base, `sslmode=require`), s'y connecte, exécute `SELECT 1`, vérifie avec `has_table_privilege` qu'aucune table n'est modifiable par `radar_lecture`, et compte les tables. Un échec de vérification = message d'erreur explicite et arrêt.
+5. Il écrit `RADAR_DATABASE_URL=…` dans `~/.config/radar-opportunites/env` (dossier en 700, fichier en 600), hors de tout dépôt. Puis il affiche uniquement : nom du rôle, hôte, nom de la base, nombre de tables lisibles, chemin du fichier écrit, et le rappel que l'URL d'administration n'a été sauvegardée nulle part. Jamais le mot de passe, jamais aucune URL complète.
+6. `app.metriques` : si `RADAR_DATABASE_URL` est absente de l'environnement, lire ce fichier ; si ni l'un ni l'autre, message clair et arrêt.
+7. `scripts/creer_acces_lecture.py` ajouté à `scripts/exclusions_deploiement.txt` (Render n'en a pas besoin) ; le contrôle du script de déploiement refuse en plus tout diff contenant une URL `postgres://` ou `postgresql://` avec identifiants.
+8. Tests sans réseau, 0 € : refus sans URL, refus si les tables du radar sont absentes, format du mot de passe, SQL généré, fichier écrit avec les bons droits, aucune sortie ne contient de secret.
+
+### Journal — sous-étape 0.5
+- Statut : FAIT
+- Date : 2026-09-25
+- Commit(s) : `[0.5] Script à usage unique : utilisateur Postgres radar_lecture, écrit hors dépôt`, `[0.5] Corrige CREATE/ALTER ROLE PASSWORD (Postgres n'accepte pas de paramètre lié à cet endroit)`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Fait : ta base a maintenant un compte `radar_lecture` qui ne peut QUE lire
+  (10 tables lisibles, aucune modifiable — vérifié par le script lui-même).
+  Ses codes d'accès sont rangés dans un fichier sur ton ordinateur
+  (`~/.config/radar-opportunites/env`, protégé), jamais dans le projet. J'ai
+  vu et utilisé ton URL d'administration une seule fois, en mémoire, jamais
+  affichée ni écrite nulle part.
+- Fichiers créés / modifiés : `scripts/creer_acces_lecture.py` (créé, puis
+  corrigé), `app/metriques.py` (repli sur le fichier hors dépôt si la
+  variable d'environnement est absente), `scripts/exclusions_deploiement.txt`
+  (ajout du script), `scripts/verifier_absence_fichiers_interdits.sh`
+  (ajout de la détection d'URL Postgres avec identifiants dans le contenu),
+  `tests/test_creer_acces_lecture.py` (créé, puis ajusté), `tests/test_metriques.py`
+  (modifié), `tests/test_deploiement.py` (modifié)
+- Tests : 15 ajoutés (9 sur le script d'accès — refus sans URL, refus base
+  invalide, SQL généré et mot de passe, `CREATE` vs `ALTER` selon
+  l'existence du rôle, refus si une table reste modifiable, droits 600/700
+  du fichier, aucun secret en sortie, gabarits d'URL — ; 2 sur le contrôle
+  anti-URL-avec-identifiants du déploiement ; 4 sur `app.metriques` avec le
+  fichier de repli) — suite par défaut : 65 verts / 0 rouge — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : résultat
+  de l'exécution réelle — rôle `radar_lecture`, hôte
+  `dpg-daqro2navr4c739aopt0-a.frankfurt-postgres.render.com`, base
+  `radar_opportunites`, **10 tables lisibles**, fichier écrit et vérifié en
+  700/600. `python -m app.metriques --jour 2026-09-25` fonctionne en local
+  via ce fichier (441 opportunités repérées, 434 analysées ce jour-là).
+- Écart par rapport au plan (et pourquoi) : au premier essai réel, Postgres a
+  refusé `CREATE ROLE ... PASSWORD %s` (`syntax error at or near "$1"`) — la
+  clause `PASSWORD` d'un `CREATE`/`ALTER ROLE` n'accepte pas de paramètre
+  lié, seulement une valeur littérale (contrairement au reste du script,
+  qui utilise des paramètres liés partout où c'est possible). La
+  transaction a été annulée automatiquement par Postgres (rien n'a été créé
+  ni modifié), donc aucun effet de bord. Corrigé : le mot de passe est
+  vérifié par une expression régulière stricte (hexadécimal pur, aucune
+  apostrophe possible) juste avant d'être inséré littéralement dans la
+  requête — sûr uniquement parce que c'est nous qui le générons
+  (`secrets.token_hex`), jamais une valeur fournie par un humain ou une
+  source externe. Deuxième essai réussi.
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 — en vérifiant
+  que la commande fonctionnait, `app.metriques` a affiché un coût du jour
+  de **31,18 €**, au-dessus du plafond dur de 25 €/jour du cahier des
+  charges (garde-fou §3.4). Hors périmètre de cette sous-étape (accès
+  lecture seule), mais assez important pour être signalé tout de suite
+  plutôt qu'attendu.
+
+#### Sous-étape 0.7 — Correction du garde-fou budget
+
+Ajoutée après coup (25/09/2026), suite au diagnostic de 0.6. Corrige le
+défaut de conception identifié (plafond appliqué par run, pas par jour UTC),
+sans toucher au reste du pipeline.
+
+1. Plafond journalier réel : `BudgetTracker` calcule la dépense engagée comme
+   la somme de `usage_events.cout_declare_ou_estime` sur la journée UTC en
+   cours, tous runs confondus, et la relit depuis la base avant chaque appel,
+   pas seulement à l'initialisation. Le plafond reste celui de la config
+   (25 €).
+2. Redémarrage : au démarrage du worker, si la dépense de la journée UTC est
+   déjà ≥ plafond, aucun nouveau run n'est créé ; le worker entre directement
+   dans la boucle d'attente du changement de jour, avec un message de log
+   explicite (« budget du jour atteint : X € / 25 €, reprise à minuit UTC »).
+3. Second garde-fou, indépendant des tarifs : un plafond journalier sur le
+   nombre d'appels au modèle approfondi (`config/quotas.yaml`, clé
+   `max_appels_approfondis_par_jour`), calé sur les chiffres du diagnostic
+   pour correspondre à environ 25 € au tarif actuel. Le premier des deux
+   plafonds atteint arrête les appels.
+4. Échantillon de contrôle des rejetés : un dossier rejeté ne peut être
+   retiré au tirage qu'une seule fois au total, et chaque tirage est
+   journalisé (opportunité, date, décision avant / après) — ces données
+   serviront à l'étape 5.
+5. Traçabilité : ajoute à `usage_events` les colonnes `role` et
+   `opportunity_id` (migration additive, NULL pour l'historique),
+   renseignées à chaque appel. `app.metriques` affiche désormais le coût par
+   rôle et le coût moyen par opportunité.
+6. Tarifs : vérifie les valeurs de `PRICES_USD_PAR_MILLION_TOKENS` sur la
+   page de tarification officielle d'Anthropic et le taux `USD_VERS_EUR` ;
+   mets-les en config avec la source et la date de vérification.
+
+Tests sans réseau : plafond journalier sur plusieurs runs fixtures ;
+redémarrage avec journée déjà au plafond → aucun run créé ; plafond
+d'appels ; tirage de contrôle limité à une fois ; migration additive. Suite
+verte, 0 €.
+
+### Journal — sous-étape 0.7
+- Statut : PARTIEL
+- Date : 2026-09-25
+- Commit(s) : `[0.7] Correction du garde-fou budget : plafond journalier réel, second plafond d'appels, tirage de contrôle limité, traçabilité role/opportunity_id, tarifs vérifiés`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Le vrai bug est corrigé : le plafond de 25 €/jour compte maintenant TOUTE
+  la journée (tous les redémarrages compris), plus un deuxième filet qui
+  arrête tout après un nombre d'appels fixe, même si les prix se trompent
+  encore. Un dossier rejeté ne sera plus jamais re-testé qu'une seule fois.
+  J'ai aussi corrigé les tarifs (l'ancien prix du modèle Sonnet et le taux
+  euro/dollar étaient faux, tous les deux trop hauts) — mais après cette
+  correction, le chiffre recalculé reste au-dessus de ce que tu lis dans la
+  console Anthropic ; l'écart n'est pas expliqué, voir plus bas.
+- Fichiers créés / modifiés : `app/pipeline/budget.py`, `app/pipeline/orchestrator.py`,
+  `app/storage/schema.py`, `app/storage/db.py`, `app/storage/repo.py`,
+  `app/adapters/model_client.py`, `app/roles/scout.py`, `app/roles/analyst.py`,
+  `app/roles/critic.py`, `app/metriques.py`, `app/config.py`,
+  `config/quotas.yaml` (ajout `max_appels_approfondis_par_jour`),
+  `config/tarifs.yaml` (créé), `tests/test_budget.py`, `tests/test_storage.py`,
+  `tests/test_db.py` (créé), `tests/test_metriques.py`, `tests/test_model_client.py`,
+  `tests/test_pipeline_integration.py`
+- Tests : 21 ajoutés (plafond journalier partagé entre deux runs ; relecture
+  base à chaque appel ; plafond d'appels approfondis indépendant du prix et
+  qui ignore le Scout ; aucun nouveau run si le jour est déjà au plafond au
+  redémarrage ; tirage de contrôle exclu après une fois, à la fois côté
+  `_selectionner_pour_analyse` et côté contrainte SQL ; migration additive
+  sur une base "ancienne" sans `role`/`opportunity_id`, idempotente, sans
+  perte de données ; coût par rôle et coût moyen par opportunité dans
+  `app.metriques` ; tarifs vérifiés) — suite par défaut : 79 verts / 0 rouge
+  — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») :
+  `max_appels_approfondis_par_jour` calé à **1300** (calcul : 1037 appels
+  approfondis le 25/09 pour ≈30,59 € au tarif ALORS utilisé par le code ;
+  recalculé aux tarifs corrigés ci-dessous, ≈19,44 €, soit ≈0,0187 €/appel ;
+  25 € / 0,0187 € ≈ 1334, arrondi à la baisse par prudence). Tarifs
+  corrigés : Sonnet 5 passe de 3 $/15 $ à **2 $/10 $** par million de tokens
+  (Haiku 4.5 était déjà juste à 1 $/5 $) ; taux de change de 0,92 à
+  **0,877** EUR/USD. Sources et date dans `config/tarifs.yaml`.
+- Écart par rapport au plan (et pourquoi) : point 6, partiellement bloqué.
+  J'ai vérifié le tarif Sonnet 5 et le taux de change (accès web disponible
+  dans cette session, contrairement à ce que le plan anticipait), et corrigé
+  le code en conséquence — donc pas de valeur laissée "à vérifier" comme
+  prévu en absence d'accès web. En revanche, Mathéo a signalé en cours de
+  session que la console Anthropic affiche environ **10 $** de dépense
+  réelle aujourd'hui, contre 32,17 € estimés dans `usage_events` (écart
+  ≈×3). J'ai vérifié dans le code qu'aucun `cache_control` n'est envoyé nulle
+  part dans `app/adapters/model_client.py` : le cache de prompt Anthropic
+  est strictement opt-in côté API, donc `cache_creation_input_tokens` et
+  `cache_read_input_tokens` valent forcément 0 ici — le cache n'explique pas
+  l'écart. En recalculant à partir des chiffres AGRÉGÉS (et approximatifs,
+  arrondis à l'heure) du diagnostic 0.6 avec les deux tarifs corrigés
+  ci-dessus, le total du jour retomberait à environ **21 €** — une baisse
+  réelle, mais qui laisse un écart d'environ ×2,4 encore inexpliqué avec les
+  ~10 $ (~8,8 € au taux corrigé) de la console. Je n'ai pas pu recalculer à
+  partir des vraies lignes `tokens_in`/`tokens_out` de `usage_events`
+  (précis, pas une approximation) : cette session n'arrive pas à joindre la
+  base Postgres de production (`dpg-daqro2navr4c739aopt0-a.frankfurt-postgres.render.com:5432`)
+  — la connexion échoue (« SSL connection has been closed unexpectedly »)
+  alors que les requêtes HTTPS, elles, fonctionnent ; cause non identifiée
+  (pare-feu réseau propre à cette session, ou panne côté Render — pas
+  distinguable d'ici). Commande exacte à lancer par Mathéo (ou une session
+  qui a accès à la base) pour trancher : `python -m app.metriques --jour
+  2026-09-25`, une fois ce commit déployé. Question précise dans §9.
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 — écart résiduel
+  (~×2,4) entre le coût recalculé aux tarifs corrigés (~21 €) et la console
+  Anthropic (~10 $), à trancher avec un accès direct soit à la base de
+  production, soit à la console.
 
 ---
 
@@ -510,9 +835,13 @@ Baseline du 25/09/2026 (à confirmer par 0.3). Les cibles sont des ordres de gra
 
 | Sous-étape | Statut | Date | Commit | Note d'une ligne |
 |---|---|---|---|---|
-| 0.1 | À FAIRE | | | |
-| 0.2 | À FAIRE | | | |
-| 0.3 🚦 | À FAIRE | | | |
+| 0.1 | FAIT | 2026-09-25 | `[0.1][0.2][0.3]` | Carte du dépôt écrite, 0 modif fonctionnelle |
+| 0.2 | FAIT | 2026-09-25 | `[0.1][0.2][0.3]` | Répartition par secteur + `--comparer` ajoutés à `app.metriques` |
+| 0.3 🚦 | PARTIEL | 2026-09-25 | `[0.1][0.2][0.3]` | 2/3 lignes de lecture répondues ; part par flux bloquée, voir §9 |
+| 0.4 | FAIT | 2026-09-25 | `[0.4]` | Anti-secret au déploiement + `app.metriques` en lecture seule dédiée |
+| 0.5 | FAIT | 2026-09-25 | `[0.5]` | Compte `radar_lecture` créé (10 tables lisibles) ; `app.metriques` fonctionne via le fichier hors dépôt |
+| 0.6 | FAIT | 2026-09-25 | `[0.6]` | Diagnostic budget : plafond appliqué par run, pas par jour ; redémarrage du worker = compteur à 0 ; 32,17 € dépensés pour 25 € autorisés |
+| 0.7 | PARTIEL | 2026-09-25 | `[0.7]` | Plafond journalier réel + plafond d'appels + tirage limité à une fois + traçabilité role/opportunity_id + tarifs corrigés (Sonnet 3$/15$→2$/10$, taux 0,92→0,877) ; écart ×2,4 restant vs console non résolu (accès base bloqué), voir §9 |
 | 1.1 | À FAIRE | | | |
 | 1.2 | À FAIRE | | | |
 | 1.3 | À FAIRE | | | |
@@ -552,4 +881,61 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
 
 À remplir par Claude Code, une ligne par question, datée, avec la sous-étape concernée. Mathéo transmet cette section à Fable telle quelle. Une question résolue est barrée, jamais effacée.
 
-- *(vide)*
+- 2026-09-25 (sous-étape 0.7, point 6) : après correction des deux tarifs
+  faux identifiés (Sonnet 5 : 3 $/15 $ → 2 $/10 $ officiel ; taux de change :
+  0,92 → 0,877 vérifié par recherche web), un recalcul à partir des chiffres
+  agrégés (approximatifs, arrondis à l'heure) du diagnostic 0.6 donne un coût
+  du jour révisé d'environ 21 €, alors que Mathéo lit environ 10 $ (≈8,8 €)
+  sur la console Anthropic — écart d'environ ×2,4 non expliqué. Le cache de
+  prompt est exclu avec certitude (aucun `cache_control` nulle part dans le
+  code, donc toujours à 0). Cette session n'a pas pu se connecter à la base
+  Postgres de production pour recalculer à partir des vraies colonnes
+  `tokens_in`/`tokens_out` (précises, contrairement aux chiffres agrégés
+  utilisés ici) : la connexion échoue avec « SSL connection has been closed
+  unexpectedly », cause non identifiée. À trancher : soit relancer `python -m
+  app.metriques --jour 2026-09-25` (ce commit une fois déployé) depuis un
+  poste qui a accès à la base, soit comparer directement avec le détail de
+  la console Anthropic (par rôle/appel si elle l'affiche).
+- ~~2026-09-25 (sous-étape 0.5, trouvé en vérifiant l'accès en lecture seule) :
+  **`python -m app.metriques --jour 2026-09-25` affiche un coût du jour de
+  31,18 €, au-dessus du plafond dur de 25 €/jour** (garde-fou §3.4 : « jamais
+  dépassé — arrêt avant, jamais après »). 441 opportunités repérées, 434
+  analysées ce jour-là. Constat brut, non creusé (hors périmètre de cette
+  sous-étape) : soit le plafond n'a pas arrêté le run à temps, soit il a été
+  changé depuis la rédaction du plan, soit un autre coût s'additionne
+  ailleurs. À vérifier avant l'étape 1 (qui va encore augmenter le volume).~~
+  **Diagnostiqué en sous-étape 0.6** (2026-09-25) : le plafond est vérifié
+  par `run_id`, pas par jour UTC (`BudgetTracker` vs `app.metriques` —
+  même table `usage_events`, clés différentes). 5 runs créés le 25/09,
+  dont un redémarrage du worker 26 min après qu'un run a atteint 24,99 €
+  — le nouveau run reparaît avec un compteur à 0 €. Total réel du jour :
+  32,17 € pour 25 € autorisés. Détail et correction proposée (non
+  implémentée) dans `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`. Question
+  restant ouverte pour Fable : valider la correction (plafond cumulé par
+  jour UTC sur tous les runs) avant de l'implémenter.
+- 2026-09-25 (sous-étape 0.3) : impossible de calculer « quelle part des
+  opportunités vient de chaque flux » pour la baseline. Cette notion
+  n'existe pas encore dans le modèle de données (`flux_origine` n'arrive
+  qu'en 1.1) ; en attendant, `sources.domaine` porte déjà le nom lisible du
+  flux (`app/adapters/rss_adapter.py`), donc la donnée existe en base, mais
+  cette session locale n'a pas d'accès à la base de production (pas de
+  `DATABASE_URL` configuré ici) pour lancer une requête ad hoc dessus. À
+  recalculer soit via une requête manuelle sur la base Render, soit une fois
+  la sous-étape 1.1 en production.
+
+- ~~2026-09-25 (sous-étape 0.1) : `scripts/deployer_vers_github.sh` copie le
+  dossier de travail vers le dépôt de déploiement **public** via
+  `rsync -a --delete` en excluant `.venv/`, `__pycache__/`,
+  `.pytest_cache/`, `*.db`, `rapport_*.html`, `.git/` — mais **pas** `.env`.
+  `.env` est dans `.gitignore` (donc jamais commité dans `labo-ia`), mais le
+  script s'appuie sur sa propre liste d'exclusions rsync, pas sur
+  `.gitignore`. Si un `.env` avec de vraies clés se trouve un jour à la
+  racine du dossier de travail au moment de lancer ce script, il serait
+  copié tel quel dans le dépôt public. Point de vigilance réel, pas
+  seulement théorique — à corriger (ajouter `.env` à la liste d'exclusions
+  rsync) avant l'étape 3.5, qui ajoute déjà une vérification anti-clé au
+  script pour une autre raison.~~ **Résolu en sous-étape 0.4** (2026-09-25) :
+  `.env`/`.env.*` et les motifs de `scripts/exclusions_deploiement.txt` sont
+  désormais exclus de la synchronisation, avec une deuxième vérification
+  après coup (`scripts/verifier_absence_fichiers_interdits.sh`) qui bloque le push si
+  un fichier interdit est malgré tout présent.

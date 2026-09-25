@@ -6,10 +6,10 @@ n'est mis à jour que sur son propre id (idempotence d'une reprise : voir
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.engine import Engine
 
 from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
@@ -25,6 +25,7 @@ from app.storage.schema import (
     scores,
     signals,
     sources,
+    tirages_controle_rejetes,
     usage_events,
 )
 
@@ -35,6 +36,11 @@ def _now() -> datetime:
 
 def _uid() -> str:
     return uuid.uuid4().hex
+
+
+def _bornes_jour_utc(jour: date) -> tuple[datetime, datetime]:
+    debut = datetime(jour.year, jour.month, jour.day, tzinfo=timezone.utc)
+    return debut, debut + timedelta(days=1)
 
 
 # ---------------------------------------------------------------- runs ----
@@ -361,7 +367,8 @@ def inserer_decision(engine: Engine, *, opportunity_id: str, auteur: str, action
 # ------------------------------------------------------------- usage -----
 
 def inserer_usage_event(engine: Engine, *, run_id: str, fournisseur: str, modele_ou_actor: str, appels: int,
-                         tokens_in: int | None, tokens_out: int | None, cout: float, devise: str = "EUR") -> str:
+                         tokens_in: int | None, tokens_out: int | None, cout: float, role: str | None = None,
+                         opportunity_id: str | None = None, devise: str = "EUR") -> str:
     u_id = _uid()
     with engine.begin() as cx:
         cx.execute(
@@ -376,6 +383,8 @@ def inserer_usage_event(engine: Engine, *, run_id: str, fournisseur: str, modele
                 cout_declare_ou_estime=cout,
                 devise=devise,
                 date_creation=_now(),
+                role=role,
+                opportunity_id=opportunity_id,
             )
         )
     return u_id
@@ -387,6 +396,64 @@ def cout_total_run(engine: Engine, run_id: str) -> float:
             select(usage_events.c.cout_declare_ou_estime).where(usage_events.c.run_id == run_id)
         ).all()
         return sum(r[0] for r in rows)
+
+
+def cout_total_jour_utc(engine: Engine, jour: date) -> float:
+    """Dépense du jour calendaire UTC, tous runs confondus — la clé du
+    plafond dur (§3.4), par opposition à `cout_total_run` (clé du run,
+    reporting uniquement). Voir `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`."""
+    debut, fin = _bornes_jour_utc(jour)
+    with engine.connect() as cx:
+        rows = cx.execute(
+            select(usage_events.c.cout_declare_ou_estime).where(
+                usage_events.c.date_creation >= debut, usage_events.c.date_creation < fin
+            )
+        ).all()
+        return sum(r[0] for r in rows)
+
+
+def nombre_appels_approfondis_jour_utc(engine: Engine, jour: date) -> int:
+    """Nombre d'appels déjà journalisés aujourd'hui (UTC) pour les rôles
+    Analyst/Critic — second garde-fou, indépendant de toute estimation de
+    prix (sous-étape 0.7). Les lignes antérieures à la migration (`role`
+    NULL) ne comptent jamais ici : elles datent d'un autre jour de toute
+    façon."""
+    debut, fin = _bornes_jour_utc(jour)
+    with engine.connect() as cx:
+        return cx.execute(
+            select(func.count()).select_from(usage_events).where(
+                usage_events.c.date_creation >= debut,
+                usage_events.c.date_creation < fin,
+                usage_events.c.role.in_(("analyst", "critic")),
+            )
+        ).scalar_one()
+
+
+# ------------------------------------------------ tirages de contrôle ----
+
+def opportunites_deja_tirees_controle(engine: Engine) -> set[str]:
+    """Opportunités déjà retirées au moins une fois par l'échantillon de
+    contrôle des rejetés — jamais deux fois la même (§2, pipeline)."""
+    with engine.connect() as cx:
+        rows = cx.execute(select(tirages_controle_rejetes.c.opportunity_id)).all()
+        return {r[0] for r in rows}
+
+
+def inserer_tirage_controle_rejete(engine: Engine, *, opportunity_id: str, run_id: str, decision_avant: str,
+                                    decision_apres: str) -> str:
+    t_id = _uid()
+    with engine.begin() as cx:
+        cx.execute(
+            insert(tirages_controle_rejetes).values(
+                id=t_id,
+                opportunity_id=opportunity_id,
+                run_id=run_id,
+                date_creation=_now(),
+                decision_avant=decision_avant,
+                decision_apres=decision_apres,
+            )
+        )
+    return t_id
 
 
 # ---------------------------------------------------------- controles ----

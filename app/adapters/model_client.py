@@ -2,10 +2,15 @@
 coût (§6). Sépare la logique métier du fournisseur — changer de modèle ne
 touche que ce fichier.
 
-Tarifs indicatifs seulement (PRICES_USD_PAR_MILLION_TOKENS) : À VÉRIFIER sur
-la page tarifaire réelle du fournisseur avant tout run réel, comme demandé
-par le cahier des charges (§4, §6). ~1 USD ≈ 0,92 EUR — conversion
-approximative elle aussi à vérifier.
+Tarifs et taux de change lus depuis `config/tarifs.yaml` (source et date de
+vérification dans ce fichier — sous-étape 0.7 d'AMELIORATIONS.md). Le
+fournisseur ne facture jamais l'estimation d'ici : c'est une approximation
+cohérente, pas une facture réelle (voir `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`, §5).
+
+Aucun `cache_control` n'est envoyé dans les requêtes de ce fichier : le cache
+de prompt Anthropic ne s'active jamais ici (il est strictement opt-in côté
+API), donc `cache_creation_input_tokens`/`cache_read_input_tokens` valent
+toujours 0 et n'ont pas à entrer dans `_estimer_cout_eur`.
 """
 from __future__ import annotations
 
@@ -14,17 +19,16 @@ import logging
 
 from pydantic import BaseModel, ValidationError
 
+from app import config as cfg
 from app.config import Settings
 from app.pipeline.budget import BudgetTracker
 
 logger = logging.getLogger(__name__)
 
-# Indicatif — à vérifier avant activation d'un run réel (voir docstring).
-PRICES_USD_PAR_MILLION_TOKENS = {
-    "claude-haiku-4-5-20251001": {"input": 1.0, "output": 5.0},
-    "claude-sonnet-5": {"input": 3.0, "output": 15.0},
-}
-USD_VERS_EUR = 0.92
+# Secours pour un modèle absent de config/tarifs.yaml (nouveau modèle pas
+# encore ajouté à la config) : hypothèse volontairement pessimiste plutôt que
+# de sous-estimer un coût réel inconnu.
+PRIX_PAR_DEFAUT = {"input": 5.0, "output": 25.0}
 
 
 class AccesModeleIndisponible(Exception):
@@ -66,9 +70,10 @@ def _normaliser_sortie_outil(brut: object, schema: type[BaseModel]) -> object:
 
 
 def _estimer_cout_eur(modele: str, tokens_in_est: int, tokens_out_est: int) -> float:
-    prix = PRICES_USD_PAR_MILLION_TOKENS.get(modele, {"input": 3.0, "output": 15.0})
+    config_tarifs = cfg.tarifs()
+    prix = config_tarifs["prix_usd_par_million_tokens"].get(modele, PRIX_PAR_DEFAUT)
     usd = (tokens_in_est / 1_000_000) * prix["input"] + (tokens_out_est / 1_000_000) * prix["output"]
-    return usd * USD_VERS_EUR
+    return usd * config_tarifs["usd_vers_eur"]
 
 
 class ModelClient:
@@ -92,17 +97,23 @@ class ModelClient:
         prompt_utilisateur: str,
         schema: type[BaseModel],
         version_prompt: str,
+        role: str,
+        opportunity_id: str | None = None,
         max_tokens: int = 1500,
     ) -> BaseModel | None:
         """Renvoie une instance validée de `schema`, ou None si l'accès
         manque, si le budget est dépassé, ou si la sortie ne respecte pas le
-        schéma (jamais d'exception avalée en silence : tout est journalisé)."""
+        schéma (jamais d'exception avalée en silence : tout est journalisé).
+
+        `role` (scout|analyst|critic) et `opportunity_id` tracent l'appel
+        dans `usage_events` (sous-étape 0.7) — `opportunity_id` reste `None`
+        pour le Scout, appelé avant que l'opportunité n'existe."""
         if not self.settings.has_model_access:
             raise AccesModeleIndisponible("ANTHROPIC_API_KEY absente : appeler le mode démo à la place.")
 
         tokens_in_est = (len(prompt_systeme) + len(prompt_utilisateur)) // 4
         cout_estime = _estimer_cout_eur(modele, tokens_in_est, max_tokens)
-        self.budget.verifier_et_engager(cout_estime)  # lève BudgetDepasse si insuffisant
+        self.budget.verifier_et_engager(cout_estime, role=role)  # lève BudgetDepasse si insuffisant
 
         client = self._get_client()
         outil = {
@@ -124,6 +135,7 @@ class ModelClient:
             self.budget.enregistrer_reel(
                 fournisseur="anthropic", modele_ou_actor=modele, appels=1,
                 tokens_in=None, tokens_out=None, cout_reel=0.0, cout_estime_engage=cout_estime,
+                role=role, opportunity_id=opportunity_id,
             )
             return None
 
@@ -134,6 +146,7 @@ class ModelClient:
             fournisseur="anthropic", modele_ou_actor=modele, appels=1,
             tokens_in=tokens_in_reel, tokens_out=tokens_out_reel,
             cout_reel=cout_reel, cout_estime_engage=cout_estime,
+            role=role, opportunity_id=opportunity_id,
         )
 
         bloc_outil = next((b for b in resp.content if getattr(b, "type", None) == "tool_use"), None)

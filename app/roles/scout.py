@@ -66,6 +66,7 @@ def executer_scout(
                 prompt_utilisateur=_prompt_utilisateur(signal_id, texte, secteur),
                 schema=ScoutSortie,
                 version_prompt=VERSION_PROMPT,
+                role="scout",
             )
         except BudgetDepasse:
             raise

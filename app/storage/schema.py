@@ -163,4 +163,26 @@ usage_events = Table(
     Column("cout_declare_ou_estime", Float, nullable=False),
     Column("devise", String, nullable=False, default="EUR"),
     Column("date_creation", DateTime(timezone=True), nullable=False),
+    # Ajoutées en sous-étape 0.7 (migration additive, voir
+    # app/storage/db.py::_appliquer_migrations_additives) : NULL pour tout
+    # l'historique antérieur, renseignées à chaque appel depuis.
+    Column("role", String, nullable=True),  # scout|analyst|critic
+    Column("opportunity_id", String, nullable=True),  # absent pour le Scout : appelé avant création du dossier
 )
+
+tirages_controle_rejetes = Table(
+    "tirages_controle_rejetes",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("opportunity_id", String, nullable=False),
+    Column("run_id", String, nullable=False),
+    Column("date_creation", DateTime(timezone=True), nullable=False),
+    Column("decision_avant", String, nullable=False),
+    Column("decision_apres", String, nullable=False),
+    UniqueConstraint("opportunity_id", name="uq_tirage_controle_opportunity"),
+)
+# Journal de l'échantillon de contrôle des rejetés (§2, pipeline) : une
+# opportunité `rejete` ne peut être retirée au tirage qu'UNE SEULE FOIS au
+# total (contrainte d'unicité ci-dessus, en plus du filtre applicatif dans
+# `app/pipeline/orchestrator.py::_selectionner_pour_analyse`) — voir
+# `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`, §4.

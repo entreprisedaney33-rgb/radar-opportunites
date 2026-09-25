@@ -94,6 +94,8 @@ def executer_analyst(
                 prompt_utilisateur=_prompt_utilisateur(opportunite, preuves),
                 schema=AnalystSortie,
                 version_prompt=VERSION_PROMPT,
+                role="analyst",
+                opportunity_id=opportunity_id,
                 max_tokens=2500,
             )
         except BudgetDepasse:

@@ -33,3 +33,34 @@ qualitative.
 À reproduire après chaque changement (sourcing du Scout, capacité de
 recherche de l'Analyst, calibration du Critic) pour vérifier ce qui a
 réellement bougé — pas seulement à l'œil.
+
+## Trois lignes de lecture (sous-étape 0.3, AMELIORATIONS.md)
+
+1. **La part de dossiers à une seule source confirme-t-elle le constat 1 ?**
+   Oui, sans ambiguïté : 100 % des 120 dossiers repérés le 25/09
+   (`sources_par_dossier.part_une_seule_source = 1.0`, min = médiane = max = 1)
+   n'ont jamais eu qu'une seule source. L'Analyst n'a donc jamais eu, sur
+   cette journée, plus d'un fait à sa disposition par dossier — le constat 1
+   du plan (« l'alimentation en preuves est le goulot, pas le Critic ») est
+   confirmé chiffre à l'appui, pas seulement en hypothèse.
+
+2. **Le maximum de score observé est-il cohérent avec un plafond à 50 ?**
+   Oui : le score prudent plafonne à 45/100 sur la journée (médiane 25,
+   p90 35, 0 dossier au-dessus de 60). Avec une seule source par dossier et
+   une règle de score 0 / 50 % / 100 % où l'ancre à 100 % exige deux faits
+   forts sourcés par critère, aucun dossier ne peut mathématiquement
+   dépasser ~50 sur la plupart des critères — le plafond observé colle à ce
+   que prédit la mécanique du score, pas à un réglage trop sévère du Critic.
+
+3. **Quelle part des opportunités vient de chaque flux ?**
+   **Non calculable avec les données actuelles.** `app.metriques` (sous-étape
+   0.2) calcule une répartition par secteur (`par_secteur`), mais pas de
+   répartition par flux d'origine — cette notion n'existe formellement dans
+   le modèle de données qu'à partir de la sous-étape 1.1 (`flux_origine`).
+   En base, `sources.domaine` porte déjà le nom lisible du flux (voir
+   `app/adapters/rss_adapter.py`, `domaine=self.nom`) : la donnée existe
+   techniquement, mais son calcul demanderait soit une requête ad hoc sur la
+   base de production, soit d'attendre l'étape 1. Cette session locale n'a
+   pas d'accès à la base Render (pas de `DATABASE_URL` configuré ici) pour
+   lancer cette requête. Voir la question ouverte correspondante en §9 de
+   `AMELIORATIONS.md`.

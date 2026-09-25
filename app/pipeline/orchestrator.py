@@ -119,18 +119,26 @@ def _selectionner_pour_analyse(engine: Engine, max_analyses: int, fraction_echan
     seulement les opportunités du passage courant, sinon un dossier laissé
     de côté par manque de budget ne serait plus jamais repris), plus un
     petit échantillon de rejetés pour vérifier que le filtre n'est pas trop
-    sévère (§2)."""
+    sévère (§2).
+
+    Depuis la sous-étape 0.7 : une opportunité déjà retirée une fois par cet
+    échantillon (table `tirages_controle_rejetes`) n'est plus jamais
+    re-proposée — voir `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`, §4."""
     toutes = repo.lister_opportunites_ouvertes(engine)
     backlog_nouveau = sorted(
         (o for o in toutes if o["statut"] == "nouveau"), key=lambda o: o["date_creation"]
     )
-    deja_rejetees = [o for o in toutes if o["statut"] == "rejete"]
+    deja_tirees = repo.opportunites_deja_tirees_controle(engine)
+    deja_rejetees = [o for o in toutes if o["statut"] == "rejete" and o["id"] not in deja_tirees]
 
     n_echantillon = max(0, round(max_analyses * fraction_echantillon_rejetes)) if deja_rejetees else 0
     n_principal = max(0, max_analyses - n_echantillon)
 
     principal = backlog_nouveau[:n_principal]
     echantillon = random.sample(deja_rejetees, k=min(n_echantillon, len(deja_rejetees))) if deja_rejetees else []
+    for o in echantillon:
+        o["tirage_controle"] = True
+        o["decision_avant"] = o["statut"]  # toujours "rejete" ici (critère de sélection), gardé explicite
     return principal + echantillon
 
 
@@ -292,6 +300,12 @@ def _phase_analyse_et_critique(
             statut_final = "incertain"
         repo.maj_statut_opportunite(engine, opportunity_id, statut_final)
 
+        if candidat.get("tirage_controle"):
+            repo.inserer_tirage_controle_rejete(
+                engine, opportunity_id=opportunity_id, run_id=run_id,
+                decision_avant=candidat["decision_avant"], decision_apres=statut_final,
+            )
+
         repo.inserer_score(
             engine, opportunity_id=opportunity_id, run_id=run_id,
             version_poids=poids_config.get("version", "?"), valeurs=resultat_score.valeurs,
@@ -333,7 +347,11 @@ def executer_run(engine: Engine, options: OptionsRun) -> tuple[str, ResumeRun]:
         version_config=poids_config.get("version", "?"), quotas=quotas,
     )
 
-    budget = BudgetTracker(engine, run_id, plafond_eur=quotas["budget_eur_par_jour"])
+    budget = BudgetTracker(
+        engine, run_id,
+        plafond_eur=quotas["budget_eur_par_jour"],
+        plafond_appels_approfondis=quotas["max_appels_approfondis_par_jour"],
+    )
     model_client = None
     if options.mode != "dry-run" and settings.has_model_access:
         model_client = ModelClient(settings, budget)
@@ -388,6 +406,24 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
             continue
 
         aujourdhui = datetime.now(timezone.utc).date()
+        plafond_jour = quotas["budget_eur_par_jour"]
+        depense_jour = repo.cout_total_jour_utc(engine, aujourdhui)
+        if depense_jour >= plafond_jour:
+            # Sous-étape 0.7 : vérifié AVANT toute décision de run, y compris
+            # au redémarrage du worker — sinon un `run_id` différent (le
+            # précédent étant `termine`) repartirait avec un compteur à zéro
+            # alors que la dépense du jour est déjà au plafond (voir
+            # rapports/DIAGNOSTIC_BUDGET_2026-09-25.md).
+            logger.info(
+                "Budget du jour atteint : %.2f € / %.2f €, reprise à minuit UTC.",
+                depense_jour, plafond_jour,
+            )
+            while datetime.now(timezone.utc).date() == aujourdhui:
+                if _pause_demandee(engine):
+                    break
+                time.sleep(300)
+            continue
+
         run_existant = repo.run_en_cours_le_plus_recent(engine)
         if run_existant and run_existant["debut"].date() == aujourdhui:
             run_id = run_existant["id"]
@@ -406,7 +442,11 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
 
         resume = ResumeRun()
         debut = time.monotonic()
-        budget = BudgetTracker(engine, run_id, plafond_eur=quotas["budget_eur_par_jour"])
+        budget = BudgetTracker(
+            engine, run_id,
+            plafond_eur=plafond_jour,
+            plafond_appels_approfondis=quotas["max_appels_approfondis_par_jour"],
+        )
         model_client = ModelClient(settings, budget) if settings.has_model_access else None
 
         try:
@@ -431,7 +471,10 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
         )
 
         if resume.budget_atteint:
-            logger.info("Budget du jour atteint (run %s) : passage suivant demain.", run_id)
+            logger.info(
+                "Budget du jour atteint : %.2f € / %.2f €, reprise à minuit UTC.",
+                budget.depense_jour_engagee(), plafond_jour,
+            )
             repo.terminer_run(
                 engine, run_id, statut="termine",
                 couts={"total_eur_estime": round(budget.cout_total_reel(), 4)},

@@ -42,6 +42,11 @@ def sources_autorisees() -> dict[str, Any]:
     return _load_yaml("sources_autorisees.yaml")
 
 
+@lru_cache(maxsize=1)
+def tarifs() -> dict[str, Any]:
+    return _load_yaml("tarifs.yaml")
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str

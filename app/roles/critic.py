@@ -78,6 +78,8 @@ def executer_critic(
                 prompt_utilisateur=_prompt_utilisateur(opportunite, analyst_sortie, preuves),
                 schema=CriticSortie,
                 version_prompt=VERSION_PROMPT,
+                role="critic",
+                opportunity_id=opportunity_id,
                 max_tokens=1800,
             )
         except BudgetDepasse:

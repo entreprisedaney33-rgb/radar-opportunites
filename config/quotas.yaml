@@ -17,6 +17,23 @@
 
 budget_eur_par_jour: 25.0
 
+# Second garde-fou, ajouté en sous-étape 0.7 (AMELIORATIONS.md), INDÉPENDANT
+# de toute estimation de prix : un plafond dur sur le nombre d'appels/jour au
+# modèle approfondi (Analyst + Critic — le Scout, moins cher, n'est jamais
+# compté ici). Le premier des deux plafonds (celui-ci ou budget_eur_par_jour)
+# atteint arrête les appels.
+#
+# Calibré sur les chiffres réels du 25/09/2026
+# (rapports/DIAGNOSTIC_BUDGET_2026-09-25.md, §3) : 1037 appels
+# Analyst+Critic ce jour-là, pour ≈30,59 € au TARIF ALORS UTILISÉ PAR LE CODE
+# (Sonnet 5 à 3 $/15 $, conversion à 0,92). Recalculé aux tarifs officiels
+# vérifiés (voir config/tarifs.yaml, sous-étape 0.7 point 6 : Sonnet 5 à
+# 2 $/10 $, soit ×2/3, et conversion à 0,877, soit ×0,877/0,92) : ≈30,59 € ×
+# (2/3) × (0,877/0,92) ≈ 19,44 €, soit ≈0,0187 €/appel approfondi. 25 € /
+# 0,0187 € ≈ 1334 appels — arrondi à la baisse par prudence (ce calcul reste
+# une extrapolation à partir d'UNE seule journée, pas une moyenne stable).
+max_appels_approfondis_par_jour: 1300
+
 # Taille d'UN passage (pas un plafond définitif : le retard non traité est
 # repris automatiquement au passage suivant).
 max_signaux_par_passage: 40

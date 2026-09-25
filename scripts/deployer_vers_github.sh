@@ -1,23 +1,53 @@
 #!/usr/bin/env bash
 # Synchronise ce dossier (la copie de travail, dans labo-ia) vers le dépôt
 # GitHub dédié au déploiement Render : entreprisedaney33-rgb/radar-opportunites
-# (privé). Render ne se connecte JAMAIS à labo-ia directement (données
+# (public). Render ne se connecte JAMAIS à labo-ia directement (données
 # clients sensibles) — voir ARCHITECTURE.md.
 #
+# Le dépôt de déploiement étant PUBLIC, aucun secret ne doit jamais y
+# atterrir : double protection —
+#   1. .env, .env.* et tout motif de scripts/exclusions_deploiement.txt sont
+#      exclus de la copie (rsync --exclude) ;
+#   2. après la copie et avant tout commit/push, verifier_absence_fichiers_interdits.sh
+#      revérifie indépendamment la copie destinée au dépôt ; s'il trouve
+#      malgré tout un fichier interdit, le script s'arrête (rien n'est
+#      poussé).
+#
 # Usage : ./scripts/deployer_vers_github.sh "message de commit"
+#
+# RADAR_DEPOT_DEPLOIEMENT et RADAR_SOURCE_DEPLOIEMENT permettent de
+# surcharger le dépôt cible et le dossier source (utilisé uniquement par les
+# tests, sur une arborescence fixture — voir tests/test_deploiement.py).
 set -euo pipefail
 
-DEPOT="https://github.com/entreprisedaney33-rgb/radar-opportunites.git"
-ICI="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPOT="${RADAR_DEPOT_DEPLOIEMENT:-https://github.com/entreprisedaney33-rgb/radar-opportunites.git}"
+ICI="${RADAR_SOURCE_DEPLOIEMENT:-$(cd "$SCRIPTS_DIR/.." && pwd)}"
 MESSAGE="${1:-Synchronisation depuis labo-ia}"
+FICHIER_EXCLUSIONS="$SCRIPTS_DIR/exclusions_deploiement.txt"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+
+MOTIFS_INTERDITS=(--exclude='.env' --exclude='.env.*')
+if [[ -f "$FICHIER_EXCLUSIONS" ]]; then
+  while IFS= read -r ligne; do
+    ligne="${ligne%%#*}"
+    ligne="$(echo "$ligne" | xargs)"
+    [[ -z "$ligne" ]] && continue
+    MOTIFS_INTERDITS+=(--exclude="$ligne")
+  done < "$FICHIER_EXCLUSIONS"
+fi
 
 git clone --quiet "$DEPOT" "$TMP"
 rsync -a --delete \
   --exclude='.venv/' --exclude='__pycache__/' --exclude='.pytest_cache/' \
   --exclude='*.db' --exclude='rapport_*.html' --exclude='.git/' \
+  "${MOTIFS_INTERDITS[@]}" \
   "$ICI/" "$TMP/"
+
+if ! "$SCRIPTS_DIR/verifier_absence_fichiers_interdits.sh" "$TMP" "$FICHIER_EXCLUSIONS"; then
+  exit 1
+fi
 
 cd "$TMP"
 git add -A

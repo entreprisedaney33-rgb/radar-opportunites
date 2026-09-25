@@ -1,0 +1,32 @@
+# Motifs supplémentaires interdits dans le dépôt de déploiement (public),
+# en plus de .env / .env.* et des exclusions déjà codées en dur dans
+# deployer_vers_github.sh (.venv, __pycache__, .pytest_cache, *.db,
+# rapport_*.html, .git).
+#
+# Un motif par ligne, syntaxe `find -name` / `rsync --exclude` (glob sur le
+# nom de fichier, pas de chemin). Lignes vides et commentaires (#) ignorés.
+# Ajouter ici tout motif de fichier qui pourrait contenir un secret.
+
+*.pem
+*.key
+id_rsa*
+credentials.json
+secrets.yaml
+secrets.yml
+
+# Script d'administration à usage unique (sous-étape 0.5) : manipule l'URL
+# d'admin Postgres en clair en mémoire le temps de son exécution ; Render n'en
+# a de toute façon aucun besoin (le Background Worker n'exécute jamais ce
+# script).
+creer_acces_lecture.py
+
+# Trouvé en déployant la sous-étape 0.7 (25/09/2026) : ces deux fichiers de
+# test contiennent des URL Postgres FACTICES (mots de passe bidons du type
+# "vraimotdepasse"/"abc123"), utilisées pour tester que le contrôle
+# anti-secret ci-dessous détecte bien ce motif — elles déclenchent donc ce
+# contrôle sur elles-mêmes dès que le dossier `tests/` complet est copié.
+# Aucun vrai secret dedans ; exclus ici plutôt que d'affaiblir la détection
+# elle-même. Render n'exécute jamais la suite de tests, ces fichiers ne lui
+# sont d'aucune utilité.
+test_creer_acces_lecture.py
+test_deploiement.py

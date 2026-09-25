@@ -1,8 +1,23 @@
 """Reproduit deux déformations vues en usage réel (premier run manuel sur
 Render, 2026-09-25) : le modèle enveloppe parfois sa réponse dans une clé
 unique, et rend parfois une liste sous forme de chaîne JSON."""
-from app.adapters.model_client import _normaliser_sortie_outil
+import pytest
+
+from app.adapters.model_client import _estimer_cout_eur, _normaliser_sortie_outil
 from app.models_schemas import AnalystSortie, CriticSortie
+
+
+def test_tarifs_sonnet_5_et_haiku_verifies_le_2026_09_25():
+    """Sous-étape 0.7, point 6 : tarifs vérifiés sur
+    platform.claude.com/docs/en/about-claude/pricing — Sonnet 5 est à
+    2 $/10 $ (le prix "introductif" est devenu le prix standard depuis le
+    1er septembre 2026), Haiku 4.5 était déjà correct à 1 $/5 $."""
+    cout_haiku = _estimer_cout_eur("claude-haiku-4-5-20251001", 1_000_000, 1_000_000)
+    cout_sonnet = _estimer_cout_eur("claude-sonnet-5", 1_000_000, 1_000_000)
+    usd_vers_eur = 0.877
+
+    assert cout_haiku == pytest.approx((1.0 + 5.0) * usd_vers_eur)
+    assert cout_sonnet == pytest.approx((2.0 + 10.0) * usd_vers_eur)
 
 
 def test_deballe_une_enveloppe_a_cle_unique():

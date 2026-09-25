@@ -1,0 +1,33 @@
+# Tarifs modele (sous-etape 0.7 d'AMELIORATIONS.md, point 6). Anciennement
+# codes en dur dans app/adapters/model_client.py, marques "indicatif -- a
+# verifier" et jamais verifies depuis.
+#
+# Verifie le 2026-09-25 sur les pages officielles Anthropic :
+# - https://platform.claude.com/docs/en/about-claude/pricing (grille de prix
+#   par modele -- table "Model pricing")
+# - https://claude.com/pricing (page publique, memes chiffres)
+# Claude Sonnet 5 : le prix "introductif" de 2 $/10 $ par million de tokens,
+# annonce comme valable jusqu'au 31 aout 2026, est devenu le prix standard
+# (la hausse a 3 $/15 $ prevue le 1er septembre 2026 n'a pas eu lieu, note
+# explicite sur la page officielle). Claude Haiku 4.5 : 1 $/5 $, deja
+# correct dans le code precedent.
+#
+# A revoir si Anthropic change sa grille, ou au prochain "Diagnostic budget".
+prix_usd_par_million_tokens:
+  claude-haiku-4-5-20251001:
+    input: 1.0
+    output: 5.0
+  claude-sonnet-5:
+    input: 2.0
+    output: 10.0
+
+# Taux de conversion USD -> EUR. Verifie le 2026-09-25 par recherche web
+# (cours EUR/USD ~1,14, ex. tradingeconomics.com/euro-area/currency) :
+# 1 USD = 1 / 1,14 EUR ~= 0,877 EUR. Un taux de change, contrairement aux
+# tarifs modele ci-dessus, fluctue en continu -- cette valeur est une
+# approximation figee a la date de verification, pas un taux contractuel ;
+# a rafraichir periodiquement (prochain diagnostic budget par exemple).
+usd_vers_eur: 0.877
+
+source: "https://platform.claude.com/docs/en/about-claude/pricing"
+date_verification: "2026-09-25"
