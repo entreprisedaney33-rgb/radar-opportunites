@@ -1,0 +1,32 @@
+# Secteurs explorés par le Scout et allocation des requêtes.
+# Modifiable sans toucher au code. Les proportions règlent l'allocation de
+# requêtes, pas le classement final (voir cahier des charges §1).
+
+allocation_requetes:
+  b2b_repetitif: 0.70   # processus B2B répétitifs riches en texte/documents/décisions
+  exploration_ouverte: 0.20  # recherche ouverte intersectorielle
+  hypotheses_emergentes: 0.10  # agents, x402, nouvelles interfaces/modèles
+
+secteurs:
+  b2b_repetitif:
+    - operations_petites_entreprises
+    - services_professionnels
+    - flux_documentaires
+    - e_commerce
+    - outils_internes_it
+  exploration_ouverte:
+    - intersectoriel
+  hypotheses_emergentes:
+    - agents_ia
+    - nouvelles_interfaces
+    - apis_x402
+    - nouveaux_modeles
+
+exclure_secteur:
+  - sante
+  - donnees_personnelles_sensibles
+
+mots_cles_negatifs:
+  - "assurance santé"
+  - "dossier médical"
+  - "données patient"

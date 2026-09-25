@@ -1,0 +1,26 @@
+# Sources que le Scout a le droit d'interroger. Chaque source déclare sa
+# méthode de collecte et son adaptateur. Ajouter une source = ajouter une
+# ligne ici, jamais en contournant login/CAPTCHA/robots.txt/CGU (voir §1).
+
+rss:
+  - id: hn_rss
+    nom: "Hacker News (front page)"
+    url: "https://hnrss.org/frontpage"
+    type: rss
+    budget_appels_par_nuit: 5
+
+  - id: producthunt_rss
+    nom: "Product Hunt (flux public)"
+    url: "https://www.producthunt.com/feed"
+    type: rss
+    budget_appels_par_nuit: 5
+
+demo:
+  - id: demo_fixtures
+    nom: "Données de démonstration (étiquetées DEMO)"
+    type: demo
+    budget_appels_par_nuit: 999
+
+apify:
+  actif: false  # activé seulement si APIFY_TOKEN + APIFY_ACTOR_ID + plafond sont configurés
+  plafond_eur_par_execution: null

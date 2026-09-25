@@ -1,0 +1,22 @@
+# Quotas et plafonds d'une exécution nocturne. Proposition initiale À
+# CONFIRMER par les fondateurs avant toute activation payante (voir
+# ARCHITECTURE.md). Ce ne sont pas des estimations de prix fournisseur.
+
+budget_eur_par_nuit: 5.0
+max_signaux_ingeres: 100
+max_nouvelles_opportunites: 15
+max_analyses_approfondies: 5
+max_critiques: 5
+duree_max_minutes: 120
+
+# Part des candidats REJETÉS par le filtre de preuves qu'on envoie quand même
+# à l'Analyst/Critic, pour détecter un filtre trop sévère (§2, pipeline).
+echantillon_rejetes_pour_controle: 0.10
+
+# Réessais réseau : plafonnés, avec délai croissant, sur 429/5xx.
+retry_max_tentatives: 3
+retry_delai_base_secondes: 2
+
+# Fenêtre nocturne : horaire de référence en UTC (Render exécute les Cron
+# Jobs en UTC). Converti et affiché en Europe/Paris dans les rapports.
+horaire_declenchement_utc: "01:00"

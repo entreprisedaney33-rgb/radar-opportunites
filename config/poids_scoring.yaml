@@ -1,0 +1,35 @@
+# Poids du score sur 100 et version — voir SCORING.md pour les ancres
+# détaillées de chaque critère. Toute modification de ce fichier doit
+# s'accompagner d'une nouvelle valeur de `version` : chaque score enregistré
+# garde la version des poids utilisée au moment du calcul (pas d'écrasement
+# silencieux de l'historique).
+
+version: "2026.09.1"
+
+criteres:
+  probleme_frequence_cout:
+    max: 20
+    label: "Problème, fréquence et coût actuel"
+  acheteur_disposition_payer:
+    max: 20
+    label: "Acheteur et disposition à payer"
+  gain_realisable_ia:
+    max: 15
+    label: "Gain réalisable par IA"
+  acces_clients:
+    max: 15
+    label: "Accès aux clients"
+  concurrence_differenciation:
+    max: 10
+    label: "Concurrence et différenciation"
+  economie_cout_lancement:
+    max: 10
+    label: "Économie et coût de lancement"
+  faisabilite_risque:
+    max: 10
+    label: "Faisabilité et risque"
+
+# Règle conservatrice pour le score_prudent : un critère marqué `unknown`
+# (aucune preuve utilisable) ne reçoit PAS 50% de son maximum par défaut.
+# Il reçoit cette fraction, documentée et modifiable ici :
+fraction_inconnue_score_prudent: 0.0

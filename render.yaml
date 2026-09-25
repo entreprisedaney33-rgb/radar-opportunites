@@ -1,0 +1,54 @@
+# Blueprint Render pour le radar d'opportunités. Déployé depuis son propre
+# dépôt GitHub dédié (entreprisedaney33-rgb/radar-opportunites, privé) —
+# JAMAIS depuis labo-ia directement : ce monorepo contient des données
+# clients sensibles que Render n'a aucune raison de pouvoir lire. La copie
+# de travail reste dans labo-ia/produits/radar-opportunites/ ; ce dossier-ci
+# n'est qu'un miroir de déploiement, synchronisé par
+# `scripts/deployer_vers_github.sh` (voir CLAUDE.md).
+#
+# Tarifs vérifiés sur render.com/pricing le 2026-09-25 (voir ARCHITECTURE.md) :
+# Postgres basic_256mb = 6 $/mois ; Cron Job "starter" (0.5c-512mb) facturé
+# à la seconde, ~0,60 $/mois pour 2h/nuit max.
+
+databases:
+  - name: radar-opportunites-db
+    databaseName: radar_opportunites
+    plan: basic_256mb
+    region: frankfurt   # aligné sur les autres bases du compte (n8n-db)
+
+services:
+  - type: cron
+    name: radar-opportunites-nightly
+    runtime: python
+    plan: starter
+    region: frankfurt
+    schedule: "0 1 * * *"   # 01:00 UTC ; converti en Europe/Paris dans le rapport (voir app/reports/html_report.py)
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python -m app.cli run-once"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: radar-opportunites-db
+          property: connectionString
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RADAR_PAUSE_ALL
+        value: "0"
+
+  # Optionnel — seulement si l'interface web est retenue en Phase 3 (voir
+  # ARCHITECTURE.md, "Ce qui reste à décider"). Ne pas déployer sans en
+  # avoir discuté : ressource payante supplémentaire (+7 $/mois, plan starter).
+  # - type: web
+  #   name: radar-opportunites-web
+  #   runtime: python
+  #   plan: starter
+  #   region: frankfurt
+  #   buildCommand: "pip install -r requirements.txt"
+  #   startCommand: "gunicorn -w 1 -b 0.0.0.0:$PORT app.web.server:app"
+  #   envVars:
+  #     - key: DATABASE_URL
+  #       fromDatabase:
+  #         name: radar-opportunites-db
+  #         property: connectionString
+  #     - key: RADAR_UI_PASSWORD
+  #       sync: false
