@@ -13,6 +13,7 @@ from sqlalchemy import create_engine
 from app.adapters.http import ErreurCollecte, PageTropGrande
 from app.enqueteur import fetch as fetch_module
 from app.enqueteur.fetch import (
+    ETIQUETTE_EXTRAIT_FLUX,
     ETIQUETTE_PREUVE_ENQUETE,
     ETIQUETTE_PREUVE_PRIX,
     PageCollectee,
@@ -21,6 +22,7 @@ from app.enqueteur.fetch import (
     recuperer_page,
     stocker_page,
 )
+from app.pipeline.budget import BudgetTracker
 from app.enqueteur.fournisseurs import ResultatRecherche
 from app.storage.db import migrer
 
@@ -37,7 +39,12 @@ def _resultat(url="https://exemple.invalid/article", **kw):
     kw.setdefault("titre", "Titre du résultat de recherche")
     kw.setdefault("extrait", "Extrait du résultat de recherche")
     kw.setdefault("horodatage_source", datetime(2026, 9, 20, tzinfo=timezone.utc))
-    kw.setdefault("fournisseur", "reddit")
+    # Sous-étape 3.9 : "reddit" est désormais un fournisseur à part
+    # (FOURNISSEURS_EXTRAIT_DIRECT, jamais de fetch de page réelle) -- les
+    # tests génériques de fetch/stockage de ce fichier utilisent donc un
+    # fournisseur "normal" par défaut, "reddit" n'apparaissant que dans les
+    # tests dédiés à l'extrait direct plus bas.
+    kw.setdefault("fournisseur", "algolia_hn")
     kw.setdefault("requete_origine", "réconciliation factures reddit")
     return ResultatRecherche(url=url, **kw)
 
@@ -94,7 +101,7 @@ def test_recuperer_page_ok(monkeypatch):
     assert page is not None
     assert page.titre == "Article"
     assert page.texte == "Contenu utile."
-    assert page.fournisseur == "reddit"
+    assert page.fournisseur == "algolia_hn"
     assert page.requete_origine == "réconciliation factures reddit"
     assert page.horodatage_source == datetime(2026, 9, 20, tzinfo=timezone.utc)
 
@@ -293,13 +300,13 @@ def test_collecter_preuves_journalise_le_fetch_de_page(engine_test, monkeypatch)
     monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)
     monkeypatch.setattr(fetch_module.time, "sleep", lambda *_a, **_kw: None)
 
-    resultats = [_resultat("https://a.example/bonne", fournisseur="reddit")]
+    resultats = [_resultat("https://a.example/bonne", fournisseur="algolia_hn")]
     ids = collecter_preuves(engine_test, resultats)
 
     assert len(ids) == 1
     jour = datetime.now(timezone.utc).date()
     lignes = repo.lister_appels_http_jour_utc(engine_test, jour)
-    assert lignes == [{"flux_ou_fournisseur": "enqueteur_fetch:reddit", "code_http": 200, "erreur": None}]
+    assert lignes == [{"flux_ou_fournisseur": "enqueteur_fetch:algolia_hn", "code_http": 200, "erreur": None}]
 
 
 def test_collecter_preuves_etiquette_prix_transmise_a_chaque_page(engine_test, monkeypatch):
@@ -564,3 +571,91 @@ def test_page_hostile_est_stockee_comme_une_page_normale_et_jamais_privilegiee(e
     affirmation_inventee = resultat_invente.criteres[0].affirmations[0]
     assert affirmation_inventee.source_ids == []
     assert affirmation_inventee.type == TypeAffirmation.NON_VERIFIE
+
+
+# --------------------------------- sous-étape 3.9 : extrait direct Reddit --
+# Le fournisseur Reddit de l'Enquêteur ne doit plus JAMAIS déclencher de
+# fetch de la page réelle (`recuperer_page`) : `robots.txt` de Reddit
+# interdit tout crawl (vérifié le 26/09/2026,
+# rapports/AUDIT_NUIT_2026-09-26.md). `get_with_retry`/`get_avec_limite_taille`
+# ne sont volontairement PAS monkeypatchés dans cette section : un appel
+# involontaire lèverait une vraie erreur réseau (aucun hôte configuré dans
+# les tests), ce qui fait déjà office de garde-fou "jamais fetché".
+
+def test_collecter_preuves_reddit_stocke_l_extrait_sans_jamais_fetcher_la_page(engine_test):
+    resultat = _resultat(
+        "https://www.reddit.com/r/smallbusiness/comments/abc123/x",
+        fournisseur="reddit", titre="Titre du post", extrait="Le texte du post trouvé par la recherche.",
+    )
+
+    ids = collecter_preuves(engine_test, [resultat])
+
+    assert len(ids) == 1
+    from sqlalchemy import select
+
+    from app.storage.schema import sources
+
+    with engine_test.connect() as cx:
+        row = cx.execute(select(sources).where(sources.c.id == ids[0])).mappings().first()
+    assert row["etiquette"] == ETIQUETTE_EXTRAIT_FLUX
+    assert row["type"] == "rss"  # jamais "page_web" : aucune page n'a été fetchée
+    assert row["extrait"] == "Titre du post — Le texte du post trouvé par la recherche."
+    assert row["flux_origine"] == "reddit"
+
+
+def test_collecter_preuves_reddit_ignore_le_plafond_de_fetchs_de_page(engine_test):
+    """Aucun fetch réel n'a lieu pour Reddit : le compteur
+    `max_fetchs_pages_par_jour` (posé en 3.1 pour protéger de VRAIS fetchs)
+    ne doit jamais le concerner -- ici plafonné à 0, il ne bloque pourtant
+    pas le stockage de l'extrait."""
+    budget = BudgetTracker(
+        engine_test, "run-test", plafond_eur=25.0, plafond_appels_approfondis=1000,
+        plafond_fetchs_pages_par_jour=0,
+    )
+    resultat = _resultat("https://www.reddit.com/r/x/comments/1/y", fournisseur="reddit")
+
+    ids = collecter_preuves(engine_test, [resultat], budget=budget)
+
+    assert len(ids) == 1
+    assert budget.fetchs_pages_jour_engages() == 0
+
+
+def test_collecter_preuves_reddit_extrait_vide_est_ignore(engine_test):
+    resultat = _resultat("https://www.reddit.com/r/x/comments/1/y", fournisseur="reddit", titre="", extrait="")
+    assert collecter_preuves(engine_test, [resultat]) == []
+
+
+def test_collecter_preuves_reddit_toujours_etiquette_extrait_flux_meme_pour_la_famille_prix(engine_test):
+    """L'étiquette `etiquette` transmise à `collecter_preuves` (ex.
+    `ETIQUETTE_PREUVE_PRIX`, famille `prix`) ne s'applique jamais à Reddit --
+    ce n'est jamais une page de tarification réellement fetchée, seulement
+    un extrait de flux."""
+    resultat = _resultat("https://www.reddit.com/r/x/comments/1/pricing", fournisseur="reddit")
+
+    ids = collecter_preuves(engine_test, [resultat], etiquette=ETIQUETTE_PREUVE_PRIX)
+
+    from sqlalchemy import select
+
+    from app.storage.schema import sources
+
+    with engine_test.connect() as cx:
+        row = cx.execute(select(sources).where(sources.c.id == ids[0])).mappings().first()
+    assert row["etiquette"] == ETIQUETTE_EXTRAIT_FLUX
+
+
+def test_collecter_preuves_reddit_rattache_l_extrait_a_l_opportunite(engine_test):
+    """Une source `extrait_flux` compte comme une vraie preuve pour
+    l'Analyst : rattachée via `opportunity_evidence` comme n'importe quelle
+    autre (point 1 de la sous-étape 3.9)."""
+    from app.storage import repo
+
+    opp_id = repo.creer_opportunite(
+        engine_test, titre="t", acheteur="a", probleme="p", mecanisme_ia="m",
+        secteur="e_commerce", statut="nouveau", cluster_id=None,
+    )
+    resultat = _resultat("https://www.reddit.com/r/x/comments/1/y", fournisseur="reddit")
+
+    ids = collecter_preuves(engine_test, [resultat], opportunity_id=opp_id)
+
+    assert len(ids) == 1
+    assert repo.sources_deja_citees(engine_test, opp_id) == set(ids)

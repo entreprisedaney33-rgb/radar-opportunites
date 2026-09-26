@@ -503,6 +503,25 @@ def nombre_evenements_role_jour_utc(engine: Engine, jour: date, *, role: str) ->
         ).scalar_one()
 
 
+def nombre_evenements_role_fournisseur_jour_utc(
+    engine: Engine, jour: date, *, role: str, fournisseur: str
+) -> int:
+    """Sous-étape 3.9 (AMELIORATIONS.md) : variante de la fonction ci-dessus,
+    filtrée en plus par `fournisseur` -- sert le plafond dédié à Reddit
+    (`app.pipeline.budget.BudgetTracker.requetes_recherche_reddit_jour_engagees`),
+    une part du plafond global de requêtes de recherche."""
+    debut, fin = _bornes_jour_utc(jour)
+    with engine.connect() as cx:
+        return cx.execute(
+            select(func.count()).select_from(usage_events).where(
+                usage_events.c.date_creation >= debut,
+                usage_events.c.date_creation < fin,
+                usage_events.c.role == role,
+                usage_events.c.fournisseur == fournisseur,
+            )
+        ).scalar_one()
+
+
 # ------------------------------------------------ tirages de contrôle ----
 
 def opportunites_deja_tirees_controle(engine: Engine) -> set[str]:

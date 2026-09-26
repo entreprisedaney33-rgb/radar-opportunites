@@ -1880,11 +1880,195 @@ Tests sans réseau. Suite verte, 0 €.
   question ouverte en §9 (sous-étape 7.1) sur le statut de run non mis à
   jour, et la limite notée dans la même section sur l'absence de code HTTP
   persisté (barrées ci-dessous).
-- Déploiement : PAS FAIT dans cette sous-étape — en attente de l'« OK pour
-  déployer » de Mathéo (§5). Migration additive uniquement (table neuve) :
-  redéploiement sans risque, le Background Worker attend déjà minuit UTC
-  (budget du jour très probablement déjà atteint au moment de la lecture de
-  ce Journal) — voir §5 pour la procédure.
+- Déploiement : synchronisé vers le dépôt public
+  `entreprisedaney33-rgb/radar-opportunites` (commit `7ffb4a3b`) le
+  2026-09-25 à 22:39 UTC, avec l'« OK pour déployer » de Mathéo dans la
+  session (`./scripts/deployer_vers_github.sh`, aucun secret détecté par les
+  trois contrôles du script). Migration additive uniquement (table neuve).
+  **Point 7 de la procédure §5 (vérifier sur Render que le Background Worker
+  a redémarré, que le premier passage s'est terminé sans erreur, et que la
+  base répond) non fait depuis cette session** : pas d'accès connecté au
+  dashboard Render ni à la base de production depuis ici (même limite que
+  les sous-étapes 0.7/3.6) — à faire par Mathéo lui-même : dashboard Render
+  → service du Background Worker → Logs. La mesure réelle à 48 h (point 9,
+  §5) reste entièrement à faire, dans une session à partir du 2026-09-27.
+
+#### Sous-étape 3.8 — Audit de la première nuit
+
+Ajoutée après coup (26/09/2026), après le déploiement de 3.7 : première
+lecture fine de ce que le radar a réellement fait depuis minuit UTC.
+Lecture seule via `radar_lecture`, aucun appel modèle, aucune modification
+de code, aucun déploiement.
+
+Répondre, chiffres à l'appui, dans `rapports/AUDIT_NUIT_2026-09-26.md` :
+1. Chronologie : runs et redémarrages depuis minuit UTC, ligne de budget à
+   chaque redémarrage, heure du dernier passage, budget consommé au fil des
+   heures.
+2. Entonnoir réel : signaux collectés par flux (douleur / offre) et par
+   source, hypothèses Scout, dossiers enquêtés, analysés, décisions. Où la
+   file s'accumule.
+3. L'Enquêteur, dossier par dossier : requêtes émises par famille (demande /
+   concurrence / prix), résultats obtenus, pages fetchées, sources stockées
+   par fournisseur et par étiquette. Distribution des sources par dossier
+   (min, médiane, max). Pour chaque dossier resté à une seule source :
+   pourquoi (aucun résultat ? plafond atteint ? fetchs échoués ?
+   robots.txt ?). Concurrents identifiés et pages de prix obtenues.
+4. L'Analyst : sur les dossiers enrichis, part des affirmations qui citent
+   une source de l'Enquêteur plutôt que le signal d'origine ; part des
+   affirmations non vérifiées ; score par critère avant/après enrichissement.
+   Top 10 des dossiers par score prudent avec nombre de sources et détail
+   par critère.
+5. Secteur : répartition par provenance, et 10 citations vérifiées
+   récentes pour lecture humaine.
+6. Coût : total, par rôle, par dossier enrichi vs non enrichi. Consommation
+   des plafonds requêtes/fetchs et heure d'épuisement s'il y a lieu.
+7. Réseau : depuis le déploiement de 3.7, taux de 429 / 403 / timeouts par
+   hôte, et si le limiteur de 6 s Reddit a tenu.
+8. Conclusion en dix lignes : l'Enquêteur a-t-il réellement multiplié les
+   sources ? Si les scores restent ≤ 55, où est le plafond — requêtes qui ne
+   trouvent rien (gabarits), Analyst qui n'exploite pas les sources (prompt),
+   ancres du score, ou plafonds épuisés trop tôt ? Propose la correction la
+   plus rentable, sans l'implémenter.
+
+### Journal — sous-étape 3.8
+- Statut : FAIT
+- Date : 2026-09-26
+- Commit(s) : `[3.8] Audit de la première nuit (accès base rétabli, rapport réel)`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  L'accès à la base fonctionne à nouveau (IP mise à jour côté Render) :
+  l'audit est fait avec de vrais chiffres. Trouvaille principale : le
+  fournisseur Reddit de l'Enquêteur ne sert à rien (Reddit interdit tout
+  crawl dans son `robots.txt`) mais bouffe la moitié du quota de requêtes,
+  qui est épuisé avant midi — corriger ça libérerait tout de suite plus de
+  place pour Hacker News, qui lui marche parfaitement.
+- Fichiers créés / modifiés : `rapports/AUDIT_NUIT_2026-09-26.md`
+  (remplacé — les 8 points répondus avec des chiffres réels du
+  2026-09-26, mesure à 11:53 UTC), `rapports/metriques/2026-09-26.json`
+  (régénéré par `python -m app.metriques --jour 2026-09-26`)
+- Tests : 0 ajouté (lecture seule sur la base réelle, aucun fichier
+  `app/`/`tests/` modifié) — suite par défaut : non relancée (aucun code
+  touché) — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : voir
+  `rapports/AUDIT_NUIT_2026-09-26.md` — entre autres, 631 opportunités
+  repérées / 330 analysées aujourd'hui, score prudent max 52,5 (médiane
+  22,5), 98,26 % des dossiers du jour à une seule source malgré
+  l'Enquêteur, quota `requetes_recherche_jour` épuisé à 100 % (1500/1500)
+  avant midi UTC dont la moitié (750/1500) gaspillée sur un fournisseur
+  Reddit structurellement inutile (`robots.txt` de Reddit vérifié :
+  `Disallow: /`), coût du jour 17,45 €/25 € à 11:53 UTC.
+- Écart par rapport au plan (et pourquoi) : aucun écart de périmètre. Deux
+  précisions de méthode : (1) l'hypothèse de filtrage réseau applicatif
+  avancée par la version précédente (bloquée) de ce rapport s'est révélée
+  fausse — la vraie cause était une liste d'IP autorisées côté Render, pas
+  une limite structurelle de l'environnement (corrigé en §9) ; (2) pour les
+  points 3/4/7 (détail par dossier, par fournisseur, par hôte) que
+  `app.metriques` ne calcule pas, un script d'audit ad hoc en lecture seule
+  a été écrit et exécuté depuis le dossier scratchpad de cette session
+  (jamais commis dans le dépôt, comme suggéré par le Journal précédent de
+  cette sous-étape) — uniquement des `SELECT` via `radar_lecture`, mêmes
+  garde-fous que `app.metriques` (jamais `DATABASE_URL`).
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 (question
+  réseau barrée, résolue) — question restée ouverte : le score avant/après
+  enrichissement (point 4) n'a pas pu être mesuré (aucun des 10 dossiers du
+  top 10 examinés n'a plus d'une ligne de score aujourd'hui) ; et le prompt
+  Analyst pour `acheteur_disposition_payer`/`economie_cout_lancement`
+  mériterait d'être revu (le seul dossier enrichi à 7 sources du jour les
+  laisse quand même « inconnu ») — non traité ici (lecture seule, hors
+  périmètre de cette sous-étape).
+
+#### Sous-étape 3.9 — Enquêteur : Reddit sans crawl, quotas rééquilibrés
+
+Ajoutée après coup (26/09/2026), suite à la conclusion de l'audit 3.8 :
+corrige la cause identifiée (le fournisseur Reddit de l'Enquêteur consommait
+la moitié du quota de requêtes pour zéro preuve utilisable, `robots.txt`
+interdisant tout crawl), sans toucher au reste du pipeline.
+
+1. Fournisseur Reddit de l'Enquêteur : plus aucune tentative de fetch de page
+   `reddit.com`. L'extrait renvoyé par la recherche (titre, texte, URL,
+   horodatage) est stocké directement comme source étiquetée « extrait_flux »,
+   comme le fait déjà la collecte du Scout. Une source « extrait_flux »
+   compte comme une vraie source pour l'Analyst, avec citation vérifiable sur
+   cet extrait.
+2. Répartition du quota journalier de requêtes : au plus 30 % pour Reddit, le
+   reste pour HN et les requêtes prix ; les requêtes prix sont prioritaires
+   dès qu'un concurrent est identifié.
+3. `max_requetes_recherche_par_jour` passe à 3000 et `max_fetchs_pages_par_jour`
+   à 1500 (le limiteur de 6 s protège Reddit, HN Algolia tolère bien plus).
+   Commentaire « à recalibrer à 48 h » conservé.
+4. Vérifie que la collecte du Scout et l'Enquêteur appliquent la même
+   politique vis-à-vis de `robots.txt`, et documente-la en une ligne dans
+   README : extraits de flux oui, crawl de pages non.
+5. Ajoute en §9 la piste « API officielle Reddit (OAuth, quota bien
+   supérieur) » à étudier à l'étape 4, avec la question de ses conditions
+   d'utilisation pour un usage professionnel.
+
+### Journal — sous-étape 3.9
+- Statut : FAIT
+- Date : 2026-09-26
+- Commit(s) : `[3.9] Enquêteur : Reddit sans crawl, quotas rééquilibrés`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Le fournisseur Reddit de l'Enquêteur ne va plus jamais chercher la vraie
+  page (interdite par Reddit) : il garde directement l'extrait trouvé par la
+  recherche, comme le fait déjà le Scout — plus aucun appel gaspillé. Son
+  quota est maintenant plafonné à 30 % du total pour ne plus jamais priver
+  Hacker News ou les recherches de prix, ces dernières passant devant dès
+  qu'un concurrent est repéré.
+- Fichiers créés / modifiés : `app/enqueteur/fetch.py` (constante
+  `ETIQUETTE_EXTRAIT_FLUX`, `FOURNISSEURS_EXTRAIT_DIRECT`,
+  `_page_depuis_extrait_direct`, `stocker_extrait_flux`, `collecter_preuves`
+  révisée), `app/pipeline/budget.py` (`BudgetTracker` : plafond dédié à
+  Reddit, `fournisseur`/`prioritaire` sur `verifier_et_engager_requete_recherche`),
+  `app/storage/repo.py` (`nombre_evenements_role_fournisseur_jour_utc`),
+  `app/enqueteur/enqueteur.py` (`_rechercher_par_famille` transmet
+  `fournisseur`/`prioritaire=(famille == "prix")`), `app/pipeline/orchestrator.py`
+  (les deux constructions de `BudgetTracker` passent le nouveau plafond),
+  `config/quotas.yaml` (`max_requetes_recherche_par_jour` 1500→3000,
+  `max_fetchs_pages_par_jour` 1000→1500, `part_max_reddit_requetes_recherche: 0.30`),
+  `README.md` (ligne robots.txt), `tests/test_enqueteur_fetch.py`,
+  `tests/test_budget.py`, `tests/test_enqueteur_enqueteur.py`
+- Tests : 11 ajoutés (fetch : extrait Reddit stocké sans fetch, plafond de
+  fetchs jamais consommé, extrait vide ignoré, étiquette `extrait_flux`
+  imposée même pour la famille `prix`, rattachement à l'opportunité comme
+  n'importe quelle preuve ; budget : plafond Reddit atteint indépendamment du
+  plafond global, les autres fournisseurs jamais affamés par lui, `prioritaire`
+  contourne le plafond Reddit mais jamais le plafond global, compteur dédié
+  Reddit isolé des autres fournisseurs, rétrocompatibilité sans `fournisseur`
+  explicite ; enquêteur : la famille `prix` passe bien `prioritaire=True` et
+  n'est jamais bloquée par le plafond Reddit) — un test existant
+  (`test_recuperer_page_ok`) et le fournisseur par défaut de la fixture
+  `_resultat()` (`tests/test_enqueteur_fetch.py`) ont été ajustés de
+  `"reddit"` à `"algolia_hn"` : ce fichier utilisait `"reddit"` comme
+  fournisseur générique par défaut pour des tests qui ne testent PAS
+  spécifiquement Reddit (fetch normal, journalisation, délai entre fetchs,
+  etc.) — désormais un fournisseur neutre, "reddit" n'apparaissant que dans
+  les nouveaux tests dédiés à l'extrait direct — suite par défaut : 312
+  verts / 0 rouge — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : aucun
+  (aucun accès à la base de production dans cette sous-étape ; l'effet réel
+  — Reddit plafonné à 30 %, HN/prix libérés, extraits Reddit comptant enfin
+  comme preuves — reste à mesurer à 48 h après déploiement, comme prévu par
+  le commentaire conservé dans `config/quotas.yaml`)
+- Écart par rapport au plan (et pourquoi) : deux choix d'interprétation non
+  explicitement écrits dans le texte ci-dessus, notés ici et en §9 :
+  1. L'étiquette `extrait_flux` est imposée pour TOUT résultat du fournisseur
+     Reddit, y compris pendant la famille `prix` (où l'appelant demande
+     d'ordinaire `ETIQUETTE_PREUVE_PRIX`) — un post Reddit trouvé en
+     cherchant "<concurrent> pricing" reste un extrait de flux, jamais une
+     page de tarification réellement fetchée ; l'étiquette `prix` continue
+     de s'appliquer normalement aux AUTRES fournisseurs (fetch direct
+     `<domaine>/pricing`, Algolia HN).
+  2. « Les requêtes prix sont prioritaires » (point 2) est implémenté comme
+     un contournement du plafond DÉDIÉ à Reddit uniquement (jamais du
+     plafond global de requêtes de recherche, qui reste absolu par §4 du
+     cahier des charges) — la seule lecture qui ne risque jamais de dépasser
+     un plafond dur. Comme la famille `prix` ne peut être déclenchée
+     qu'APRÈS la recherche `concurrence` (qui identifie le concurrent), elle
+     ne peut de toute façon jamais passer AVANT demande/concurrence pour la
+     MÊME opportunité — la priorité joue seulement contre le plafond Reddit
+     partagé entre opportunités dans la même journée.
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 (interprétations
+  ci-dessus à confirmer, et piste API officielle Reddit ajoutée au §9 pour
+  l'étape 4).
 
 ---
 
@@ -2366,7 +2550,9 @@ Baseline du 25/09/2026 (à confirmer par 0.3). Les cibles sont des ordres de gra
 | 3.4b | FAIT | 2026-09-25 | `[3.4b]` | Identification de concurrents par du code (magasin interne + marqueur d'offre par mot entier, ≤3, dédoublonnés par domaine) ; famille `prix` (pricing+tarifs) + fetch direct `<domaine>/pricing` (robots.txt respecté) ; pages étiquetées `prix`, reçues par l'Analyst comme les autres ; résout la question laissée ouverte en 3.4 |
 | 3.5 | FAIT | 2026-09-25 | `[3.5]` | Fournisseur Brave Search créé et testé, `actif_par_defaut=False`, jamais enregistré dans le registre réel (« ne pas activer » respecté) ; offre Brave vérifiée (palier gratuit illimité retiré en 02/2026, désormais 5$/1000 requêtes + 5$ de crédit mensuel, carte exigée), voir §9 ; contrôle anti-clé du diff ajouté à `deployer_vers_github.sh`, vérifié par un essai réel sur dépôt local jetable |
 | 3.6 🚦 | PARTIEL | 2026-09-25 | `74ecf25f` `d0fd2ab4` `4a80de1d` | Déployé (repo public commit `44705a68f9cc`, 20:56 UTC, build Render confirmé par Mathéo) ; vérification locale `app.metriques` bloquée par la même panne de connexion base que 0.5/0.7 ; mesure 48h et Journaux 1.6/2.3 restent à faire, voir §9 |
-| 3.7 | FAIT | 2026-09-26 | `[3.7]` | `journal_http` (table neuve) : code HTTP ou timeout/erreur_reseau par appel de collecte et d'Enquêteur ; `app.metriques` par flux/fournisseur (429/403/autres erreurs/taux de succès) ; corrige le run laissé `en_cours` quand le budget du jour est déjà atteint au redémarrage (résout §9, 7.1) — pas encore déployé, en attente de l'OK de Mathéo |
+| 3.7 | FAIT | 2026-09-26 | `[3.7]` | `journal_http` (table neuve) : code HTTP ou timeout/erreur_reseau par appel de collecte et d'Enquêteur ; `app.metriques` par flux/fournisseur (429/403/autres erreurs/taux de succès) ; corrige le run laissé `en_cours` quand le budget du jour est déjà atteint au redémarrage (résout §9, 7.1) — déployé (commit `7ffb4a3b`, 2026-09-25 22:39 UTC, OK de Mathéo) ; vérif Render/mesure 48h restent à faire, voir Journal |
+| 3.8 | FAIT | 2026-09-26 | `[3.8]` | Accès base rétabli (IP mise à jour côté Render, voir §9) ; audit réel du jour (11:53 UTC) : 98,26 % des dossiers du jour à une seule source malgré l'Enquêteur ; cause trouvée — le fournisseur Reddit de l'Enquêteur est inutile (`robots.txt: Disallow: /`, vérifié) mais consomme la moitié du quota de requêtes, épuisé (100 %) avant midi UTC ; correction proposée (retirer Reddit du registre), non implémentée |
+| 3.9 | FAIT | 2026-09-26 | `[3.9]` | Reddit sans crawl (extrait de recherche stocké tel quel, étiquette `extrait_flux`, jamais de fetch de page) ; plafond dédié à Reddit (30 % du quota de requêtes), contourné par la famille `prix` dès qu'un concurrent est identifié ; quotas relevés (3000/1500) ; ligne robots.txt ajoutée au README ; piste API officielle Reddit notée en §9 pour l'étape 4 — 11 tests ajoutés, 312 verts, non déployé (attend l'OK de Mathéo) |
 | 4.1 | À FAIRE | | | |
 | 4.2 | À FAIRE | | | |
 | 4.3 | À FAIRE | | | |
@@ -2391,6 +2577,38 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
 
 À remplir par Claude Code, une ligne par question, datée, avec la sous-étape concernée. Mathéo transmet cette section à Fable telle quelle. Une question résolue est barrée, jamais effacée.
 
+- ~~2026-09-26 (sous-étape 3.8, BLOQUÉ) : impossible de faire l'audit demandé
+  — aucune session Claude Code (celle-ci comme les précédentes : 0.5, 0.7,
+  3.6, toutes le même jour et le lendemain) ne parvient à se connecter à la
+  base Postgres de production
+  (`dpg-daqro2navr4c739aopt0-a.frankfurt-postgres.render.com:5432`), même en
+  lecture seule (`radar_lecture`) : `SSL connection has been closed
+  unexpectedly`. Nouveau diagnostic cette fois : une connexion TCP brute
+  (sans SSL, juste pour tester le port) **réussit** — la coupure est
+  spécifique à la négociation SSL du protocole Postgres, pas un blocage
+  réseau généralisé (le push Git HTTPS de la sous-étape 3.7, quelques heures
+  plus tôt, avait fonctionné sans problème). Hypothèse la plus probable :
+  l'environnement d'exécution de ces sessions filtre le trafic sortant au
+  niveau applicatif (HTTPS reconnu laissé passer, tout le reste coupé), ce
+  qui casserait systématiquement le protocole Postgres — donc pas une panne
+  ponctuelle à retenter, mais une limite structurelle de l'environnement.
+  **Décision à prendre par Mathéo/Fable** : soit accepter que tout audit ou
+  toute mesure directe sur la base de production doive être fait par Mathéo
+  lui-même (ou depuis un shell Render), jamais depuis une session Claude
+  Code sur ce projet, soit chercher un contournement légitime côté
+  infrastructure (ex. un point d'accès HTTPS dédié type PostgREST/API de
+  lecture devant la base) — mais cette dernière option est un vrai chantier
+  d'infra, pas quelque chose à improviser dans une sous-étape de lecture
+  seule.~~ **Résolu (2026-09-26, sous-étape 3.8)** : la vraie cause n'était
+  ni SSL ni un filtrage applicatif structurel — Mathéo a mis à jour
+  l'adresse IP autorisée côté Render, et la connexion fonctionne à nouveau
+  depuis cette session (`python -m app.metriques --jour 2026-09-26` et une
+  connexion directe `sqlalchemy` via `radar_lecture` réussissent toutes les
+  deux). L'hypothèse de filtrage réseau structurel de l'environnement,
+  écrite ci-dessus le matin même, était donc fausse — c'était une simple
+  liste d'IP à jour côté infra, pas une limite de l'environnement
+  d'exécution des sessions Claude Code. Audit réel de 3.8 fait dans la
+  foulée, voir `rapports/AUDIT_NUIT_2026-09-26.md`.
 - ~~2026-09-25 (sous-étape 7.1) : `app/pipeline/orchestrator.py::executer_continu`
   a deux chemins qui détectent "budget du jour atteint", mais un seul (celui
   qui survient EN COURS d'un passage) marque le run `termine` en base ;
@@ -2691,3 +2909,35 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
   lui-même un plafond de dépense côté compte Brave (hors du contrôle de ce
   code), en plus d'y créer et de saisir la clé dans Render. Rien à trancher
   maintenant ; à ne pas oublier au moment de 4.3.
+- 2026-09-26 (sous-étape 3.9, piste à étudier à l'étape 4, point 5 du texte) :
+  l'API officielle Reddit (OAuth, quota bien supérieur au `.rss`/`.search.rss`
+  public actuellement utilisé — voir `app.adapters.reddit_recherche` côté
+  Scout et `app.enqueteur.fournisseurs_gratuits.FournisseurReddit` côté
+  Enquêteur) permettrait de lever la limite de 30 % posée dans cette
+  sous-étape SANS revenir sur l'interdiction de `robots.txt` (l'API
+  officielle est un accès distinct, pas un contournement du crawl web). Non
+  étudiée ici (hors périmètre de cette sous-étape) : à étudier à l'étape 4
+  (l'entonnoir), avec en particulier la question de ses conditions
+  d'utilisation pour un usage professionnel (le "Reddit Data API" impose des
+  quotas et des règles d'usage commercial distinctes du simple flux public
+  RSS/Atom déjà utilisé, potentiellement une clé/inscription développeur à
+  faire par Mathéo lui-même, jamais par une session Claude Code -- même
+  garde-fou que pour toute clé, §0.1).
+- 2026-09-26 (sous-étape 3.9) : deux choix d'interprétation faits sans
+  confirmation explicite préalable, à valider par Mathéo/Fable (détail et
+  raisonnement dans le Journal de la sous-étape) :
+  1. Un résultat du fournisseur Reddit garde toujours l'étiquette
+     `extrait_flux`, même pendant la famille de requêtes `prix` (où
+     l'étiquette normalement transmise serait `ETIQUETTE_PREUVE_PRIX`) --
+     parce que ce n'est jamais une page de tarification réellement fetchée,
+     seulement un extrait de flux comme les autres. Si un post Reddit
+     mentionnant le prix d'un concurrent doit un jour être visuellement
+     distingué d'un extrait Reddit "demande"/"concurrence" (ex. pour
+     l'affichage Jarvis, étape 7), il faudra une troisième étiquette
+     combinée (« extrait_flux » + « prix ») -- pas fait ici, non demandé par
+     le texte.
+  2. « Les requêtes prix sont prioritaires » est lu comme : contourne
+     uniquement le plafond DÉDIÉ à Reddit posé dans cette même sous-étape,
+     jamais le plafond global de requêtes de recherche (qui reste absolu,
+     §4 du cahier des charges -- « jamais dépassé »). Aucune autre lecture
+     praticable n'a été trouvée qui ne risque pas de violer ce garde-fou.

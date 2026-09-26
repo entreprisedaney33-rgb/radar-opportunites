@@ -100,8 +100,36 @@ retry_delai_base_secondes: 2
 # 600/400) puis de cette révision (1500/1000) : ni l'une ni l'autre n'a encore
 # été mesurée en conditions réelles -- à recalibrer à 48 h (mesure de la
 # sous-étape 3.6).
-max_requetes_recherche_par_jour: 1500
-max_fetchs_pages_par_jour: 1000
+#
+# Relevées à nouveau à la sous-étape 3.9 (1500->3000, 1000->1500), suite à
+# l'audit réel du 26/09/2026 (rapports/AUDIT_NUIT_2026-09-26.md) : le
+# fournisseur Reddit de l'Enquêteur a, à lui seul, épuisé 100 % du plafond de
+# requêtes de recherche (750/1500) avant midi UTC pour ZÉRO preuve utilisable
+# (robots.txt de Reddit interdit tout crawl -- voir
+# FOURNISSEURS_EXTRAIT_DIRECT, app/enqueteur/fetch.py), tandis que le plafond
+# de fetchs de page (405/1000, 40,5 %) et le budget en euros (69,8 %) avaient
+# encore de la marge à la même heure -- le premier mur touché n'était pas le
+# bon. Avec le plafonnement de Reddit à `part_max_reddit_requetes_recherche`
+# ci-dessous ET l'extrait de recherche stocké directement (jamais de fetch de
+# page Reddit, donc son ancienne pression sur `max_fetchs_pages_par_jour`
+# disparaît), le plafond de fetchs pourrait rester stable -- relevé quand
+# même par prudence (marge pour Algolia HN, qui "tolère bien plus" que Reddit
+# d'après le même audit, §7). Toujours pas mesuré en conditions réelles --
+# à recalibrer à 48 h (mesure de la sous-étape 3.9).
+max_requetes_recherche_par_jour: 3000
+max_fetchs_pages_par_jour: 1500
+
+# Sous-étape 3.9 (AMELIORATIONS.md) : part MAXIMALE du plafond ci-dessus que
+# le fournisseur Reddit de l'Enquêteur (app.enqueteur.fournisseurs_gratuits.FournisseurReddit)
+# peut consommer -- indépendant du fournisseur Algolia HN, qui n'a lui aucun
+# plafond dédié (rien ne justifie de le limiter : 100 % de succès mesuré à
+# l'audit du 26/09/2026, contre 63,1 % de 429 pour Reddit à la même heure).
+# Contourné explicitement pour la famille de requêtes `prix`, dès qu'un
+# concurrent est identifié (`app.enqueteur.enqueteur._enqueter_prix`,
+# `budget.verifier_et_engager_requete_recherche(..., prioritaire=True)`) --
+# jamais pour le plafond global `max_requetes_recherche_par_jour` ci-dessus,
+# qui reste absolu (§4 du cahier des charges, « jamais dépassé »).
+part_max_reddit_requetes_recherche: 0.30
 
 # Fetch + extraction des pages retenues par l'Enquêteur (sous-étape 3.3) :
 # précautions par page, indépendantes des compteurs journaliers posés en 3.1

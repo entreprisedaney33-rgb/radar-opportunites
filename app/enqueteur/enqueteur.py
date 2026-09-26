@@ -88,7 +88,14 @@ def _rechercher_par_famille(
                 sans_reseau = getattr(fournisseur, "sans_reseau", False)
                 if not sans_reseau:
                     try:
-                        budget.verifier_et_engager_requete_recherche()
+                        # Sous-étape 3.9 : la famille `prix` (dès qu'un
+                        # concurrent est identifié, voir `_enqueter_prix`
+                        # ci-dessous) est prioritaire -- elle contourne le
+                        # plafond dédié à Reddit (jamais le plafond global,
+                        # voir app.pipeline.budget.BudgetTracker).
+                        budget.verifier_et_engager_requete_recherche(
+                            fournisseur=nom_fournisseur, prioritaire=(famille == "prix"),
+                        )
                     except BudgetDepasse as exc:
                         logger.info("Enquêteur : %s -- arrêt des recherches pour cette opportunité.", exc)
                         return par_famille

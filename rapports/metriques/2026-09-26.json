@@ -1,0 +1,3335 @@
+{
+  "jour": "2026-09-26",
+  "opportunites_reperees": 631,
+  "opportunites_analysees": 330,
+  "par_statut": {
+    "incertain": 279,
+    "rejete": 51,
+    "enquete_terminee": 54,
+    "nouveau": 246,
+    "en_analyse": 1
+  },
+  "par_decision_critic": {
+    "a_verifier": 279,
+    "rejeter": 51
+  },
+  "score_prudent": {
+    "min": 0.0,
+    "mediane": 22.5,
+    "p90": 37.5,
+    "max": 52.5,
+    "nb_superieur_60": 0,
+    "nb_superieur_80": 0
+  },
+  "par_secteur": {
+    "intersectoriel": 215,
+    "operations_petites_entreprises": 162,
+    "e_commerce": 79,
+    "outils_internes_it": 69,
+    "nouveaux_modeles": 15,
+    "apis_x402": 2,
+    "flux_documentaires": 55,
+    "services_professionnels": 25,
+    "agents_ia": 8,
+    "nouvelles_interfaces": 1
+  },
+  "par_secteur_provenance": {
+    "defaut": 321,
+    "citation_verifiee": 253,
+    "flux": 57
+  },
+  "par_type_flux": {
+    "douleur": 632
+  },
+  "par_flux": {
+    "Reddit r/smallbusiness — recherche « hours a week »": 3,
+    "Reddit r/smallbusiness — recherche « is there a tool »": 4,
+    "Reddit r/smallbusiness — recherche « every month I have to »": 5,
+    "Reddit r/smallbusiness — recherche « no good solution »": 5,
+    "Reddit r/smallbusiness — recherche « des heures par semaine »": 5,
+    "Hacker News — recherche « hours a week » (Ask HN)": 5,
+    "Hacker News — recherche « manually » (Ask HN)": 5,
+    "Hacker News — recherche « spreadsheet » (Ask HN)": 4,
+    "Reddit r/smallbusiness — recherche « existe-t-il un outil »": 4,
+    "Reddit r/smallbusiness — recherche « aucune solution »": 1,
+    "Reddit r/smallbusiness — recherche « on fait ça manuellement »": 1,
+    "Reddit r/Accounting — recherche « spreadsheet »": 5,
+    "Hacker News — recherche « no good solution » (Ask HN)": 5,
+    "Hacker News — recherche « there has to be a better way » (Ask HN)": 8,
+    "Hacker News — recherche « any way to automate » (Ask HN)": 6,
+    "Hacker News — recherche « à la main » (Ask HN)": 5,
+    "Reddit r/smallbusiness (douleurs réelles de patrons de petites entreprises)": 17,
+    "Reddit r/Accounting — recherche « copy paste »": 5,
+    "Hacker News — recherche « how do you handle » (commentaires)": 7,
+    "Reddit r/Accounting — recherche « looking for someone to »": 5,
+    "Reddit r/Accounting — recherche « there has to be a better way »": 5,
+    "Hacker News — recherche « hours a week » (commentaires)": 8,
+    "Hacker News — recherche « manually » (commentaires)": 10,
+    "Hacker News — recherche « spreadsheet » (commentaires)": 10,
+    "Hacker News — recherche « is there a tool » (commentaires)": 10,
+    "Reddit r/Accounting — recherche « on perd un temps fou »": 1,
+    "Reddit r/ecommerce — recherche « manually »": 5,
+    "Reddit r/ecommerce — recherche « how do you handle »": 5,
+    "Reddit r/ecommerce — recherche « tedious »": 5,
+    "Hacker News — recherche « copy paste » (commentaires)": 10,
+    "Hacker News — recherche « every month I have to » (commentaires)": 10,
+    "Hacker News — recherche « tedious » (commentaires)": 9,
+    "Hacker News — recherche « looking for someone to » (commentaires)": 9,
+    "Hacker News — recherche « still doing this by hand » (commentaires)": 5,
+    "Hacker News — recherche « chronophage » (commentaires)": 6,
+    "Reddit r/ecommerce — recherche « no good solution »": 5,
+    "Reddit r/ecommerce — recherche « any way to automate »": 1,
+    "Reddit r/ecommerce — recherche « existe-t-il un outil »": 1,
+    "Hacker News — recherche « comment vous gérez » (commentaires)": 1,
+    "Hacker News — recherche « je cherche quelqu'un pour » (commentaires)": 3,
+    "Hacker News — recherche « on perd un temps fou » (commentaires)": 1,
+    "Hacker News — recherche « aucune solution » (commentaires)": 5,
+    "Reddit r/ecommerce (e-commerce, SAV, retours)": 10,
+    "Reddit r/msp — recherche « hours a week »": 5,
+    "Reddit r/msp — recherche « manually »": 5,
+    "Reddit r/msp — recherche « copy paste »": 5,
+    "Reddit r/msp — recherche « looking for someone to »": 5,
+    "Reddit r/msp — recherche « there has to be a better way »": 5,
+    "Reddit r/msp — recherche « à la main »": 5,
+    "Reddit r/msp — recherche « comment vous gérez »": 1,
+    "Reddit r/msp — recherche « on perd un temps fou »": 2,
+    "Reddit r/sysadmin — recherche « spreadsheet »": 5,
+    "Reddit r/Bookkeeping (tenue de comptes)": 10,
+    "Reddit r/shopify (boutiques Shopify)": 1,
+    "Reddit r/sysadmin — recherche « copy paste »": 5,
+    "Reddit r/sysadmin — recherche « tedious »": 5,
+    "Reddit r/sysadmin — recherche « no good solution »": 5,
+    "Reddit r/sysadmin — recherche « des heures par semaine »": 5,
+    "Reddit r/msp (prestataires informatiques managés)": 9,
+    "Reddit r/sysadmin — recherche « on perd un temps fou »": 5,
+    "Reddit r/sysadmin — recherche « aucune solution »": 2,
+    "Reddit r/Bookkeeping — recherche « spreadsheet »": 4,
+    "Reddit r/Bookkeeping — recherche « every month I have to »": 5,
+    "Reddit r/Bookkeeping — recherche « still doing this by hand »": 5,
+    "Hacker News — recherche « is there a tool » (Ask HN)": 2,
+    "Reddit r/Bookkeeping — recherche « no good solution »": 5,
+    "Reddit r/Accounting (flux documentaires, comptabilité)": 10,
+    "Reddit r/freelance (indépendants)": 10,
+    "Reddit r/PropertyManagement (gestion locative)": 5,
+    "Reddit r/tax — recherche « hours a week »": 5,
+    "Reddit r/tax — recherche « spreadsheet »": 5,
+    "Reddit r/tax — recherche « copy paste »": 5,
+    "Reddit r/tax — recherche « looking for someone to »": 4,
+    "Reddit r/tax — recherche « any way to automate »": 5,
+    "Reddit r/tax — recherche « je cherche quelqu'un pour »": 4,
+    "Reddit r/Entrepreneur — recherche « hours a week »": 5,
+    "Reddit r/Entrepreneur — recherche « is there a tool »": 4,
+    "Reddit r/Entrepreneur — recherche « copy paste »": 5,
+    "Reddit r/Entrepreneur — recherche « every month I have to »": 5,
+    "Reddit r/Entrepreneur — recherche « still doing this by hand »": 3,
+    "Reddit r/Entrepreneur — recherche « any way to automate »": 3,
+    "Reddit r/Entrepreneur — recherche « existe-t-il un outil »": 3,
+    "Reddit r/Entrepreneur — recherche « je cherche quelqu'un pour »": 4,
+    "Reddit r/Entrepreneur — recherche « on perd un temps fou »": 1,
+    "Reddit r/freelance — recherche « hours a week »": 3,
+    "Reddit r/freelance — recherche « is there a tool »": 5,
+    "Reddit r/freelance — recherche « every month I have to »": 3,
+    "Reddit r/freelance — recherche « still doing this by hand »": 4,
+    "Reddit r/tax (fiscalité)": 9,
+    "Reddit r/freelance — recherche « no good solution »": 5,
+    "Reddit r/freelance — recherche « y a-t-il un moyen d'automatiser »": 1,
+    "Hacker News — recherche « no good solution » (commentaires)": 4,
+    "Hacker News — recherche « there has to be a better way » (commentaires)": 3,
+    "Reddit r/shopify — recherche « hours a week »": 5,
+    "Reddit r/shopify — recherche « is there a tool »": 3,
+    "Reddit r/shopify — recherche « tedious »": 5,
+    "Reddit r/shopify — recherche « no good solution »": 5,
+    "Reddit r/shopify — recherche « des heures par semaine »": 1,
+    "Reddit r/sysadmin (administration système)": 10,
+    "Reddit r/shopify — recherche « je cherche quelqu'un pour »": 2,
+    "Reddit r/FulfillmentByAmazon — recherche « manually »": 5,
+    "Reddit r/FulfillmentByAmazon — recherche « how do you handle »": 5,
+    "Reddit r/FulfillmentByAmazon — recherche « copy paste »": 4,
+    "Reddit r/FulfillmentByAmazon — recherche « tedious »": 5,
+    "Reddit r/FulfillmentByAmazon — recherche « there has to be a better way »": 5,
+    "Reddit r/FulfillmentByAmazon — recherche « à la main »": 5,
+    "Reddit r/PropertyManagement — recherche « tedious »": 5,
+    "Reddit r/PropertyManagement — recherche « hours a week »": 5,
+    "Reddit r/PropertyManagement — recherche « how do you handle »": 4,
+    "Reddit r/Entrepreneur (patrons, créateurs d'entreprise)": 10,
+    "Reddit r/PropertyManagement — recherche « no good solution »": 5,
+    "Reddit r/PropertyManagement — recherche « any way to automate »": 5,
+    "Reddit r/logistics — recherche « hours a week »": 5,
+    "Reddit r/logistics — recherche « is there a tool »": 3,
+    "Reddit r/logistics — recherche « every month I have to »": 1,
+    "Reddit r/logistics — recherche « no good solution »": 1,
+    "Reddit r/logistics — recherche « des heures par semaine »": 2,
+    "Reddit r/logistics — recherche « y a-t-il un moyen d'automatiser »": 2,
+    "Reddit r/smallbusiness — recherche « manually »": 4,
+    "Reddit r/FulfillmentByAmazon (vendeurs Amazon FBA)": 2,
+    "Reddit r/smallbusiness — recherche « copy paste »": 5,
+    "Reddit r/smallbusiness — recherche « looking for someone to »": 4,
+    "Reddit r/smallbusiness — recherche « there has to be a better way »": 4,
+    "Reddit r/smallbusiness — recherche « à la main »": 4,
+    "Reddit r/smallbusiness — recherche « on perd un temps fou »": 1,
+    "Reddit r/smallbusiness — recherche « quelqu'un a déjà résolu ça »": 1,
+    "Reddit r/Accounting — recherche « manually »": 3,
+    "Reddit r/Accounting — recherche « how do you handle »": 4,
+    "Reddit r/Accounting — recherche « tedious »": 5,
+    "Reddit r/Accounting — recherche « no good solution »": 5,
+    "Reddit r/Accounting — recherche « des heures par semaine »": 4,
+    "Reddit r/Accounting — recherche « on fait ça sur Excel »": 2,
+    "Reddit r/Accounting — recherche « je cherche quelqu'un pour »": 3,
+    "Reddit r/ecommerce — recherche « hours a week »": 1,
+    "Reddit r/ecommerce — recherche « is there a tool »": 2,
+    "Reddit r/ecommerce — recherche « des heures par semaine »": 1
+  },
+  "top_10_expressions_lexique": {
+    "hours a week": 50,
+    "no good solution": 50,
+    "copy paste": 44,
+    "tedious": 39,
+    "manually": 37,
+    "is there a tool": 33,
+    "spreadsheet": 33,
+    "there has to be a better way": 30,
+    "every month I have to": 29,
+    "looking for someone to": 27
+  },
+  "signaux_concurrence_stockes": 346,
+  "enqueteur": {
+    "requetes_recherche_jour": 1500,
+    "plafond_requetes_recherche_par_jour": 1500,
+    "fetchs_pages_jour": 405,
+    "plafond_fetchs_pages_par_jour": 1000
+  },
+  "appels_http_par_flux": {
+    "reddit_recherche:smallbusiness:heures_par_semaine_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:manually_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:spreadsheet_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:smallbusiness:is_there_a_tool_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:how_do_you_handle_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:smallbusiness:copy_paste_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:every_month_i_have_to_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:tedious_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:smallbusiness:looking_for_someone_to_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:still_doing_by_hand_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:smallbusiness:no_good_solution_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:better_way_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:way_to_automate_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:smallbusiness:heures_par_semaine_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:a_la_main_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "hn_recherche:ask_hn:heures_par_semaine_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:manually_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:spreadsheet_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_rss": {
+      "appels": 26,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 26,
+      "taux_succes": 1.0
+    },
+    "hn_show_rss": {
+      "appels": 26,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 26,
+      "taux_succes": 1.0
+    },
+    "producthunt_rss": {
+      "appels": 26,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 26,
+      "taux_succes": 1.0
+    },
+    "techcrunch_rss": {
+      "appels": 26,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 26,
+      "taux_succes": 1.0
+    },
+    "enqueteur_recherche:algolia_hn:comment": {
+      "appels": 750,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 750,
+      "taux_succes": 1.0
+    },
+    "enqueteur_recherche:algolia_hn:ask_hn": {
+      "appels": 728,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 728,
+      "taux_succes": 1.0
+    },
+    "enqueteur_recherche:reddit": {
+      "appels": 750,
+      "http_429": 473,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 277,
+      "taux_succes": 0.3693
+    },
+    "enqueteur_fetch:magasin_interne": {
+      "appels": 67,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 67,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:smallbusiness:existe_t_il_un_outil_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:on_fait_ca_sur_excel_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:smallbusiness:comment_vous_gerez_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:smallbusiness:chronophage_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:smallbusiness:je_cherche_quelquun_pour_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:smallbusiness:temps_fou_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:aucune_solution_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:deja_resolu_ca_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:smallbusiness:moyen_dautomatiser_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:smallbusiness:on_fait_ca_manuellement_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:heures_par_semaine_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Accounting:manually_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:spreadsheet_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:is_there_a_tool_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Accounting:how_do_you_handle_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "hn_recherche:ask_hn:no_good_solution_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:better_way_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:way_to_automate_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:chronophage_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_smallbusiness_rss": {
+      "appels": 19,
+      "http_429": 9,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 10,
+      "taux_succes": 0.5263
+    },
+    "reddit_recherche:Accounting:copy_paste_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:every_month_i_have_to_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Accounting:tedious_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:looking_for_someone_to_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:still_doing_by_hand_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Accounting:no_good_solution_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:better_way_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:way_to_automate_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Accounting:heures_par_semaine_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:a_la_main_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Accounting:existe_t_il_un_outil_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:on_fait_ca_sur_excel_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:comment_vous_gerez_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Accounting:chronophage_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:je_cherche_quelquun_pour_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "hn_recherche:ask_hn:temps_fou_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:aucune_solution_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:deja_resolu_ca_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:moyen_dautomatiser_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:on_fait_ca_manuellement_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:heures_par_semaine_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:manually_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:spreadsheet_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:is_there_a_tool_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:how_do_you_handle_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Accounting:temps_fou_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:Accounting:aucune_solution_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Accounting:deja_resolu_ca_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Accounting:moyen_dautomatiser_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Accounting:on_fait_ca_manuellement_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:heures_par_semaine_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:ecommerce:manually_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:ecommerce:spreadsheet_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:is_there_a_tool_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:ecommerce:how_do_you_handle_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:ecommerce:copy_paste_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:every_month_i_have_to_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:tedious_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:ecommerce:looking_for_someone_to_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:still_doing_by_hand_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "hn_recherche:comment:copy_paste_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:every_month_i_have_to_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:tedious_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:looking_for_someone_to_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:still_doing_by_hand_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:ecommerce:no_good_solution_en": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:ecommerce:better_way_en": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:way_to_automate_en": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:ecommerce:heures_par_semaine_fr": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_recherche:ecommerce:a_la_main_fr": {
+      "appels": 2,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:ecommerce:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:chronophage_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:ecommerce:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:ecommerce:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:ecommerce:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "hn_recherche:comment:existe_t_il_un_outil_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:on_fait_ca_sur_excel_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:comment_vous_gerez_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:chronophage_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:je_cherche_quelquun_pour_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:temps_fou_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:aucune_solution_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:deja_resolu_ca_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:moyen_dautomatiser_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:on_fait_ca_manuellement_fr": {
+      "appels": 2,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 1.0
+    },
+    "reddit_accounting_rss": {
+      "appels": 18,
+      "http_429": 13,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 5,
+      "taux_succes": 0.2778
+    },
+    "reddit_ecommerce_rss": {
+      "appels": 18,
+      "http_429": 13,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 5,
+      "taux_succes": 0.2778
+    },
+    "reddit_recherche:msp:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:msp:manually_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:msp:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:copy_paste_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:msp:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:tedious_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:msp:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:better_way_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:msp:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:msp:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:msp:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:msp:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:msp:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:msp:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:manually_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_msp_rss": {
+      "appels": 16,
+      "http_429": 10,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 6,
+      "taux_succes": 0.375
+    },
+    "reddit_sysadmin_rss": {
+      "appels": 13,
+      "http_429": 8,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 5,
+      "taux_succes": 0.3846
+    },
+    "reddit_bookkeeping_rss": {
+      "appels": 10,
+      "http_429": 5,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 5,
+      "taux_succes": 0.5
+    },
+    "reddit_tax_rss": {
+      "appels": 7,
+      "http_429": 5,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 2,
+      "taux_succes": 0.2857
+    },
+    "reddit_entrepreneur_rss": {
+      "appels": 6,
+      "http_429": 3,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 3,
+      "taux_succes": 0.5
+    },
+    "reddit_freelance_rss": {
+      "appels": 3,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.3333
+    },
+    "reddit_shopify_rss": {
+      "appels": 3,
+      "http_429": 2,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.3333
+    },
+    "enqueteur_fetch:algolia_hn": {
+      "appels": 27,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 27,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:copy_paste_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:tedious_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:better_way_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "enqueteur_fetch:fetch_direct_pricing": {
+      "appels": 3,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 3,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:sysadmin:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:sysadmin:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Bookkeeping:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:manually_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Bookkeeping:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:copy_paste_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Bookkeeping:tedious_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:ask_hn:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Bookkeeping:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Bookkeeping:better_way_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Bookkeeping:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Bookkeeping:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Bookkeeping:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Bookkeeping:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Bookkeeping:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_fba_rss": {
+      "appels": 2,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 0.5
+    },
+    "reddit_propertymanagement_rss": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:tax:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:tax:manually_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:tax:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:copy_paste_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:tax:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:tedious_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:tax:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:better_way_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:tax:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:tax:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:tax:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:tax:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:tax:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:manually_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:copy_paste_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:tedious_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:better_way_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:Entrepreneur:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:Entrepreneur:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:freelance:manually_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:freelance:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:copy_paste_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:freelance:tedious_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:freelance:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:freelance:better_way_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:freelance:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:freelance:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:freelance:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:freelance:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:freelance:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "hn_recherche:comment:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "hn_recherche:comment:better_way_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:manually_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:copy_paste_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:tedious_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:better_way_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:shopify:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:shopify:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:manually_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:copy_paste_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:tedious_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:better_way_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:FulfillmentByAmazon:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:PropertyManagement:manually_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:PropertyManagement:copy_paste_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:tedious_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:PropertyManagement:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:PropertyManagement:better_way_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:PropertyManagement:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:PropertyManagement:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:PropertyManagement:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:PropertyManagement:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:PropertyManagement:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:heures_par_semaine_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:logistics:manually_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:spreadsheet_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:is_there_a_tool_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:logistics:how_do_you_handle_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:copy_paste_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:every_month_i_have_to_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:logistics:tedious_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:looking_for_someone_to_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:still_doing_by_hand_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:no_good_solution_en": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:logistics:better_way_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:way_to_automate_en": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:heures_par_semaine_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:logistics:a_la_main_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:existe_t_il_un_outil_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:logistics:on_fait_ca_sur_excel_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:comment_vous_gerez_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:logistics:chronophage_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:je_cherche_quelquun_pour_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:temps_fou_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:logistics:aucune_solution_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:deja_resolu_ca_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    },
+    "reddit_recherche:logistics:moyen_dautomatiser_fr": {
+      "appels": 1,
+      "http_429": 0,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 1,
+      "taux_succes": 1.0
+    },
+    "reddit_recherche:logistics:on_fait_ca_manuellement_fr": {
+      "appels": 1,
+      "http_429": 1,
+      "http_403": 0,
+      "autres_erreurs": 0,
+      "succes": 0,
+      "taux_succes": 0.0
+    }
+  },
+  "part_hors_intersectoriel": 0.6593,
+  "sources_par_dossier": {
+    "min": 1,
+    "mediane": 1.0,
+    "max": 12,
+    "part_une_seule_source": 0.9826,
+    "par_fournisseur": {
+      "magasin_interne": 55,
+      "algolia_hn": 36
+    }
+  },
+  "objections_critic_par_type": null,
+  "cout_jour_eur": 17.2884,
+  "cout_jour_recalcule_tarifs_courants": {
+    "eur": 17.2884,
+    "ecart_vs_enregistre_eur": 0.0,
+    "evenements_anthropic_couverts": 1403,
+    "evenements_anthropic_sans_tokens": 0
+  },
+  "cout_moyen_par_dossier_analyse_eur": 0.0524,
+  "cout_par_role_eur": {
+    "scout": 3.0146,
+    "enqueteur_recherche": 0.0,
+    "enqueteur_fetch": 0.0,
+    "analyst": 7.7355,
+    "critic": 6.5381
+  },
+  "cout_moyen_par_opportunite_eur": 0.0384
+}

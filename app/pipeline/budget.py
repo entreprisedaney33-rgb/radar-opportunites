@@ -20,7 +20,18 @@ V1, voir sous-étape 3.2) — nombre de requêtes de recherche et nombre de fetc
 de page, chacun avec son propre plafond dur configurable
 (`config/quotas.yaml::max_requetes_recherche_par_jour` /
 `max_fetchs_pages_par_jour`). Même mécanique que les appels approfondis :
-relu en base à chaque vérification, jamais figé à l'initialisation."""
+relu en base à chaque vérification, jamais figé à l'initialisation.
+
+Sous-étape 3.9 : troisième plafond, INDÉPENDANT des deux précédents et
+imbriqué dans celui des requêtes de recherche -- la part maximale que le
+fournisseur Reddit de l'Enquêteur peut consommer du plafond journalier de
+requêtes de recherche (`config/quotas.yaml::part_max_reddit_requetes_recherche`),
+posé après l'audit du 26/09/2026 (`rapports/AUDIT_NUIT_2026-09-26.md`) : Reddit
+épuisait à lui seul la moitié du quota pour zéro preuve utilisable
+(`robots.txt` interdit tout crawl, voir `app.enqueteur.fetch`). Contournable
+explicitement (`prioritaire=True`) pour la famille de requêtes `prix`, jamais
+pour le plafond global -- voir `verifier_et_engager_requete_recherche`
+ci-dessous."""
 from __future__ import annotations
 
 import logging
@@ -53,18 +64,21 @@ def _jour_utc() -> date:
 
 class BudgetTracker:
     def __init__(self, engine: Engine, run_id: str, plafond_eur: float, plafond_appels_approfondis: int,
-                 plafond_requetes_recherche_par_jour: int = 600, plafond_fetchs_pages_par_jour: int = 400):
+                 plafond_requetes_recherche_par_jour: int = 600, plafond_fetchs_pages_par_jour: int = 400,
+                 plafond_part_reddit_requetes_recherche: float = 0.30):
         self.engine = engine
         self.run_id = run_id
         self.plafond_eur = plafond_eur
         self.plafond_appels_approfondis = plafond_appels_approfondis
         self.plafond_requetes_recherche_par_jour = plafond_requetes_recherche_par_jour
         self.plafond_fetchs_pages_par_jour = plafond_fetchs_pages_par_jour
+        self.plafond_part_reddit_requetes_recherche = plafond_part_reddit_requetes_recherche
         # Estimations "en vol" : verifier_et_engager() a réservé ce coût,
         # enregistrer_reel() ne l'a pas encore journalisé en base.
         self._reserve_estimee_eur = 0.0
         self._reserve_appels_approfondis = 0
         self._reserve_requetes_recherche = 0
+        self._reserve_requetes_recherche_reddit = 0
         self._reserve_fetchs_pages = 0
 
     def depense_jour_engagee(self) -> float:
@@ -77,6 +91,14 @@ class BudgetTracker:
         return repo.nombre_evenements_role_jour_utc(
             self.engine, _jour_utc(), role=ROLE_ENQUETEUR_RECHERCHE
         ) + self._reserve_requetes_recherche
+
+    def requetes_recherche_reddit_jour_engagees(self) -> int:
+        """Sous-étape 3.9 : sous-compteur du précédent, filtré sur le seul
+        fournisseur Reddit -- sert le plafond dédié (voir
+        `verifier_et_engager_requete_recherche`)."""
+        return repo.nombre_evenements_role_fournisseur_jour_utc(
+            self.engine, _jour_utc(), role=ROLE_ENQUETEUR_RECHERCHE, fournisseur="reddit"
+        ) + self._reserve_requetes_recherche_reddit
 
     def fetchs_pages_jour_engages(self) -> int:
         return repo.nombre_evenements_role_jour_utc(
@@ -104,19 +126,49 @@ class BudgetTracker:
             self._reserve_appels_approfondis += 1
         self._reserve_estimee_eur += cout_estime
 
-    def verifier_et_engager_requete_recherche(self) -> None:
+    def verifier_et_engager_requete_recherche(self, *, fournisseur: str | None = None, prioritaire: bool = False) -> None:
         """Second compteur de l'Enquêteur, indépendant du budget en euros
-        (fournisseurs gratuits en V1) : arrêt avant dépassement, jamais après."""
+        (fournisseurs gratuits en V1) : arrêt avant dépassement, jamais après.
+
+        `fournisseur`/`prioritaire` (sous-étape 3.9) : optionnels, `None`/
+        `False` par défaut -- comportement strictement inchangé pour tout
+        appelant existant qui n'a pas encore de raison de distinguer un
+        fournisseur (voir `tests/test_budget.py`). Avec `fournisseur="reddit"`
+        (seul cas réel aujourd'hui) ET `prioritaire=False` : un second
+        plafond, imbriqué dans celui ci-dessus, limite la part de Reddit à
+        `plafond_part_reddit_requetes_recherche` du plafond journalier total
+        (audit du 26/09/2026 : Reddit épuisait la moitié du quota pour zéro
+        preuve utilisable, voir `app.enqueteur.fetch`). `prioritaire=True`
+        (famille `prix`, dès qu'un concurrent est identifié -- voir
+        `app.enqueteur.enqueteur._enqueter_prix`) contourne CE plafond Reddit
+        spécifique seulement -- jamais le plafond global ci-dessus, qui reste
+        absolu (§4 du cahier des charges)."""
         engagees = self.requetes_recherche_jour_engagees()
         if engagees >= self.plafond_requetes_recherche_par_jour:
             raise BudgetDepasse(
                 f"Plafond de {self.plafond_requetes_recherche_par_jour} requêtes de recherche/jour "
                 f"atteint ({engagees} déjà engagées aujourd'hui, UTC)."
             )
+        if fournisseur == "reddit":
+            if not prioritaire:
+                plafond_reddit = int(
+                    self.plafond_requetes_recherche_par_jour * self.plafond_part_reddit_requetes_recherche
+                )
+                engagees_reddit = self.requetes_recherche_reddit_jour_engagees()
+                if engagees_reddit >= plafond_reddit:
+                    raise BudgetDepasse(
+                        f"Plafond Reddit ({plafond_reddit} = "
+                        f"{self.plafond_part_reddit_requetes_recherche:.0%} de "
+                        f"{self.plafond_requetes_recherche_par_jour} requêtes de recherche/jour) atteint "
+                        f"({engagees_reddit} déjà engagées aujourd'hui, UTC)."
+                    )
+            self._reserve_requetes_recherche_reddit += 1
         self._reserve_requetes_recherche += 1
 
     def enregistrer_requete_recherche(self, *, fournisseur: str) -> None:
         self._reserve_requetes_recherche = max(0, self._reserve_requetes_recherche - 1)
+        if fournisseur == "reddit":
+            self._reserve_requetes_recherche_reddit = max(0, self._reserve_requetes_recherche_reddit - 1)
         repo.inserer_usage_event(
             self.engine, run_id=self.run_id, fournisseur=fournisseur, modele_ou_actor=fournisseur,
             appels=1, tokens_in=None, tokens_out=None, cout=0.0, role=ROLE_ENQUETEUR_RECHERCHE,

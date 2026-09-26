@@ -91,6 +91,11 @@ CSV/JSON, décision humaine, bouton pause.
   identiques au code de `app/scoring/engine.py`.
 - `config/*.yaml` — secteurs, poids du score, quotas/budget nocturne,
   sources autorisées. Rien de tout ça n'est en dur dans le code.
+- `robots.txt` : la collecte du Scout (recherche) et l'Enquêteur suivent la
+  même politique — extraits de flux de recherche oui (jamais fetchés ni
+  interprétés), crawl direct d'une page interdite par `robots.txt` non
+  (Reddit, notamment : `Disallow: /` — jamais fetché nulle part dans ce
+  projet, voir `app.enqueteur.fetch.FOURNISSEURS_EXTRAIT_DIRECT`).
 
 ## Variables d'environnement
 

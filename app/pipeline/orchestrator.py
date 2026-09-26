@@ -603,6 +603,7 @@ def executer_run(engine: Engine, options: OptionsRun) -> tuple[str, ResumeRun]:
         plafond_appels_approfondis=quotas["max_appels_approfondis_par_jour"],
         plafond_requetes_recherche_par_jour=quotas["max_requetes_recherche_par_jour"],
         plafond_fetchs_pages_par_jour=quotas["max_fetchs_pages_par_jour"],
+        plafond_part_reddit_requetes_recherche=quotas["part_max_reddit_requetes_recherche"],
     )
     model_client = None
     if options.mode != "dry-run" and settings.has_model_access:
@@ -727,6 +728,7 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
             plafond_appels_approfondis=quotas["max_appels_approfondis_par_jour"],
             plafond_requetes_recherche_par_jour=quotas["max_requetes_recherche_par_jour"],
             plafond_fetchs_pages_par_jour=quotas["max_fetchs_pages_par_jour"],
+            plafond_part_reddit_requetes_recherche=quotas["part_max_reddit_requetes_recherche"],
         )
         model_client = ModelClient(settings, budget) if settings.has_model_access else None
 

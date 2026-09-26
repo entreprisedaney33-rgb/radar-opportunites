@@ -26,6 +26,22 @@ l'Analyst comme un humain puissent distinguer une preuve de tarification du
 reste des preuves d'enquête -- même mécanisme de stockage et de
 rattachement (`opportunity_evidence`) que n'importe quelle autre page.
 
+Sous-étape 3.9 : le fournisseur Reddit de l'Enquêteur
+(`app.enqueteur.fournisseurs_gratuits.FournisseurReddit`) ne déclenche plus
+JAMAIS de fetch de la page réelle (`recuperer_page`) -- l'audit du 26/09/2026
+(`rapports/AUDIT_NUIT_2026-09-26.md`, point 3) a vérifié que
+`reddit.com/robots.txt` interdit tout crawl (`Disallow: /`), si bien que ces
+fetchs échouaient TOUJOURS (0 page stockée sur 277 tentatives « réussies » au
+niveau HTTP ce jour-là), tout en consommant la moitié du quota journalier de
+requêtes de recherche pour rien. `FOURNISSEURS_EXTRAIT_DIRECT` ci-dessous
+marque les fournisseurs pour qui l'extrait renvoyé par la RECHERCHE elle-même
+(titre, texte, URL, horodatage -- déjà présents sur `ResultatRecherche`, sans
+aucun fetch supplémentaire) EST la preuve stockée, étiquetée
+`ETIQUETTE_EXTRAIT_FLUX` -- exactement la politique déjà appliquée par la
+collecte du Scout pour la même plateforme depuis la sous-étape 1.2
+(`app.adapters.reddit_recherche` : jamais de fetch de la page réelle non
+plus, seulement le contenu du flux de recherche Atom).
+
 Garde-fou injection (§3.6 du cahier des charges, point 3 du texte de 3.3) :
 le texte extrait d'une page est stocké tel quel, comme n'importe quel autre
 contenu collecté (`sources.extrait`) — ce module ne l'interprète jamais, ne
@@ -67,6 +83,20 @@ ETIQUETTE_PREUVE_ENQUETE = "preuve_enquete"
 # famille de requêtes `prix` (recherche "<nom> pricing"/"<nom> tarifs" ou
 # fetch direct de <domaine>/pricing) -- jamais `ETIQUETTE_PREUVE_ENQUETE`.
 ETIQUETTE_PREUVE_PRIX = "prix"
+
+# Sous-étape 3.9 : l'extrait renvoyé par une RECHERCHE (jamais une page
+# fetchée) stocké tel quel comme preuve -- voir `FOURNISSEURS_EXTRAIT_DIRECT`
+# et la docstring de module. Prioritaire sur `etiquette` transmis à
+# `collecter_preuves` (y compris `ETIQUETTE_PREUVE_PRIX`) : ce n'est jamais
+# une page de tarification réellement fetchée, seulement un extrait de flux.
+ETIQUETTE_EXTRAIT_FLUX = "extrait_flux"
+
+# Fournisseurs dont le résultat de recherche EST la preuve : leur page réelle
+# est interdite au crawl par `robots.txt` (Reddit : `Disallow: /`, vérifié le
+# 26/09/2026, voir la docstring de module) -- `collecter_preuves` ne tente
+# donc jamais `recuperer_page` pour eux, quelle que soit la famille de
+# requêtes (`demande`/`concurrence`/`prix`).
+FOURNISSEURS_EXTRAIT_DIRECT = frozenset({"reddit"})
 
 _TAGS_A_SUPPRIMER = ("script", "style", "noscript", "nav", "header", "footer", "aside", "form")
 
@@ -171,6 +201,51 @@ def recuperer_page(
     )
 
 
+def _page_depuis_extrait_direct(resultat: ResultatRecherche) -> PageCollectee | None:
+    """Sous-étape 3.9. Jamais de requête réseau ici (contrairement à
+    `recuperer_page` ci-dessus) : le contenu vient uniquement de ce que la
+    RECHERCHE a déjà renvoyé (`resultat.titre`/`resultat.extrait`). `None` si
+    ça ne laisse aucun texte -- même règle que `recuperer_page` (« jamais
+    stockée » si vide, point 2 du texte de 3.3)."""
+    texte = " ".join(f"{resultat.titre} — {resultat.extrait}".strip(" —").split())
+    if not texte:
+        return None
+    return PageCollectee(
+        url=resultat.url,
+        titre=resultat.titre,
+        texte=texte,
+        date_collecte=datetime.now(timezone.utc),
+        horodatage_source=resultat.horodatage_source,
+        fournisseur=resultat.fournisseur,
+        requete_origine=resultat.requete_origine,
+    )
+
+
+def stocker_extrait_flux(engine: Engine, page: PageCollectee) -> tuple[str, bool]:
+    """Sous-étape 3.9 : stocke l'extrait d'une recherche comme source à part
+    entière -- `type_source="rss"` (comme la collecte du Scout pour la même
+    plateforme, `app.adapters.reddit_recherche`), JAMAIS `"page_web"`
+    (aucune page n'a été fetchée) -- toujours étiquetée
+    `ETIQUETTE_EXTRAIT_FLUX`, quelle que soit la famille de requêtes
+    d'origine (voir la docstring de module)."""
+    return repo.upsert_source(
+        engine,
+        url_canonique=dedupe.canonicaliser_url(page.url),
+        domaine=urlsplit(page.url).netloc,
+        date_publication=page.horodatage_source,
+        type_source="rss",
+        extrait=page.texte,
+        empreinte=dedupe.empreinte_contenu(page.texte),
+        droits_collecte=(
+            f"extrait de résultat de recherche publique ({page.fournisseur}), jamais de fetch de "
+            "la page réelle (robots.txt interdit le crawl, voir FOURNISSEURS_EXTRAIT_DIRECT)"
+        ),
+        flux_origine=page.fournisseur,
+        requete_origine=page.requete_origine,
+        etiquette=ETIQUETTE_EXTRAIT_FLUX,
+    )
+
+
 def stocker_page(engine: Engine, page: PageCollectee, *, etiquette: str = ETIQUETTE_PREUVE_ENQUETE) -> tuple[str, bool]:
     """Enregistre une page collectée comme n'importe quelle autre source
     (`app.storage.repo.upsert_source`) — mêmes garanties d'idempotence (URL
@@ -225,7 +300,16 @@ def collecter_preuves(
       preuve sur une reprise (une enquête interrompue, relancée au passage
       suivant, ne duplique rien), et `independant` suit la même règle que
       pour l'Analyst (`app.pipeline.orchestrator._phase_analyse_et_critique`) :
-      faux si une source déjà citée porte la même empreinte de contenu."""
+      faux si une source déjà citée porte la même empreinte de contenu.
+
+    Sous-étape 3.9 : un résultat dont `fournisseur` est dans
+    `FOURNISSEURS_EXTRAIT_DIRECT` (Reddit) ne passe JAMAIS par
+    `recuperer_page` -- ni délai (`delai_entre_fetchs`, réservé aux VRAIS
+    fetchs), ni compteur `max_fetchs_pages_par_jour` (aucun appel réseau de
+    plus que la recherche déjà comptée en amont, voir
+    `app.enqueteur.enqueteur`). Son extrait est stocké tel quel par
+    `stocker_extrait_flux`, toujours étiqueté `ETIQUETTE_EXTRAIT_FLUX` --
+    `etiquette` (ci-dessus) ne s'applique qu'aux autres fournisseurs."""
     quotas = cfg.quotas()
     if max_resultats is None:
         max_resultats = quotas["max_resultats_enquete_par_opportunite"]
@@ -240,21 +324,30 @@ def collecter_preuves(
     )
 
     source_ids: list[str] = []
-    for i, resultat in enumerate(selectionnes):
-        if budget is not None:
-            try:
-                budget.verifier_et_engager_fetch_page()
-            except BudgetDepasse as exc:
-                logger.info("Enquêteur : %s -- arrêt du fetch pour cette enquête.", exc)
-                break
-        if i > 0:
-            time.sleep(delai_entre_fetchs)
-        page = recuperer_page(resultat, engine=engine)
-        if budget is not None:
-            budget.enregistrer_fetch_page(fournisseur=resultat.fournisseur)
+    fetchs_effectues = 0
+    for resultat in selectionnes:
+        extrait_direct = resultat.fournisseur in FOURNISSEURS_EXTRAIT_DIRECT
+        if extrait_direct:
+            page = _page_depuis_extrait_direct(resultat)
+        else:
+            if budget is not None:
+                try:
+                    budget.verifier_et_engager_fetch_page()
+                except BudgetDepasse as exc:
+                    logger.info("Enquêteur : %s -- arrêt du fetch pour cette enquête.", exc)
+                    break
+            if fetchs_effectues > 0:
+                time.sleep(delai_entre_fetchs)
+            page = recuperer_page(resultat, engine=engine)
+            if budget is not None:
+                budget.enregistrer_fetch_page(fournisseur=resultat.fournisseur)
+            fetchs_effectues += 1
         if page is None:
             continue
-        source_id, _cree = stocker_page(engine, page, etiquette=etiquette)
+        if extrait_direct:
+            source_id, _cree = stocker_extrait_flux(engine, page)
+        else:
+            source_id, _cree = stocker_page(engine, page, etiquette=etiquette)
         source_ids.append(source_id)
 
         if opportunity_id and source_id not in deja_citees:

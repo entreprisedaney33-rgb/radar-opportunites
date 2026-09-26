@@ -197,6 +197,47 @@ def test_fournisseur_sans_reseau_ne_consomme_pas_le_plafond_requetes_recherche(e
     assert budget.requetes_recherche_jour_engagees() == 0
 
 
+def test_prix_est_prioritaire_et_contourne_le_plafond_reddit(engine_test, monkeypatch):
+    """Sous-étape 3.9, point 2 : la famille `prix` (dès qu'un concurrent est
+    identifié -- voir `_enqueter_prix`) passe `prioritaire=True` au budget --
+    elle n'est jamais bloquée par le plafond DÉDIÉ à Reddit
+    (`part_max_reddit_requetes_recherche`), contrairement à
+    demande/concurrence, qui restent normalement soumises à ce plafond."""
+    # tests/conftest.py désactive "reddit" pour TOUTE la suite par défaut
+    # (garde-fou §0.2.5, aucun appel réseau) -- y compris pour un double de
+    # test enregistré sous ce nom, seul le nom compte pour `est_actif`.
+    # Réactivé ici explicitement : le double ci-dessous ne fait, lui, aucun
+    # appel réseau.
+    monkeypatch.setenv("RADAR_ENQUETEUR_ACTIF_REDDIT", "1")
+    budget_reddit_sature = BudgetTracker(
+        engine_test, "run-test", plafond_eur=25.0, plafond_appels_approfondis=1000,
+        plafond_requetes_recherche_par_jour=100, plafond_fetchs_pages_par_jour=400,
+        plafond_part_reddit_requetes_recherche=0.0,  # plafond Reddit à 0 -- déjà "saturé"
+    )
+
+    class _FournisseurRedditSimule:
+        nom = "reddit"
+
+        def rechercher(self, requete, limite):
+            return [_resultat_fixe("reddit", requete.replace(" ", "_"))]
+
+    registre = RegistreFournisseurs()
+    registre.enregistrer(DefinitionFournisseur(nom="reddit", fabrique=_FournisseurRedditSimule))
+
+    # demande+concurrence (non prioritaire) : bloquées net par le plafond Reddit.
+    resultats_normaux = enqueteur_module._rechercher_toutes_familles(
+        HYPOTHESE, registre=registre, budget=budget_reddit_sature, limite_par_requete=5,
+    )
+    assert resultats_normaux == []
+
+    # prix (prioritaire) : passe malgré le même plafond Reddit à 0.
+    resultats_prix = enqueteur_module._rechercher_par_famille(
+        HYPOTHESE, registre=registre, budget=budget_reddit_sature, limite_par_requete=5,
+        familles=("prix",), concurrents=["ConcurrentX"],
+    )["prix"]
+    assert len(resultats_prix) > 0
+
+
 def test_fournisseur_sans_reseau_continue_meme_le_plafond_reseau_deja_atteint(engine_test):
     """Un plafond de requêtes réseau à 0 (déjà atteint) n'a aucune raison
     d'arrêter un fournisseur qui ne consomme jamais ce compteur."""
