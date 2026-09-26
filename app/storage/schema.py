@@ -178,6 +178,13 @@ usage_events = Table(
     # l'historique antérieur, renseignées à chaque appel depuis.
     Column("role", String, nullable=True),  # scout|analyst|critic
     Column("opportunity_id", String, nullable=True),  # absent pour le Scout : appelé avant création du dossier
+    # Ajoutées en sous-étape 3.10 (migration additive) : NULL pour tout
+    # l'historique antérieur, renseignées à chaque appel modèle depuis
+    # (app/adapters/model_client.py::appeler_structure). Jamais renseignées
+    # pour les compteurs de l'Enquêteur (enqueteur_recherche/enqueteur_fetch,
+    # sous-étape 3.1) : ce ne sont pas des appels modèle.
+    Column("issue", String, nullable=True),  # valide|normalisee|relancee|perdue
+    Column("sortie_tronquee", Boolean, nullable=True),  # stop_reason == "max_tokens"
 )
 
 source_requetes = Table(

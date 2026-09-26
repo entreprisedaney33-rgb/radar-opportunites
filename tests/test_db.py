@@ -66,6 +66,72 @@ def test_migrer_est_idempotent(tmp_path):
     assert {"role", "opportunity_id"} <= colonnes
 
 
+def _creer_base_avant_3_10(chemin) -> "Engine":
+    """Reproduit `usage_events` juste AVANT la sous-étape 3.10 (avec `role`/
+    `opportunity_id`, sans `issue`/`sortie_tronquee`), une ligne dedans."""
+    moteur = create_engine(f"sqlite:///{chemin}", future=True, connect_args={"check_same_thread": False})
+    ancienne_metadata = MetaData()
+    ancien_usage_events = Table(
+        "usage_events", ancienne_metadata,
+        Column("id", String, primary_key=True),
+        Column("run_id", String, nullable=False),
+        Column("fournisseur", String, nullable=False),
+        Column("modele_ou_actor", String, nullable=False),
+        Column("appels", Integer, nullable=False, default=1),
+        Column("tokens_in", Integer, nullable=True),
+        Column("tokens_out", Integer, nullable=True),
+        Column("cout_declare_ou_estime", Float, nullable=False),
+        Column("devise", String, nullable=False, default="EUR"),
+        Column("date_creation", DateTime(timezone=True), nullable=False),
+        Column("role", String, nullable=True),
+        Column("opportunity_id", String, nullable=True),
+    )
+    ancienne_metadata.create_all(moteur)
+    with moteur.begin() as cx:
+        cx.execute(insert(ancien_usage_events).values(
+            id="historique-3.9", run_id="run-ancien", fournisseur="anthropic", modele_ou_actor="m",
+            appels=1, tokens_in=10, tokens_out=5, cout_declare_ou_estime=0.42, devise="EUR",
+            date_creation=datetime.now(timezone.utc), role="critic", opportunity_id="opp-1",
+        ))
+    return moteur
+
+
+def test_migrer_ajoute_issue_et_sortie_tronquee_sans_toucher_aux_donnees(tmp_path):
+    """Sous-étape 3.10 : `sortie_tronquee` est la première colonne additive
+    BOOLÉENNE (toutes les précédentes sont du texte) -- ce test vérifie en
+    plus qu'un booléen inséré après la migration fait bien un aller-retour
+    correct (pas juste "la colonne existe"), preuve que le type SQL par
+    colonne (`app.storage.db._COLONNES_ADDITIVES`) est bien appliqué."""
+    moteur = _creer_base_avant_3_10(tmp_path / "avant_3_10.db")
+
+    migrer(moteur)
+
+    inspecteur = inspect(moteur)
+    colonnes = {c["name"] for c in inspecteur.get_columns("usage_events")}
+    assert {"issue", "sortie_tronquee"} <= colonnes
+
+    from app.storage.schema import usage_events
+
+    with moteur.connect() as cx:
+        ligne = cx.execute(select(usage_events).where(usage_events.c.id == "historique-3.9")).mappings().first()
+    assert ligne["cout_declare_ou_estime"] == 0.42  # donnée d'origine intacte
+    assert ligne["role"] == "critic"  # migration précédente (0.7) intacte
+    assert ligne["issue"] is None  # historique -> NULL, jamais inventé
+    assert ligne["sortie_tronquee"] is None
+
+    with moteur.begin() as cx:
+        cx.execute(insert(usage_events).values(
+            id="nouvelle-3.10", run_id="run-test", fournisseur="anthropic", modele_ou_actor="m",
+            appels=1, tokens_in=10, tokens_out=5, cout_declare_ou_estime=0.01, devise="EUR",
+            date_creation=datetime.now(timezone.utc), role="analyst", opportunity_id="opp-2",
+            issue="valide", sortie_tronquee=True,
+        ))
+    with moteur.connect() as cx:
+        nouvelle = cx.execute(select(usage_events).where(usage_events.c.id == "nouvelle-3.10")).mappings().first()
+    assert nouvelle["issue"] == "valide"
+    assert nouvelle["sortie_tronquee"] is True  # vrai booléen, pas la chaîne "True"/"1"
+
+
 def test_migrer_sur_base_toute_neuve_cree_directement_les_bonnes_colonnes(tmp_path):
     moteur = create_engine(
         f"sqlite:///{tmp_path / 'neuve.db'}", future=True, connect_args={"check_same_thread": False},

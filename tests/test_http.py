@@ -15,7 +15,14 @@ import pytest
 import requests
 
 from app.adapters import http as http_module
-from app.adapters.http import ErreurCollecte, PageTropGrande, USER_AGENT, get_avec_limite_taille, get_with_retry
+from app.adapters.http import (
+    ErreurCollecte,
+    PageTropGrande,
+    TropDeRequetes,
+    USER_AGENT,
+    get_avec_limite_taille,
+    get_with_retry,
+)
 from app.storage import repo
 
 
@@ -177,7 +184,9 @@ def _installer_horloge_simulee(monkeypatch) -> _HorlogeSimulee:
     return horloge
 
 
-def test_deux_appels_reddit_consecutifs_sont_espaces_d_au_moins_6s(monkeypatch):
+def test_deux_appels_reddit_consecutifs_sont_espaces_d_au_moins_12s(monkeypatch):
+    """Sous-étape 3.10 : 6 s -> 12 s (audit du 26/09/2026, voir
+    app/adapters/http.py::DELAIS_MIN_PAR_HOTE_SECONDES)."""
     horloge = _installer_horloge_simulee(monkeypatch)
 
     get_with_retry("https://www.reddit.com/r/smallbusiness/search.rss?q=x")
@@ -186,7 +195,7 @@ def test_deux_appels_reddit_consecutifs_sont_espaces_d_au_moins_6s(monkeypatch):
     # Premier appel : aucun historique pour cet hôte -> aucune attente.
     # Deuxième appel, même hôte, horloge inchangée entre les deux -> attente
     # complète du délai minimal Reddit.
-    assert horloge.dodormis == [6.0]
+    assert horloge.dodormis == [12.0]
 
 
 def test_deux_hotes_differents_ne_se_bloquent_pas_entre_eux(monkeypatch):
@@ -221,9 +230,9 @@ def test_hn_algolia_espace_de_1s_get_avec_limite_taille_defaut_de_2s(monkeypatch
 
 def test_backoff_429_reactif_conserve_en_plus_de_l_espacement_proactif(monkeypatch):
     """Le backoff existant sur 429 (base_delay avec doublement) s'ajoute à
-    l'espacement proactif, il ne le remplace pas -- vérifié sur Reddit (6 s
-    minimum) avec un backoff plus court (1 s) : les deux attentes doivent
-    apparaître, pas seulement l'une des deux."""
+    l'espacement proactif, il ne le remplace pas -- vérifié sur Reddit (12 s
+    minimum depuis la sous-étape 3.10) avec un backoff plus court (1 s) : les
+    deux attentes doivent apparaître, pas seulement l'une des deux."""
     horloge = _HorlogeSimulee()
     monkeypatch.setattr(http_module.time, "monotonic", horloge.monotonic)
     monkeypatch.setattr(http_module.time, "sleep", horloge.sleep)
@@ -235,10 +244,10 @@ def test_backoff_429_reactif_conserve_en_plus_de_l_espacement_proactif(monkeypat
 
     # 1er essai : aucune attente proactive (hôte jamais vu), puis backoff
     # réactif de 1 s (base_delay * 2**0) sur le 429. 2e essai : espacement
-    # proactif Reddit (6 s au total depuis le 1er essai, 1 s déjà écoulée via
-    # le backoff -> 5 s de plus), avant le succès -- les deux attentes sont
+    # proactif Reddit (12 s au total depuis le 1er essai, 1 s déjà écoulée via
+    # le backoff -> 11 s de plus), avant le succès -- les deux attentes sont
     # bien distinctes et s'additionnent, aucune n'annule l'autre.
-    assert horloge.dodormis == [1.0, 5.0]
+    assert horloge.dodormis == [1.0, 11.0]
 
 
 class _FauxReponse429ThenOK:
@@ -300,6 +309,38 @@ def test_get_with_retry_429_persistant_journalise_le_code_429_pas_une_erreur(mon
     assert len(lignes) == 1
     assert lignes[0]["code_http"] == 429
     assert lignes[0]["erreur"] is None
+
+
+def test_get_with_retry_429_persistant_leve_specifiquement_trop_de_requetes(monkeypatch):
+    """Sous-étape 3.10, point 5 : un 429 sur TOUTES les tentatives lève
+    `TropDeRequetes` (sous-classe d'`ErreurCollecte`, voir le test ci-dessus
+    qui continue de fonctionner à l'identique) -- nécessaire pour que
+    `app.adapters.reddit_recherche.AdaptateurRechercheReddit` puisse le
+    laisser remonter jusqu'au disjoncteur par passage
+    (`app.pipeline.orchestrator._collecter`)."""
+    class Reponse429:
+        status_code = 429
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: Reponse429())
+    monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)
+
+    with pytest.raises(TropDeRequetes):
+        get_with_retry("https://www.reddit.com/search.rss?q=x", max_retries=2)
+
+
+def test_get_with_retry_timeout_ne_leve_jamais_trop_de_requetes(monkeypatch):
+    """Un timeout (jamais un vrai code 429 reçu) reste une `ErreurCollecte`
+    générique, jamais `TropDeRequetes` -- `dernier_code` est remis à `None`
+    par chaque exception réseau (voir la boucle de `get_with_retry`)."""
+    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: (_ for _ in ()).throw(requests.Timeout("x")))
+    monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)
+
+    with pytest.raises(ErreurCollecte) as exc_info:
+        get_with_retry("https://www.reddit.com/search.rss?q=x", max_retries=2)
+    assert not isinstance(exc_info.value, TropDeRequetes)
 
 
 def test_get_with_retry_404_journalise_le_code_pas_une_erreur_reseau(monkeypatch, engine_test):

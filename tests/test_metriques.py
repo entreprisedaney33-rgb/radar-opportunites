@@ -49,12 +49,13 @@ def _noter(engine, opportunity_id, *, score_prudent, decision_critic):
         ))
 
 
-def _cout(engine, id_, montant, jour, *, role=None, opportunity_id=None):
+def _cout(engine, id_, montant, jour, *, role=None, opportunity_id=None, issue=None, sortie_tronquee=None):
     with engine.begin() as cx:
         cx.execute(insert(usage_events).values(
             id=id_, run_id="run-test", fournisseur="anthropic", modele_ou_actor="test",
             appels=1, tokens_in=100, tokens_out=50, cout_declare_ou_estime=montant, devise="EUR",
             date_creation=_dt(jour), role=role, opportunity_id=opportunity_id,
+            issue=issue, sortie_tronquee=sortie_tronquee,
         ))
 
 
@@ -219,6 +220,62 @@ def test_metriques_cout_par_role_et_par_opportunite(engine_test):
 
     # Moyenne UNIQUEMENT sur les lignes avec opportunity_id (opp1: 0.08, opp2: 0.04).
     assert m["cout_moyen_par_opportunite_eur"] == round((0.08 + 0.04) / 2, 4)
+
+
+def test_metriques_fiabilite_sorties_taux_et_cout_perdu(engine_test):
+    """Sous-étape 3.10, point 4 : taux de sorties valides et coût des appels
+    perdus, par rôle -- "valide"/"normalisee" comptent comme exploitées,
+    "relancee"/"perdue" comme non exploitées ; seule "perdue" entre dans
+    `cout_appels_perdus_eur` (au sens strict : la tentative qui n'a produit
+    AUCUN résultat, même après relance)."""
+    _construire_jeu_de_test(engine_test)
+    # Critic : 1 valide (0.02), 1 paire relancée/perdue (0.01 + 0.015).
+    _cout(engine_test, "c-critic-valide", 0.02, JOUR, role="critic", issue="valide")
+    _cout(engine_test, "c-critic-relancee", 0.01, JOUR, role="critic", issue="relancee")
+    _cout(engine_test, "c-critic-perdue", 0.015, JOUR, role="critic", issue="perdue")
+    # Analyst : 1 normalisee (0.03).
+    _cout(engine_test, "c-analyst-normalisee", 0.03, JOUR, role="analyst", issue="normalisee")
+    # Un compteur de l'Enquêteur (jamais un rôle modèle) : jamais dans fiabilite_sorties.
+    _cout(engine_test, "c-enqueteur", 0.0, JOUR, role="enqueteur_recherche")
+
+    m = calculer_metriques(engine_test, JOUR)
+    fiab = m["fiabilite_sorties"]
+
+    assert "enqueteur_recherche" not in fiab
+    critic = fiab["critic"]
+    assert critic["appels"] == 3
+    assert critic["valides"] == 1
+    assert critic["relancees"] == 1
+    assert critic["perdues"] == 1
+    assert critic["taux_sorties_valides"] == round(1 / 3, 4)
+    assert critic["cout_appels_perdus_eur"] == 0.015  # UNIQUEMENT "perdue"
+    assert critic["cout_non_exploite_eur"] == round(0.01 + 0.015, 4)  # "relancee" + "perdue"
+
+    analyst = fiab["analyst"]
+    assert analyst["appels"] == 1
+    assert analyst["normalisees"] == 1
+    assert analyst["taux_sorties_valides"] == 1.0
+    assert analyst["cout_appels_perdus_eur"] == 0.0
+
+
+def test_metriques_fiabilite_sorties_troncature_et_historique_sans_issue(engine_test):
+    """`sortie_tronquee` compté indépendamment de `issue` (une sortie peut
+    être tronquée ET valider quand même, cas limite) ; une ligne antérieure
+    à la sous-étape 3.10 (`issue` NULL) est groupée sous
+    `sans_donnee_fiabilite`, jamais ignorée ni jamais crashée, et exclue du
+    dénominateur du taux."""
+    _construire_jeu_de_test(engine_test)
+    _cout(engine_test, "c-scout-tronque-valide", 0.02, JOUR, role="scout", issue="valide", sortie_tronquee=True)
+    _cout(engine_test, "c-scout-historique", 0.01, JOUR, role="scout")  # issue=None : avant 3.10
+
+    m = calculer_metriques(engine_test, JOUR)
+    scout = m["fiabilite_sorties"]["scout"]
+
+    assert scout["appels"] == 2
+    assert scout["tronquees"] == 1
+    assert scout["sans_donnee_fiabilite"] == 1
+    assert scout["valides"] == 1
+    assert scout["taux_sorties_valides"] == 1.0  # dénominateur = 2 - 1 (sans_donnee) = 1
 
 
 def _ligne_usage(engine, id_, *, jour=JOUR, fournisseur="anthropic", modele="claude-sonnet-5",

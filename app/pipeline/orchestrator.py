@@ -36,6 +36,7 @@ from app.adapters.base import SignalBrut
 from app.adapters.demo_adapter import AdaptateurDemo
 from app.adapters.hn_recherche import TAGS_VALIDES as HN_TAGS_VALIDES
 from app.adapters.hn_recherche import AdaptateurRechercheHN
+from app.adapters.http import TropDeRequetes
 from app.adapters.model_client import ModelClient
 from app.adapters.reddit_recherche import AdaptateurRechercheReddit
 from app.adapters.rss_adapter import AdaptateurRSS
@@ -88,6 +89,9 @@ class ResumeRun:
     temps_ecoule: bool = False
     sources_indisponibles: list[str] = field(default_factory=list)
     signaux_concurrence_stockes: int = 0  # items d'un flux `offre`, jamais transformés en opportunité (1.1)
+    # Sous-étape 3.10, point 5 : Reddit a été mis en pause pour le reste de
+    # CE passage (2 réponses 429 consécutives) -- voir `_collecter`.
+    reddit_mis_en_pause: bool = False
 
 
 def _pause_demandee(engine: Engine) -> bool:
@@ -239,10 +243,25 @@ def _collecter(
 
     `engine` (sous-étape 3.7) : transmis à chaque adaptateur pour qu'il
     journalise ses appels HTTP dans `journal_http`
-    (`app/adapters/http.py`/`app/storage/repo.py::enregistrer_appel_http`)."""
+    (`app/adapters/http.py`/`app/storage/repo.py::enregistrer_appel_http`).
+
+    Sous-étape 3.10, point 5 : disjoncteur Reddit PAR PASSAGE -- 2 réponses
+    429 consécutives d'un adaptateur de recherche Reddit
+    (`app.adapters.reddit_recherche.AdaptateurRechercheReddit`, la seule
+    source de `TropDeRequetes`) mettent Reddit en pause pour le RESTE de CET
+    appel (les adaptateurs Reddit suivants dans `adaptateurs` sont ignorés
+    sans être tentés) -- jamais au-delà : un nouveau passage repart avec le
+    compteur à zéro (état local à cette fonction, jamais partagé entre deux
+    appels). Une réponse Reddit qui réussit entre-temps remet le compteur à
+    zéro -- 2 consécutives, pas 2 au total sur tout le passage."""
     bruts_douleur: list[SignalBrut] = []
     bruts_offre: list[SignalBrut] = []
+    consecutifs_429_reddit = 0
+    reddit_en_pause = False
     for adaptateur, budget_source, config_source in adaptateurs:
+        est_reddit = isinstance(adaptateur, AdaptateurRechercheReddit)
+        if est_reddit and reddit_en_pause:
+            continue
         type_flux = config_source.type if config_source is not None else "douleur"
         bucket = bruts_douleur if type_flux == "douleur" else bruts_offre
         plafond = max_signaux_douleur if type_flux == "douleur" else max_signaux_offre
@@ -251,10 +270,24 @@ def _collecter(
             continue
         try:
             nouveaux = adaptateur.collecter(min(budget_source, restant), engine=engine)
+        except TropDeRequetes as exc:
+            logger.warning("Source %s : 429 persistant -- %s", getattr(adaptateur, "id_source", adaptateur), exc)
+            resume.sources_indisponibles.append(str(getattr(adaptateur, "id_source", adaptateur)))
+            if est_reddit:
+                consecutifs_429_reddit += 1
+                if consecutifs_429_reddit >= 2 and not reddit_en_pause:
+                    reddit_en_pause = True
+                    resume.reddit_mis_en_pause = True
+                    logger.warning(
+                        "Reddit : 2 réponses 429 consécutives -- Reddit mis en pause pour le reste de ce passage."
+                    )
+            continue
         except Exception as exc:  # une source en panne n'arrête pas la collecte des autres
             logger.warning("Source %s indisponible: %s", getattr(adaptateur, "id_source", adaptateur), exc)
             resume.sources_indisponibles.append(str(getattr(adaptateur, "id_source", adaptateur)))
             continue
+        if est_reddit:
+            consecutifs_429_reddit = 0  # une réussite remet le compteur à zéro
         if config_source is not None:
             # Le type douleur/offre et le secteur par défaut sont des
             # concepts de configuration (1.1, 2.1), pas quelque chose que
@@ -577,6 +610,7 @@ def _resume_vers_dict(resume: ResumeRun) -> dict:
         "temps_ecoule": resume.temps_ecoule,
         "sources_indisponibles": resume.sources_indisponibles,
         "signaux_concurrence_stockes": resume.signaux_concurrence_stockes,
+        "reddit_mis_en_pause": resume.reddit_mis_en_pause,
     }
 
 

@@ -18,7 +18,7 @@ from urllib.parse import quote
 import feedparser
 
 from app.adapters.base import SignalBrut
-from app.adapters.http import ErreurCollecte, get_with_retry
+from app.adapters.http import ErreurCollecte, TropDeRequetes, get_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,17 @@ class AdaptateurRechercheReddit:
         journal = {"engine": engine, "contexte": self.id_source} if engine is not None else {}
         try:
             resp = get_with_retry(self.url, **journal)
+        except TropDeRequetes:
+            # Sous-étape 3.10 : contrairement à une panne générique (ci-dessous),
+            # laissée remonter TELLE QUELLE -- `app.pipeline.orchestrator._collecter`
+            # en a besoin pour compter les 429 consécutifs et mettre Reddit en
+            # pause pour le reste du passage (disjoncteur, point 5).
+            raise
         except ErreurCollecte as exc:
             # Même politique que AdaptateurRSS : une combinaison
-            # indisponible (429 compris, déjà retenté avec backoff par
-            # get_with_retry) n'arrête jamais la collecte des autres flux —
-            # voir app/pipeline/orchestrator.py::_collecter.
+            # indisponible (timeout, erreur réseau...) n'arrête jamais la
+            # collecte des autres flux — voir
+            # app/pipeline/orchestrator.py::_collecter.
             logger.warning("Recherche Reddit %s indisponible : %s", self.id_source, exc)
             return []
 

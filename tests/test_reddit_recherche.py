@@ -2,10 +2,21 @@
 fixture Atom construite à la main (format vérifié manuellement le
 25/09/2026, voir Journal 1.2 — aucun réseau dans ces tests), et réaction à
 un 429 simulé (déjà géré par `get_with_retry`, ici on vérifie juste que
-l'adaptateur ne plante jamais et ne boucle pas)."""
+l'adaptateur ne plante jamais et ne boucle pas).
+
+Sous-étape 3.10, point 5 : un 429 PERSISTANT (`TropDeRequetes`,
+`app.adapters.http`) est désormais laissé remonter TEL QUEL (pas swallowed
+en liste vide comme avant) -- nécessaire pour le disjoncteur par passage de
+`app.pipeline.orchestrator._collecter`, qui compte les 429 consécutifs pour
+mettre Reddit en pause. Une panne SANS rapport avec un 429 (timeout, autre
+erreur réseau), elle, continue de ne jamais faire planter la collecte des
+autres flux -- swallowed en liste vide comme avant."""
 from __future__ import annotations
 
+import pytest
+
 from app.adapters import http as http_module
+from app.adapters.http import TropDeRequetes
 from app.adapters.reddit_recherche import AdaptateurRechercheReddit
 
 FIXTURE_ATOM = b"""<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">
@@ -120,12 +131,13 @@ def test_collecter_avec_engine_journalise_l_appel(monkeypatch, engine_test):
     }]
 
 
-def test_429_persistant_ne_plante_pas_et_renvoie_une_liste_vide(monkeypatch):
-    """`get_with_retry` retente déjà avec backoff sur un 429 (§3 : attente,
-    jamais une boucle infinie — plafonné à `max_retries`) ; ici on vérifie
-    que l'adaptateur, au bout de ce plafond, se contente de renvoyer une
-    liste vide plutôt que de laisser l'exception remonter et interrompre la
-    collecte des autres flux."""
+def test_429_persistant_est_laisse_remonter_tel_quel(monkeypatch):
+    """Sous-étape 3.10, point 5 : `get_with_retry` retente déjà avec backoff
+    sur un 429 (§3 : attente, jamais une boucle infinie — plafonné à
+    `max_retries`) ; au bout de ce plafond, il lève désormais `TropDeRequetes`
+    -- l'adaptateur la laisse remonter TELLE QUELLE (ne la swallow plus en
+    liste vide) pour que `app.pipeline.orchestrator._collecter` puisse
+    compter les 429 consécutifs et mettre Reddit en pause pour le passage."""
 
     class Reponse429:
         status_code = 429
@@ -135,6 +147,22 @@ def test_429_persistant_ne_plante_pas_et_renvoie_une_liste_vide(monkeypatch):
 
     monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: Reponse429())
     monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)  # test rapide, pas de vraie attente
+
+    adaptateur = AdaptateurRechercheReddit("smallbusiness", "manually_en", "manually")
+
+    with pytest.raises(TropDeRequetes):
+        adaptateur.collecter(10)
+
+
+def test_timeout_ne_plante_pas_et_renvoie_une_liste_vide(monkeypatch):
+    """Une panne SANS rapport avec un 429 (ici un timeout, jamais un vrai
+    code HTTP reçu) reste swallowed en liste vide, exactement comme avant --
+    seul le 429 persistant (ci-dessus) est traité différemment depuis la
+    sous-étape 3.10."""
+    import requests
+
+    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: (_ for _ in ()).throw(requests.Timeout("x")))
+    monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)
 
     adaptateur = AdaptateurRechercheReddit("smallbusiness", "manually_en", "manually")
 

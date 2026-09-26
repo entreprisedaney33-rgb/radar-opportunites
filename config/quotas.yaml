@@ -56,7 +56,15 @@ duree_max_minutes: 60  # plafond de sécurité d'UN SEUL passage (pas de la jour
 # app/lexique_douleur.yaml ≈ 325) — voir
 # app/pipeline/planificateur_recherche.py pour la rotation.
 intervalle_heures_recherche_reddit: 6  # un flux n'est jamais revisité avant ce délai
-max_flux_recherche_par_passage: 15  # combinaisons (sub, expression) interrogées par passage
+# Sous-étape 3.10 (AMELIORATIONS.md) : 15 -> 8. L'audit du 26/09/2026
+# (rapports/AUDIT_NUIT_2026-09-26.md, §7) a mesuré un taux de 429 de 63,6 %
+# toutes voies Reddit confondues ce jour-là -- moins de combinaisons par
+# passage, combiné à l'espacement porté à 12 s (app/adapters/http.py) et au
+# disjoncteur par passage (app/pipeline/orchestrator.py::_collecter),
+# réduit la pression sur Reddit. Une combinaison est donc revisitée un peu
+# moins souvent qu'avant à volume de passages égal -- accepté : la qualité
+# des réponses (moins de 429) prime sur la fraîcheur de rotation ici.
+max_flux_recherche_par_passage: 8  # combinaisons (sub, expression) interrogées par passage
 budget_appels_recherche_reddit_par_flux: 5  # résultats gardés par combinaison interrogée
 
 # Recherche Hacker News tag × expression (sous-étape 1.4, connecteur créé en

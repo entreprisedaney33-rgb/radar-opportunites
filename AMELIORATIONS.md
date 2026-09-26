@@ -2069,6 +2069,157 @@ interdisant tout crawl), sans toucher au reste du pipeline.
 - Question pour Mathéo / Fable (sinon « aucune ») : voir §9 (interprétations
   ci-dessus à confirmer, et piste API officielle Reddit ajoutée au §9 pour
   l'étape 4).
+- Déploiement : OK de Mathéo reçu dans la session, procédure §5 suivie
+  (points 1 à 6) — synchronisé vers le dépôt public
+  (`entreprisedaney33-rgb/radar-opportunites`, commit `1369b2a`) le
+  2026-09-26 à 12:22 UTC environ. Aucun commit inattendu trouvé entre le
+  déploiement précédent (`7ffb4a3`, sous-étape 3.7) et celui-ci — le
+  script clone toujours le dépôt de déploiement à neuf avant de recopier
+  cette copie de travail par-dessus (jamais de `pull` + `cp` sur un clone
+  local persistant, contrairement à l'incident du 11/08/2026 documenté dans
+  le `CLAUDE.md` racine). Connectivité base de production reconfirmée dans
+  la foulée (`python -m app.metriques --jour 2026-09-26` répond, 655
+  opportunités repérées / 359 analysées à 12:24 UTC ce jour-là). **Point 7
+  (vérifier sur Render que le Background Worker a redémarré et que le
+  premier passage s'est terminé sans erreur) non fait** : cette session n'a
+  pas d'accès navigateur connecté au dashboard Render — à faire par Mathéo
+  lui-même (dashboard Render → service du Background Worker → Logs). Mesure
+  à 48 h (§5, point 9) à faire dans une session à partir du 2026-09-28.
+
+#### Sous-étape 3.10 — Sorties structurées fiables et 429 Reddit
+
+Ajoutée après coup (26/09/2026), suite au déploiement de 3.9 : deux
+problèmes indépendants repérés en production, l'un sur la fiabilité des
+sorties Analyst/Critic, l'autre sur le débit Reddit.
+
+1. Mesure d'abord (lecture seule) : sur les 7 derniers jours, part des
+   appels Analyst et Critic dont la sortie a été rejetée par la validation
+   de schéma, coût de ces appels perdus, et ce que devient le dossier dans
+   ce cas (quelle décision de repli est enregistrée). Chiffres dans le
+   Journal. Si l'information n'est pas stockée, le dire et mesurer au moins
+   sur les logs disponibles.
+2. Cause observée dans les logs Render : « objections » renvoyé comme objet
+   unique ou comme chaîne JSON au lieu d'une liste ; sorties `{}` vides côté
+   Analyst. Correction de fond : `appeler_structure` utilise la sortie
+   structurée de l'API Anthropic (outil dont `input_schema` est le schéma
+   Pydantic du rôle avec `tool_choice` forcé, ou le mode structured outputs
+   du SDK s'il est disponible), qui garantit la forme. La normalisation
+   existante reste en filet (objet → liste à un élément, chaîne JSON →
+   parsée). Sur échec de validation malgré tout : une seule relance, avec le
+   message d'erreur de validation joint au prompt, jamais de repli
+   silencieux.
+3. Vérifie `max_tokens` par rôle ; si des sorties sont tronquées, le
+   relever et journaliser les troncatures.
+4. Traçabilité : `usage_events` note l'issue de chaque sortie (valide /
+   normalisée / relancée / perdue) ; `app.metriques` affiche par rôle le
+   taux de sorties valides et le coût des appels perdus.
+5. Reddit : espacement porté à 12 s, au plus 8 combinaisons par passage, et
+   après deux 429 consécutifs Reddit est mis en pause pour le reste du
+   passage, journalisé. Le backoff existant reste.
+
+Tests sans réseau avec réponses simulées (objet, chaîne, `{}`, tronquée,
+valide). Suite verte, 0 €.
+
+### Journal — sous-étape 3.10
+- Statut : FAIT
+- Date : 2026-09-26
+- Commit(s) : `[3.10] Sorties structurées fiables et 429 Reddit`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Grosse trouvaille en mesurant : le Critic ratait sa réponse 78 % du temps
+  aujourd'hui (5,78 € jetés sur 7,76 € dépensés), l'Analyst 19 % — le modèle
+  renvoyait parfois ses objections mal formées. Corrigé à la source (l'API
+  garantit maintenant le bon format) + une deuxième chance si ça rate quand
+  même. Au passage, Reddit est ralenti et se met en pause tout seul s'il
+  rejette trop de requêtes d'affilée, pour ne plus gaspiller de quota pour
+  rien.
+- Fichiers créés / modifiés : `app/adapters/model_client.py` (`"strict":
+  True`, relance unique avec erreur jointe, `ISSUE_*`, `_un_appel`),
+  `app/storage/schema.py` (`usage_events.issue`/`sortie_tronquee`),
+  `app/storage/db.py` (`_COLONNES_ADDITIVES` : type SQL par colonne, pas
+  seulement VARCHAR — nécessaire pour la première colonne additive
+  booléenne), `app/storage/repo.py` (`inserer_usage_event` : `issue`/
+  `sortie_tronquee`), `app/pipeline/budget.py` (`enregistrer_reel` : idem),
+  `app/metriques.py` (`fiabilite_sorties` par rôle), `app/adapters/http.py`
+  (`TropDeRequetes`, espacement Reddit 6 s → 12 s), `app/adapters/reddit_recherche.py`
+  (laisse `TropDeRequetes` remonter), `app/pipeline/orchestrator.py`
+  (disjoncteur Reddit par passage dans `_collecter`, `ResumeRun.reddit_mis_en_pause`),
+  `config/quotas.yaml` (`max_flux_recherche_par_passage` 15 → 8),
+  `tests/test_model_client_appeler_structure.py` (créé),
+  `tests/test_orchestrator_collecter.py` (créé), `tests/test_http.py`,
+  `tests/test_reddit_recherche.py`, `tests/test_metriques.py`, `tests/test_db.py`
+- Tests : 18 ajoutés (`appeler_structure` de bout en bout avec client
+  simulé : objet unique normalisé, chaîne JSON normalisée, sortie vide
+  relancée puis valide, deux échecs de suite → `None` + `perdue`, troncature
+  journalisée indépendamment de la validation, sortie valide sans relance,
+  `"strict": True` transmis, absence de `tool_use` ; disjoncteur Reddit par
+  passage : 2×429 consécutifs → pause, 1×429 seul → pas de pause, un succès
+  entre deux remet le compteur à zéro, une panne non-Reddit n'active jamais
+  le disjoncteur ; `TropDeRequetes` levée spécifiquement sur 429 persistant,
+  jamais sur un timeout ; migration additive `issue`/`sortie_tronquee` avec
+  aller-retour booléen réel ; `app.metriques` : taux de sorties valides +
+  coût perdu par rôle, troncature indépendante de la validation, historique
+  sans `issue` groupé à part) — suite par défaut : 330 verts / 0 rouge —
+  dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : voir
+  point 1 ci-dessous (mesure réelle, lecture seule via `radar_lecture`) —
+  fenêtre 2026-09-26 00:00 UTC → 12:34 UTC (voir écart par rapport au plan) :
+  Analyst 420 appels, 79 en repli heuristique (18,81 %), ≈1,69 € perdus ;
+  Critic 420 appels, **329 en repli heuristique (78,33 %)**, ≈5,78 € perdus,
+  décision de repli toujours `a_verifier` ; 0 appel sans tokens (donc 0
+  échec réseau — 100 % des échecs mesurés sont des rejets de validation ou
+  une absence de `tool_use`) ; coût perdu combiné Analyst+Critic ≈7,47 € sur
+  16,83 € dépensés ce jour-là (44,37 %).
+- Écart par rapport au plan (et pourquoi) :
+  1. Point 1 : impossible de mesurer sur les 7 DERNIERS JOURS littéralement
+     — `usage_events.role`/`opportunity_id` ne sont fiables que depuis le
+     déploiement de la sous-étape 0.7 (2026-09-25 ~20:56 UTC) ; tout
+     l'historique antérieur porte `role=NULL` (migration additive, jamais
+     réécrite). Mesuré à la place sur la seule fenêtre fiable disponible
+     (le run en cours depuis minuit UTC aujourd'hui, ~12h30 de données),
+     comme permis explicitement par le texte de cette sous-étape (« si
+     l'information n'est pas stockée, le dire »). La méthode elle-même est
+     un proxy, pas une mesure directe : `usage_events.issue` n'existait pas
+     avant cette sous-étape, donc rien ne distinguait jusqu'ici un rejet de
+     validation d'un manque d'accès modèle (`AccesModeleIndisponible`) — le
+     proxy retenu (repli heuristique détecté dans `assessments.payload_json`
+     PLUS un `usage_events` correspondant SANS tokens manquants, ce qui
+     exclut les échecs réseau) revient au même dans ce cas précis puisque
+     0 appel n'a manqué de tokens sur la fenêtre mesurée -- mais resterait
+     à affiner si un futur épisode mêle échecs réseau et rejets de schéma.
+  2. Point 2 : deux choix d'interprétation. (a) L'étiquette d'issue est
+     `"perdue"`/`"relancee"`/`"valide"`/`"normalisee"` (4 valeurs, comme
+     listées littéralement au point 4) -- la troncature (point 3) est un
+     champ booléen SÉPARÉ (`sortie_tronquee`), jamais une 5ᵉ valeur d'issue,
+     pour ne pas mélanger deux questions différentes (la sortie a-t-elle
+     validé ? a-t-elle été coupée ?). (b) `_normaliser_sortie_outil` reçoit
+     un troisième cas (objet unique → liste), en plus des deux déjà
+     existants (enveloppe à clé unique, chaîne JSON) -- décrit dans le texte
+     comme faisant partie du même filet, pas une sous-étape séparée.
+  3. Point 3 : aucune preuve de troncature historique n'existe (le champ
+     `sortie_tronquee` n'existait pas avant ce commit) -- impossible de
+     vérifier rétroactivement si `max_tokens` (2500 Analyst, 1800 Critic,
+     inchangés depuis leur création) a réellement causé des troncatures.
+     Journalisé pour la suite (mesurable à 48 h), valeurs non modifiées
+     faute de preuve -- deviner à la hausse sans donnée aurait été
+     arbitraire.
+  4. Point 5 : le disjoncteur compte les 429 CONSÉCUTIFS d'un adaptateur de
+     recherche Reddit du SCOUT (`app.adapters.reddit_recherche`,
+     `app.pipeline.orchestrator._collecter`) -- pas ceux du fournisseur
+     Reddit de l'Enquêteur (déjà plafonné à 30 % du quota de requêtes
+     depuis la sous-étape 3.9, un mécanisme différent, indépendant). Le
+     texte du point 5 ne nomme que « Reddit » sans préciser lequel des deux
+     systèmes ; retenu le Scout, car « au plus 8 combinaisons par passage »
+     ne peut désigner que `max_flux_recherche_par_passage`
+     (`config/quotas.yaml`), un réglage propre au planificateur de
+     recherche du Scout -- l'Enquêteur n'a pas de notion de « combinaisons
+     par passage ».
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 -- les
+  interprétations ci-dessus (étiquette de troncature séparée, disjoncteur
+  scopé au Scout) à confirmer ; mesure réelle à 48 h pour vérifier que le
+  taux de sorties valides remonte vraiment (`app.metriques`, champ
+  `fiabilite_sorties`) et que Reddit ne se met plus en pause aussi souvent.
+- Déploiement : pas encore fait -- attend l'OK explicite de Mathéo (§5,
+  point 3).
 
 ---
 
@@ -2552,7 +2703,8 @@ Baseline du 25/09/2026 (à confirmer par 0.3). Les cibles sont des ordres de gra
 | 3.6 🚦 | PARTIEL | 2026-09-25 | `74ecf25f` `d0fd2ab4` `4a80de1d` | Déployé (repo public commit `44705a68f9cc`, 20:56 UTC, build Render confirmé par Mathéo) ; vérification locale `app.metriques` bloquée par la même panne de connexion base que 0.5/0.7 ; mesure 48h et Journaux 1.6/2.3 restent à faire, voir §9 |
 | 3.7 | FAIT | 2026-09-26 | `[3.7]` | `journal_http` (table neuve) : code HTTP ou timeout/erreur_reseau par appel de collecte et d'Enquêteur ; `app.metriques` par flux/fournisseur (429/403/autres erreurs/taux de succès) ; corrige le run laissé `en_cours` quand le budget du jour est déjà atteint au redémarrage (résout §9, 7.1) — déployé (commit `7ffb4a3b`, 2026-09-25 22:39 UTC, OK de Mathéo) ; vérif Render/mesure 48h restent à faire, voir Journal |
 | 3.8 | FAIT | 2026-09-26 | `[3.8]` | Accès base rétabli (IP mise à jour côté Render, voir §9) ; audit réel du jour (11:53 UTC) : 98,26 % des dossiers du jour à une seule source malgré l'Enquêteur ; cause trouvée — le fournisseur Reddit de l'Enquêteur est inutile (`robots.txt: Disallow: /`, vérifié) mais consomme la moitié du quota de requêtes, épuisé (100 %) avant midi UTC ; correction proposée (retirer Reddit du registre), non implémentée |
-| 3.9 | FAIT | 2026-09-26 | `[3.9]` | Reddit sans crawl (extrait de recherche stocké tel quel, étiquette `extrait_flux`, jamais de fetch de page) ; plafond dédié à Reddit (30 % du quota de requêtes), contourné par la famille `prix` dès qu'un concurrent est identifié ; quotas relevés (3000/1500) ; ligne robots.txt ajoutée au README ; piste API officielle Reddit notée en §9 pour l'étape 4 — 11 tests ajoutés, 312 verts, non déployé (attend l'OK de Mathéo) |
+| 3.9 | FAIT | 2026-09-26 | `[3.9]` | Reddit sans crawl (extrait de recherche stocké tel quel, étiquette `extrait_flux`, jamais de fetch de page) ; plafond dédié à Reddit (30 % du quota de requêtes), contourné par la famille `prix` dès qu'un concurrent est identifié ; quotas relevés (3000/1500) ; ligne robots.txt ajoutée au README ; piste API officielle Reddit notée en §9 pour l'étape 4 — 11 tests ajoutés, 312 verts ; déployé (OK de Mathéo, commit public `1369b2a`, 2026-09-26 ~12:22 UTC) ; vérif Render/mesure 48h restent à faire, voir Journal |
+| 3.10 | FAIT | 2026-09-26 | `[3.10]` | Mesure réelle : Critic ratait sa sortie 78,33 % du temps aujourd'hui (5,78 €/7,76 € perdus), Analyst 18,81 % — 0 échec réseau, 100 % rejets de schéma. Corrigé : `"strict": True` côté API + une seule relance avec erreur jointe ; `usage_events.issue`/`sortie_tronquee` (migration additive) ; `app.metriques.fiabilite_sorties` par rôle ; Reddit (Scout) : espacement 12 s, 8 combinaisons/passage, disjoncteur après 2×429 consécutifs — 18 tests ajoutés, 330 verts ; non déployé, attend l'OK de Mathéo |
 | 4.1 | À FAIRE | | | |
 | 4.2 | À FAIRE | | | |
 | 4.3 | À FAIRE | | | |
@@ -2941,3 +3093,32 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
      jamais le plafond global de requêtes de recherche (qui reste absolu,
      §4 du cahier des charges -- « jamais dépassé »). Aucune autre lecture
      praticable n'a été trouvée qui ne risque pas de violer ce garde-fou.
+- 2026-09-26 (sous-étape 3.10, mesure réelle du point 1) : sur la fenêtre
+  fiable disponible (depuis minuit UTC aujourd'hui -- `usage_events.role`/
+  `opportunity_id` ne sont fiables que depuis le déploiement de la
+  sous-étape 0.7, 2026-09-25 ~20:56 UTC), le Critic a raté sa sortie
+  78,33 % du temps (329/420 appels, ≈5,78 € perdus sur 7,76 € dépensés par
+  ce rôle) et l'Analyst 18,81 % (79/420, ≈1,69 € perdus) -- 0 appel sans
+  tokens, donc 0 échec réseau mesuré : la totalité des échecs mesurés sont
+  des rejets de validation de schéma ou une absence de `tool_use`. Corrigé
+  dans cette même sous-étape (`"strict": True` + relance unique) ; la
+  mesure à 48 h (`app.metriques.fiabilite_sorties`, alimenté depuis ce
+  déploiement) dira si le taux de sorties valides remonte vraiment.
+- 2026-09-26 (sous-étape 3.10, point 3) : `max_tokens` par rôle (2500
+  Analyst, 1800 Critic) n'a PAS été modifié -- aucune preuve de troncature
+  historique n'existe (`usage_events.sortie_tronquee` n'existait pas avant
+  ce commit, donc rien à vérifier rétroactivement). Le champ est
+  maintenant journalisé pour toute sortie future : à revoir à 48 h si
+  `app.metriques` montre des troncatures réelles pour l'un des deux rôles.
+- 2026-09-26 (sous-étape 3.10, point 5) : le disjoncteur (2×429 consécutifs
+  → pause) ne compte que les 429 des adaptateurs de recherche Reddit du
+  SCOUT (`app.adapters.reddit_recherche`, branchés dans
+  `app.pipeline.orchestrator._collecter`) -- PAS ceux du fournisseur Reddit
+  de l'Enquêteur (`app.enqueteur.fournisseurs_gratuits.FournisseurReddit`),
+  déjà plafonné différemment (30 % du quota de requêtes, sous-étape 3.9).
+  Le texte de 3.10 ne nommait que « Reddit » sans préciser lequel des deux
+  systèmes ; « au plus 8 combinaisons par passage » ne pouvant désigner que
+  `max_flux_recherche_par_passage` (propre au planificateur de recherche du
+  Scout), c'est cette lecture qui a été retenue. Si Mathéo/Fable veulent le
+  même disjoncteur côté Enquêteur, ce serait une sous-étape à part (l'Enquêteur
+  n'a pas de notion de « passage » au sens où le Scout l'entend).

@@ -192,7 +192,10 @@ class BudgetTracker:
 
     def enregistrer_reel(self, *, fournisseur: str, modele_ou_actor: str, appels: int, tokens_in: int | None,
                           tokens_out: int | None, cout_reel: float, cout_estime_engage: float, role: str,
-                          opportunity_id: str | None = None) -> None:
+                          opportunity_id: str | None = None, issue: str | None = None,
+                          sortie_tronquee: bool | None = None) -> None:
+        """`issue`/`sortie_tronquee` (sous-étape 3.10) : `None` par défaut --
+        voir `app.storage.repo.inserer_usage_event`."""
         self._reserve_estimee_eur = max(0.0, self._reserve_estimee_eur - cout_estime_engage)
         if role in ROLES_APPROFONDIS:
             self._reserve_appels_approfondis = max(0, self._reserve_appels_approfondis - 1)
@@ -207,6 +210,8 @@ class BudgetTracker:
             cout=cout_reel,
             role=role,
             opportunity_id=opportunity_id,
+            issue=issue,
+            sortie_tronquee=sortie_tronquee,
         )
 
     def cout_total_reel(self) -> float:

@@ -41,9 +41,17 @@ USER_AGENT = "radar-opportunites-ia/0.1 (labo-ia)"
 # Délais minimaux PROACTIFS entre deux appels vers le même hôte (secondes).
 # reddit.com et www.reddit.com : mêmes précautions de débit que www.reddit.com,
 # au cas où une URL relative ou un futur gabarit omettrait le "www.".
+# Sous-étape 3.10 (AMELIORATIONS.md) : 6.0 -> 12.0 -- l'audit du 26/09/2026
+# (rapports/AUDIT_NUIT_2026-09-26.md, §7) a mesuré que ce délai ne tenait pas
+# de façon fiable en conditions réelles (5,3 % des intervalles sous 6 s,
+# minimum observé 0,20 s -- plusieurs chemins de code appelant Reddit
+# indépendamment, chacun avec son propre suivi ponctuel), avec un taux de 429
+# de 63,6 % toutes voies Reddit confondues ce jour-là. Doubler la marge ne
+# corrige pas la cause (déjà partagée entre tous les appelants via ce même
+# dict, voir la docstring de module), mais réduit le risque résiduel.
 DELAIS_MIN_PAR_HOTE_SECONDES: dict[str, float] = {
-    "www.reddit.com": 6.0,
-    "reddit.com": 6.0,
+    "www.reddit.com": 12.0,
+    "reddit.com": 12.0,
     "hn.algolia.com": 1.0,
 }
 # Tout autre hôte (notamment les domaines arbitraires fetchés par
@@ -106,6 +114,17 @@ class PageTropGrande(ErreurCollecte):
     3.3 d'AMELIORATIONS.md, garde-fou « taille maximale de page »)."""
 
 
+class TropDeRequetes(ErreurCollecte):
+    """Sous-étape 3.10 : levée par `get_with_retry` quand TOUTES les tentatives
+    ont reçu un 429 (jamais pour un timeout ou une autre erreur) -- même
+    principe que `PageTropGrande` : sous-classe d'`ErreurCollecte` pour qu'un
+    appelant qui attrape seulement `ErreurCollecte` continue de fonctionner
+    à l'identique, tout en donnant à un appelant qui s'en soucie (la
+    recherche Reddit du Scout, `app.adapters.reddit_recherche`) le moyen de
+    distinguer « Reddit nous rejette » d'un problème réseau générique --
+    sert le disjoncteur par passage de `app.pipeline.orchestrator._collecter`."""
+
+
 def get_with_retry(
     url: str, *, max_retries: int = 3, base_delay: float = 2.0, timeout: float = 10.0,
     headers: dict[str, str] | None = None,
@@ -162,6 +181,13 @@ def get_with_retry(
             if tentative < max_retries:
                 time.sleep(base_delay * (2 ** (tentative - 1)))
     _journaliser_appel_http(engine, contexte, hote, dernier_code, type_erreur, time.monotonic() - debut)
+    if dernier_code == 429:
+        # Sous-étape 3.10 : les `max_retries` tentatives ont TOUTES reçu un
+        # 429 (jamais mélangé avec un timeout/une autre erreur, sinon
+        # `dernier_code` porterait la trace de cette dernière tentative-là) --
+        # exception dédiée pour que l'appelant puisse réagir spécifiquement
+        # (voir `TropDeRequetes`), plutôt qu'une `ErreurCollecte` générique.
+        raise TropDeRequetes(f"429 persistant après {max_retries} tentatives pour {url}")
     raise ErreurCollecte(f"Échec après {max_retries} tentatives pour {url}: {derniere_erreur}")
 
 

@@ -426,7 +426,14 @@ def inserer_decision(engine: Engine, *, opportunity_id: str, auteur: str, action
 
 def inserer_usage_event(engine: Engine, *, run_id: str, fournisseur: str, modele_ou_actor: str, appels: int,
                          tokens_in: int | None, tokens_out: int | None, cout: float, role: str | None = None,
-                         opportunity_id: str | None = None, devise: str = "EUR") -> str:
+                         opportunity_id: str | None = None, devise: str = "EUR",
+                         issue: str | None = None, sortie_tronquee: bool | None = None) -> str:
+    """`issue`/`sortie_tronquee` (sous-étape 3.10) : `None` par défaut --
+    comportement inchangé pour tout appelant existant (compteurs de
+    l'Enquêteur compris, qui ne sont pas des appels modèle et ne renseignent
+    jamais ces deux champs). Renseignés uniquement par
+    `app.pipeline.budget.BudgetTracker.enregistrer_reel`, depuis
+    `app.adapters.model_client.ModelClient.appeler_structure`."""
     u_id = _uid()
     with engine.begin() as cx:
         cx.execute(
@@ -443,6 +450,8 @@ def inserer_usage_event(engine: Engine, *, run_id: str, fournisseur: str, modele
                 date_creation=_now(),
                 role=role,
                 opportunity_id=opportunity_id,
+                issue=issue,
+                sortie_tronquee=sortie_tronquee,
             )
         )
     return u_id

@@ -42,7 +42,13 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import Engine
 
 from app import config as cfg
-from app.adapters.model_client import estimer_cout_eur
+from app.adapters.model_client import (
+    ISSUE_NORMALISEE,
+    ISSUE_PERDUE,
+    ISSUE_RELANCEE,
+    ISSUE_VALIDE,
+    estimer_cout_eur,
+)
 from app.enqueteur.fetch import ETIQUETTE_PREUVE_ENQUETE, ETIQUETTE_PREUVE_PRIX
 from app.storage.schema import journal_http, opportunities, opportunity_evidence, scores, sources, usage_events
 
@@ -140,6 +146,7 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
                 usage_events.c.role, usage_events.c.opportunity_id, usage_events.c.cout_declare_ou_estime,
                 usage_events.c.fournisseur, usage_events.c.modele_ou_actor,
                 usage_events.c.tokens_in, usage_events.c.tokens_out,
+                usage_events.c.issue, usage_events.c.sortie_tronquee,
             ).where(
                 usage_events.c.date_creation >= debut, usage_events.c.date_creation < fin
             )
@@ -207,14 +214,14 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
 
     nb_reperees = len(opps)
     nb_analysees = len(scores_par_opp)
-    cout_jour = round(sum(c for (_, _, c, _, _, _, _) in lignes_couts), 4)
+    cout_jour = round(sum(c for (_, _, c, _, _, _, _, _, _) in lignes_couts), 4)
 
     # Traçabilité par rôle et par opportunité (colonnes ajoutées en
     # sous-étape 0.7, NULL pour tout l'historique antérieur — regroupé sous
     # "sans_role" plutôt qu'ignoré, pour que le total reste vérifiable).
     cout_par_role: dict[str, float] = {}
     cout_par_opportunite: dict[str, float] = {}
-    for role, opp_id, cout, _, _, _, _ in lignes_couts:
+    for role, opp_id, cout, _, _, _, _, _, _ in lignes_couts:
         cle_role = role or "sans_role"
         cout_par_role[cle_role] = round(cout_par_role.get(cle_role, 0.0) + cout, 4)
         if opp_id:
@@ -238,7 +245,7 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
     cout_jour_recalcule = 0.0
     nb_evenements_anthropic_couverts = 0
     nb_evenements_anthropic_sans_tokens = 0
-    for _, _, _, fournisseur, modele, tokens_in, tokens_out in lignes_couts:
+    for _, _, _, fournisseur, modele, tokens_in, tokens_out, _, _ in lignes_couts:
         if fournisseur != "anthropic":
             continue
         if tokens_in is None or tokens_out is None:
@@ -246,6 +253,54 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
             continue
         cout_jour_recalcule += estimer_cout_eur(modele, tokens_in, tokens_out)
         nb_evenements_anthropic_couverts += 1
+
+    # Sous-étape 3.10, point 4 : fiabilité des sorties structurées par rôle
+    # (scout|analyst|critic) -- `issue`/`sortie_tronquee` (usage_events,
+    # migration additive) : NULL pour tout appel antérieur à cette sous-étape,
+    # compté à part ("sans_donnee") plutôt qu'ignoré, pour que le taux reste
+    # vérifiable. "valide"/"normalisee" comptent comme une sortie EXPLOITÉE ;
+    # "relancee" (la tentative a déclenché une relance) et "perdue" (dernière
+    # tentative invalide) comptent comme NON exploitée -- `cout_appels_perdus_eur`
+    # ne somme que "perdue" (au sens strict du point 1 : le coût de la
+    # tentative qui n'a produit AUCUN résultat final, ni directement ni via
+    # une relance), `cout_non_exploite_eur` inclut en plus "relancee" (le
+    # coût de la PREMIÈRE tentative d'une paire, elle aussi jamais utilisée).
+    ISSUES_EXPLOITEES = {ISSUE_VALIDE, ISSUE_NORMALISEE}
+    ISSUES_NON_EXPLOITEES = {ISSUE_RELANCEE, ISSUE_PERDUE}
+    fiabilite_sorties: dict[str, dict] = {}
+    for role, _opp_id, cout, _fournisseur, _modele, _tin, _tout, issue, sortie_tronquee in lignes_couts:
+        if role not in ("scout", "analyst", "critic"):
+            continue
+        stats = fiabilite_sorties.setdefault(
+            role, {
+                "appels": 0, "valides": 0, "normalisees": 0, "relancees": 0, "perdues": 0,
+                "tronquees": 0, "sans_donnee_fiabilite": 0,
+                "cout_appels_perdus_eur": 0.0, "cout_non_exploite_eur": 0.0,
+            },
+        )
+        stats["appels"] += 1
+        if sortie_tronquee:
+            stats["tronquees"] += 1
+        if issue is None:
+            stats["sans_donnee_fiabilite"] += 1
+        elif issue == ISSUE_VALIDE:
+            stats["valides"] += 1
+        elif issue == ISSUE_NORMALISEE:
+            stats["normalisees"] += 1
+        elif issue == ISSUE_RELANCEE:
+            stats["relancees"] += 1
+            stats["cout_non_exploite_eur"] += cout
+        elif issue == ISSUE_PERDUE:
+            stats["perdues"] += 1
+            stats["cout_appels_perdus_eur"] += cout
+            stats["cout_non_exploite_eur"] += cout
+    for stats in fiabilite_sorties.values():
+        denominateur = stats["appels"] - stats["sans_donnee_fiabilite"]
+        stats["taux_sorties_valides"] = (
+            round((stats["valides"] + stats["normalisees"]) / denominateur, 4) if denominateur else None
+        )
+        stats["cout_appels_perdus_eur"] = round(stats["cout_appels_perdus_eur"], 4)
+        stats["cout_non_exploite_eur"] = round(stats["cout_non_exploite_eur"], 4)
 
     par_statut: dict[str, int] = {}
     for o in opps:
@@ -379,6 +434,7 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
         },
         "cout_moyen_par_dossier_analyse_eur": round(cout_jour / nb_analysees, 4) if nb_analysees else None,
         "cout_par_role_eur": cout_par_role,
+        "fiabilite_sorties": fiabilite_sorties,
         "cout_moyen_par_opportunite_eur": (
             round(sum(cout_par_opportunite.values()) / len(cout_par_opportunite), 4)
             if cout_par_opportunite else None
