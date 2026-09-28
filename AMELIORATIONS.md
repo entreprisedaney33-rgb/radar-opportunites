@@ -2330,8 +2330,24 @@ Tests sans réseau. Suite verte, 0 €.
      d'activation déjà posé en 3.1/3.5 (`RADAR_ENQUETEUR_ACTIF_REDDIT`) --
      aucun code nouveau, un seul changement de valeur par défaut.
 - Question pour Mathéo / Fable (sinon « aucune ») : aucune.
-- Déploiement : PAS ENCORE fait (§0.2.6 : jamais sans OK explicite de
-  Mathéo dans la session) — en attente.
+- Déploiement : **FAIT.** OK explicite de Mathéo reçu le 2026-09-28 (« Tu as
+  mon OK pour déployer »), procédure §5 suivie (suite par défaut 411 verts /
+  0 rouge avant push ; secrets relus, rien de suspect ; test de fumée payant
+  4bis déjà vert depuis 3.13, non rejoué dans cette session). Synchronisé
+  avec 3.13 en un seul commit vers le dépôt public
+  `entreprisedaney33-rgb/radar-opportunites` : commit `37b67463`,
+  2026-09-28 12:53:46 UTC. Après le « build terminé » confirmé par Mathéo,
+  vérifié directement en base (`information_schema`) :
+  `opportunities.mots_cles_en`/`mots_cles_fr` et la table
+  `etats_disjoncteur_enqueteur` existent bien. `python -m app.metriques
+  --jour 2026-09-28` répond normalement. Point de vigilance honnête : au
+  moment de cette vérification (quelques minutes après le déploiement),
+  aucun appel modèle réussi n'était encore enregistré depuis le déploiement
+  — le dernier événement en base datait de 12:50:06 UTC (avant le push,
+  encore en échec) ; le worker n'avait simplement pas encore fait de
+  nouveau passage. Ce n'est PAS une confirmation que la panne du 26/09 est
+  terminée — cette confirmation reste à faire par la mesure à 48h (§5,
+  point 9).
 
 #### Sous-étape 3.12 — Point d'étape à 24 h
 
@@ -2540,11 +2556,32 @@ reprise en simulation). Suite verte. Commit `[3.13]`.
 - Question pour Mathéo / Fable (sinon « aucune ») : voir §9 — limitation
   préexistante du statut `en_analyse` (point 2 ci-dessus) et point 5 (Jarvis)
   non fait.
-- Déploiement : **PAS ENCORE fait.** Demande explicite avant de déployer :
-  - **Radar (3.11 + 3.13 ensemble)** : OK de Mathéo requis dans la session,
-    procédure §5 (test de fumée payant déjà vert, voir ci-dessus).
-  - **Jarvis** : séparément, une fois le point 5 écrit (voir « Écart »
-    ci-dessus) — pas prêt à déployer aujourd'hui.
+- Déploiement :
+  - **Radar (3.11 + 3.13 ensemble) : FAIT.** OK explicite de Mathéo reçu le
+    2026-09-28, procédure §5 suivie (suite par défaut 411 verts / 0 rouge
+    avant push ; secrets relus, rien de suspect ; test de fumée payant 4bis
+    déjà vert depuis cette même sous-étape — 0,0392 €, voir ci-dessus —, non
+    rejoué dans cette session de déploiement). Commit public `37b67463`
+    (`entreprisedaney33-rgb/radar-opportunites`), 2026-09-28 12:53:46 UTC.
+    Après le « build terminé » confirmé par Mathéo, vérifié directement en
+    base : la table `etats_disjoncteur_api` existe bien (`information_schema`),
+    `python -m app.metriques --jour 2026-09-28` répond normalement
+    (`disjoncteur_api_modele` bien présent dans la sortie, à l'état neutre :
+    `en_erreur: false`, `echecs_consecutifs: 0`). Point de vigilance
+    honnête, à ne pas confondre avec une confirmation de fin de panne :
+    aucun appel modèle réussi n'était encore enregistré au moment de cette
+    vérification (quelques minutes après le déploiement) — dernier
+    événement en base à 12:50:06 UTC, avant le push, toujours en échec ; le
+    worker n'avait simplement pas encore fait de nouveau passage complet.
+    La confirmation réelle que la panne du 26/09 est terminée reste à faire
+    par la mesure à 48h (§5, point 9) ou, plus tôt, par une relecture de
+    `python -m app.metriques --jour 2026-09-28` une fois que le worker aura
+    tourné.
+  - **Jarvis : toujours PAS fait**, inchangé — le point 5 (exposition de
+    l'état « API en erreur » côté `jarvis-radar-recap` et bandeau rouge)
+    n'a pas été écrit dans cette session de déploiement, hors périmètre de
+    la demande de Mathéo (« déploie le radar »). À faire séparément, avec
+    son propre protocole (verrou pris/libéré, voir « Écart » ci-dessus).
 
 #### Sous-étape 3.14 — Point d'étape après 3.13
 
@@ -2631,6 +2668,140 @@ déploiement de 3.13 (27/09) jusqu'à maintenant. Écrire
   la panne dure depuis 46 h 23 sans aucune alerte automatique (le
   disjoncteur qui la détecterait n'est lui non plus pas déployé).
 - Déploiement : sans objet (sous-étape de lecture seule).
+
+#### Sous-étape 3.15 — Reddit en pause, tokens, concurrents
+
+Ajoutée après coup (28/09/2026), à partir des logs du 28/09 et du rapport de
+la sous-étape 3.14 (`rapports/POINT_ETAPE_2026-09-28.md`) : plafond de score
+critère par critère, et faux positif du mécanisme d'identification de
+concurrents (3.4b).
+
+1. Toutes les sources Reddit (flux RSS et recherches) passent `actif: false`
+   dans `sources.yaml`, commentaire « en attente de l'API officielle Reddit,
+   étape 4.0 ». Le planificateur ignore les sources inactives sans
+   consommer de quota ni de temps. Le disjoncteur Reddit du Scout se
+   déclenche dès 2 échecs 429 persistants sur des sources différentes,
+   testé. Les quotas de collecte libérés vont aux autres flux.
+2. Sorties tronquées (logs du 28/09 : max_tokens 1800 pour le Critic, 2500
+   pour l'Analyst) : relève-les à des valeurs qui couvrent des dossiers
+   multi-sources (de l'ordre de 4000 pour le Critic, 6000 pour l'Analyst, à
+   ajuster d'après les tailles réelles stockées), et fais apparaître le taux
+   de troncature par rôle dans `app.metriques`.
+3. Identification des concurrents (3.4b) : liste d'exclusion en config des
+   domaines qui ne sont jamais des concurrents (sources du radar :
+   news.ycombinator.com, techcrunch.com, reddit.com, producthunt.com ;
+   plateformes : anthropic.com, platform.claude.com, github.com,
+   medium.com, substack.com, youtube.com, wikipedia.org…), et un concurrent
+   ne peut venir que d'un résultat dont le titre porte un marqueur d'offre.
+   Test : les trois faux positifs des logs ne produisent plus de fetch
+   `/pricing`.
+
+Tests sans réseau, suite verte, 0 €.
+
+### Journal — sous-étape 3.15
+- Statut : FAIT
+- Date : 2026-09-28
+- Commit(s) : `[3.15] Reddit en pause, tokens, concurrents`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Reddit (flux ET recherches) est maintenant complètement en pause en
+  attendant sa vraie API — plus aucun quota ni temps gaspillé dessus, tout
+  profite aux autres sources. L'Analyst et le Critic peuvent écrire des
+  réponses plus longues (moins de troncature sur des dossiers à plusieurs
+  sources), et un vrai bug est corrigé : des articles TechCrunch sans
+  rapport n'étaient plus jamais confondus avec de vrais concurrents.
+- Fichiers créés / modifiés :
+  - Créés : `config/domaines_exclus_concurrents.yaml`,
+    `tests/test_config_domaines_exclus_concurrents.py`
+  - Modifiés : `app/sources.yaml` (13 sources Reddit passées `actif: false`,
+    commentées), `app/sources.py` (`subreddits_douleur` filtre désormais
+    aussi sur `actif`), `app/roles/analyst.py` (`max_tokens` 2500 → 6000),
+    `app/roles/critic.py` (`max_tokens` 1800 → 4000), `app/metriques.py`
+    (`fiabilite_sorties[role].taux_troncature`), `app/config.py`
+    (`domaines_exclus_concurrents`), `app/enqueteur/concurrents.py`
+    (marqueur d'offre exigé pour les deux sources -- magasin interne ET
+    famille `concurrence` --, paramètre `domaines_exclus`),
+    `app/enqueteur/enqueteur.py` (branche `cfg.domaines_exclus_concurrents()`
+    dans l'appel à `identifier_concurrents`), `tests/test_sources_config.py`,
+    `tests/test_pipeline_integration.py`, `tests/test_metriques.py`,
+    `tests/test_enqueteur_concurrents.py`, `tests/test_enqueteur_enqueteur.py`
+- Tests : 16 ajoutés (Reddit en pause : toutes les sources réelles
+  `actif: false` ; `subreddits_douleur` vide sur le fichier réel et ignore
+  une source `actif: false` sur fixture ; `_construire_adaptateurs_recherche_reddit`
+  ne construit rien et ne persiste rien sur le vrai `app/sources.yaml` (zéro
+  quota, zéro rotation) ; `_construire_adaptateurs` ignore Reddit mais garde
+  HN ; taux de troncature par rôle dans `app.metriques`, sur `appels` jamais
+  le dénominateur filtré ; identification de concurrents : marqueur d'offre
+  désormais exigé pour le magasin interne aussi (reproduit le faux positif
+  réel « Mark Wahlberg… », plus identifié) ; domaine exclu ignoré même avec
+  marqueur (reproduit le second faux positif réel, l'accord Anthropic-Akamai
+  via TechCrunch) ; domaine exclu couvre les sous-domaines ; un domaine non
+  exclu avec marqueur reste un concurrent valide ; les trois faux positifs
+  (2 réels + 1 reconstitué, voir Écart) ne produisent plus aucun concurrent ;
+  chargeur `app.config.domaines_exclus_concurrents` combine les deux
+  catégories en un frozenset) — suite par défaut : 424 verts / 0 rouge (411
+  avant cette sous-étape) — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : aucun
+  (aucun déploiement ni mesure réelle dans cette sous-étape — code et tests
+  seulement, comme demandé).
+- Écart par rapport au plan (et pourquoi) :
+  1. Point 1 : en plus du changement demandé dans `sources.yaml`, un vrai
+     bug a été trouvé et corrigé en l'écrivant : `app.sources.subreddits_douleur`
+     (le connecteur de recherche sub × expression, 1.2) ne filtrait QUE sur
+     `type == "douleur"`, jamais sur `actif` -- seule la collecte RSS
+     frontpage (`_construire_adaptateurs`, ligne `if src.actif`) respectait
+     déjà ce champ. Sans ce correctif, passer les 13 sources Reddit à
+     `actif: false` aurait arrêté les flux RSS Reddit mais PAS le connecteur
+     de recherche, qui consomme pourtant le plus gros du quota de requêtes
+     de l'étape 1 -- le point 1 du texte (« Le planificateur ignore les
+     sources inactives sans consommer de quota ni de temps ») ne pouvait pas
+     être vrai sans ce correctif. Le disjoncteur Reddit du Scout (2×429 sur
+     des sources différentes) était déjà testé par la sous-étape 3.10
+     (`tests/test_orchestrator_collecter.py`, 3 subreddits distincts) --
+     re-vérifié dans cette session (suite verte), aucun changement de code
+     nécessaire là. « Les quotas de collecte libérés vont aux autres flux »
+     est une conséquence naturelle du bucket partagé `max_signaux_douleur`
+     dans `app.pipeline.orchestrator._collecter` (RSS douleur + recherche HN
+     se partagent déjà la place que Reddit n'utilise plus) -- aucun code
+     séparé n'était nécessaire pour ce point non plus.
+  2. Point 2 : les valeurs 4000/6000 sont celles données par le texte (ordre
+     de grandeur), PAS recalibrées sur des tailles réelles stockées --
+     aucun accès à la base de production ni aux logs Render depuis cette
+     session (hors ligne, comme la plupart des sous-étapes de lecture seule
+     précédentes, voir §9). À confirmer par une lecture de
+     `app.metriques.fiabilite_sorties[role].taux_troncature` une fois ces
+     valeurs en production.
+  3. Point 3 : le texte dit « un concurrent ne peut venir que d'un résultat
+     dont le titre porte un marqueur d'offre » SANS distinguer les deux
+     sources du mécanisme (magasin interne / famille `concurrence`) -- lu
+     comme une règle universelle, appliquée aux DEUX, alors qu'avant cette
+     sous-étape seule la famille `concurrence` l'exigeait (le magasin
+     interne acceptait n'importe quel résultat rapproché par similarité
+     lexicale, marqueur ou non -- exactement la faille qui a produit le
+     premier faux positif réel du rapport de 3.14, un article TechCrunch «
+     Mark Wahlberg is coming to Disrupt 2026 » sans aucun marqueur). C'est
+     un changement de comportement, pas seulement un ajout : plusieurs
+     fixtures de tests existantes (magasin interne sans marqueur) ont dû
+     être corrigées pour continuer à représenter un vrai concurrent (voir
+     `tests/test_enqueteur_concurrents.py`, `tests/test_enqueteur_enqueteur.py`).
+     « Test : les trois faux positifs des logs » -- seuls DEUX titres exacts
+     sont cités mot pour mot dans `rapports/POINT_ETAPE_2026-09-28.md` (§4,
+     dossier `79a9d42a…`) : « Mark Wahlberg is coming to Disrupt 2026 » et
+     l'accord cloud Anthropic-Akamai ; le rapport ne détaille pas un
+     troisième titre au-delà de ces deux exemples, et aucun accès aux logs
+     Render ni à la base de production n'était possible depuis cette session
+     (hors ligne) pour retrouver le texte exact d'un troisième cas. Le
+     troisième cas de test reconstitue donc le MÊME type d'échec (domaine du
+     radar lui-même + marqueur d'offre dans le titre, cette fois sur
+     reddit.com plutôt que techcrunch.com) plutôt que d'inventer un titre
+     TechCrunch non vérifié -- voir le commentaire du test dédié.
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9, question
+  reconduite (Jarvis toujours pas déployé, panne 26/09 restant à confirmer
+  éteinte par la mesure à 48h) -- rien de nouveau ouvert par cette
+  sous-étape, qui ne touche ni au déploiement ni à la production.
+- Déploiement : pas encore fait -- en attente de l'« OK pour déployer » de
+  Mathéo, demandé en fin de session, procédure §5 à suivre le moment venu
+  (point 4bis non applicable : aucun changement dans
+  `app/adapters/model_client.py` ni `app/models_schemas.py`).
 
 ---
 
@@ -3117,10 +3288,11 @@ Baseline du 25/09/2026 (à confirmer par 0.3). Les cibles sont des ordres de gra
 | 3.8 | FAIT | 2026-09-26 | `[3.8]` | Accès base rétabli (IP mise à jour côté Render, voir §9) ; audit réel du jour (11:53 UTC) : 98,26 % des dossiers du jour à une seule source malgré l'Enquêteur ; cause trouvée — le fournisseur Reddit de l'Enquêteur est inutile (`robots.txt: Disallow: /`, vérifié) mais consomme la moitié du quota de requêtes, épuisé (100 %) avant midi UTC ; correction proposée (retirer Reddit du registre), non implémentée |
 | 3.9 | FAIT | 2026-09-26 | `[3.9]` | Reddit sans crawl (extrait de recherche stocké tel quel, étiquette `extrait_flux`, jamais de fetch de page) ; plafond dédié à Reddit (30 % du quota de requêtes), contourné par la famille `prix` dès qu'un concurrent est identifié ; quotas relevés (3000/1500) ; ligne robots.txt ajoutée au README ; piste API officielle Reddit notée en §9 pour l'étape 4 — 11 tests ajoutés, 312 verts ; déployé (OK de Mathéo, commit public `1369b2a`, 2026-09-26 ~12:22 UTC) ; vérif Render/mesure 48h restent à faire, voir Journal |
 | 3.10 | FAIT | 2026-09-26 | `[3.10]` | Mesure réelle : Critic ratait sa sortie 78,33 % du temps aujourd'hui (5,78 €/7,76 € perdus), Analyst 18,81 % — 0 échec réseau, 100 % rejets de schéma. Corrigé : `"strict": True` côté API + une seule relance avec erreur jointe ; `usage_events.issue`/`sortie_tronquee` (migration additive) ; `app.metriques.fiabilite_sorties` par rôle ; Reddit (Scout) : espacement 12 s, 8 combinaisons/passage, disjoncteur après 2×429 consécutifs — 18 tests ajoutés, 330 verts ; déployé (OK de Mathéo, commit public `ebafdc6`, 2026-09-26 ~12:52 UTC), worker redémarré et base vérifiés indirectement via `app.metriques` ; mesure 48h reste à faire, voir Journal |
-| 3.11 | FAIT | 2026-09-26 | `[3.11]` | Scout : `mots_cles_en`/`mots_cles_fr` (3 à 6 mots, validés par le code) remplacent la phrase entière dans les requêtes de l'Enquêteur (`HypotheseEnqueteur.mots_cles`, gabarits `<mots_cles>`) ; repli dérivé par code pour les opportunités sans mots-clés ; requêtes vides jamais envoyées (compteur `requetes_evitees_jour`) ; disjoncteur Reddit de l'Enquêteur (3 échecs 429 → pause 60 min, persisté en base, visible dans `app.metriques`) ; Reddit (Enquêteur) désactivé par défaut — 41 tests ajoutés, 375 verts ; PAS ENCORE déployé, en attente de l'OK de Mathéo |
+| 3.11 | FAIT | 2026-09-26 | `[3.11]` | Scout : `mots_cles_en`/`mots_cles_fr` (3 à 6 mots, validés par le code) remplacent la phrase entière dans les requêtes de l'Enquêteur (`HypotheseEnqueteur.mots_cles`, gabarits `<mots_cles>`) ; repli dérivé par code pour les opportunités sans mots-clés ; requêtes vides jamais envoyées (compteur `requetes_evitees_jour`) ; disjoncteur Reddit de l'Enquêteur (3 échecs 429 → pause 60 min, persisté en base, visible dans `app.metriques`) ; Reddit (Enquêteur) désactivé par défaut — 41 tests ajoutés, 375 verts ; déployé avec 3.13 (OK de Mathéo, commit public `37b67463`, 2026-09-28 ~12:53 UTC) ; colonnes vérifiées en base, `app.metriques` répond ; mesure 48h reste à faire, voir Journal |
 | 3.12 | PARTIEL | 2026-09-27 | `[3.12]` | Point d'étape demandé « depuis 3.11 » impossible tel quel (3.11 jamais déployée, vérifié) : mesuré depuis le dernier déploiement réel (3.10, 26/09 ~12:52 UTC). Découverte majeure, non prévue : depuis ~13:41 UTC ce jour-là, ~100 % des appels Scout/Analyst/Critic échouent (exception à l'appel API, jamais un rejet de schéma) — 494 dossiers créés depuis dans ce mode « sans modèle », 878/878 scores Analyst+Critic à 0,0/`a_verifier`, coût réel ≈ 0,07 € sur toute la fenêtre ; le run s'arrête désormais sur le plafond d'APPELS (1300/j), plus jamais sur le budget en euros (qui ne peut plus jamais se remplir). Cause probable non confirmée : versions non figées dans `requirements.txt` (`anthropic>=0.40`, sans plafond) — voir §9, urgent |
-| 3.13 | FAIT | 2026-09-27 | `[3.13]` | Cause confirmée dans les logs Render (API Render, lecture seule) : 400 `additionalProperties must be explicitly set to false` -- corrigé par `app.adapters.schema_strict.rendre_schema_strict` (récursif, sur les `$defs`), mode strict conservé ; **prouvé par un test de fumée payant réel (0,0392 €) : Scout/Analyst/Critic répondent tous les trois via un vrai modèle**. Disjoncteur API (5 échecs consécutifs -> pause 15 min, état persisté `etats_disjoncteur_api`, mirroré sur `runs.statut`/`erreurs_json` pour Jarvis) ; aucun repli créé pendant l'incident (`DisjoncteurAPIOuvert`, jamais attrapée par les rôles). `app.reprise --depuis ... [--simulation]` marque `a_reprendre` les dossiers créés uniquement par repli ; `_phase_reprise` les retraite en priorité via un vrai Scout. Coût compté même en échec réseau (jamais 0€) ; `app.metriques` : appels en erreur/heure + état du disjoncteur ; `a_reprendre` exclu des métriques. Versions figées dans `requirements.txt`. 36 tests ajoutés, 411 verts, 0 € (suite par défaut) + test de fumée payant vert (0,0392 €, hors suite). Point 5 (Jarvis) PARTIEL, pas fait -- voir Journal et §9. PAS déployé, en attente de l'OK de Mathéo (radar et Jarvis séparément) |
+| 3.13 | FAIT | 2026-09-27 | `[3.13]` | Cause confirmée dans les logs Render (API Render, lecture seule) : 400 `additionalProperties must be explicitly set to false` -- corrigé par `app.adapters.schema_strict.rendre_schema_strict` (récursif, sur les `$defs`), mode strict conservé ; **prouvé par un test de fumée payant réel (0,0392 €) : Scout/Analyst/Critic répondent tous les trois via un vrai modèle**. Disjoncteur API (5 échecs consécutifs -> pause 15 min, état persisté `etats_disjoncteur_api`, mirroré sur `runs.statut`/`erreurs_json` pour Jarvis) ; aucun repli créé pendant l'incident (`DisjoncteurAPIOuvert`, jamais attrapée par les rôles). `app.reprise --depuis ... [--simulation]` marque `a_reprendre` les dossiers créés uniquement par repli ; `_phase_reprise` les retraite en priorité via un vrai Scout. Coût compté même en échec réseau (jamais 0€) ; `app.metriques` : appels en erreur/heure + état du disjoncteur ; `a_reprendre` exclu des métriques. Versions figées dans `requirements.txt`. 36 tests ajoutés, 411 verts, 0 € (suite par défaut) + test de fumée payant vert (0,0392 €, hors suite). Point 5 (Jarvis) PARTIEL, pas fait -- voir Journal et §9. Radar déployé avec 3.11 (OK de Mathéo, commit public `37b67463`, 2026-09-28 ~12:53 UTC) ; table `etats_disjoncteur_api` vérifiée en base, `app.metriques` répond ; aucun appel réussi encore observé au moment de la vérification (worker pas encore repassé), mesure 48h à faire ; Jarvis toujours pas déployé |
 | 3.14 | PARTIEL | 2026-09-28 | `[3.14]` | Fenêtre demandée (« depuis le déploiement de 3.13 ») inexistante -- 3.13 toujours pas déployée (même preuve qu'en 3.12 : pas de commit de sync, colonnes absentes). La panne du 26/09 n'a donc jamais été corrigée : **46 h 23 d'arrêt total ininterrompu** au moment de la mesure, 0,00 % de sorties valides Scout/Analyst/Critic, 0,00 € dépensé, 653 dossiers vides créés (+159 depuis le 27/09), 0 retraité, 0 hypothèse Scout exploitable. Sur les 997 scores réels d'avant la panne : plafond toujours à 55/max (jamais 60) ; analyse critère par critère (nouvelle) -- `acheteur_disposition_payer` (53 % inconnu dans le top 30, jamais « fort » sauf 1/30) et `economie_cout_lancement` (47 % inconnu, jamais « fort », 0/30) plafonnent tout le monde, presque toujours par absence de source `prix` (15/16 et 13/14 cas), un seul cas par faux positif du mécanisme de concurrents (3.4b). Critic : jamais « éligible » (0/997) ; même les 3 meilleurs dossiers de tout le projet n'ont reçu qu'un Critic en repli, dès le 25/09 -- avant la panne officielle. `rapports/POINT_ETAPE_2026-09-28.md` créé |
+| 3.15 | FAIT | 2026-09-28 | `[3.15]` | Reddit (flux RSS ET connecteur de recherche sub × expression) mis en pause : `actif: false` dans `app/sources.yaml` + bug réel corrigé (`subreddits_douleur` ignorait `actif`, seule la collecte RSS en tenait compte) -- zéro quota/temps consommé, vérifié sur le vrai fichier. `max_tokens` Analyst 2500→6000, Critic 1800→4000 (ordre de grandeur du plan, pas encore recalibré sur des tailles réelles -- pas d'accès base) ; `app.metriques.fiabilite_sorties[role].taux_troncature` ajouté. Concurrents (3.4b) : marqueur d'offre désormais exigé pour les DEUX sources (magasin interne ET famille `concurrence`, avant seule la seconde l'exigeait) + liste d'exclusion de domaines (`config/domaines_exclus_concurrents.yaml`) -- corrige les 2 faux positifs réels documentés en 3.14 (articles TechCrunch), 3ᵉ cas de test reconstitué (même échec, domaine différent, logs réels non accessibles pour un 3ᵉ titre exact). 16 tests ajoutés, 424 verts, 0 € -- pas encore déployé, OK de Mathéo demandé en fin de session |
 | 4.1 | À FAIRE | | | |
 | 4.2 | À FAIRE | | | |
 | 4.3 | À FAIRE | | | |
@@ -3236,7 +3408,7 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
      dossiers touchés seront retraités par `app.reprise` + `_phase_reprise`.
      Point 1 (3.11 jamais déployée) reste ouvert mais n'est plus urgent : 3.11
      et 3.13 seront déployées ensemble (voir Journal 3.13).
-- **2026-09-28 (sous-étape 3.14, URGENT, aggravation du point ci-dessus)** :
+- ~~**2026-09-28 (sous-étape 3.14, URGENT, aggravation du point ci-dessus)** :
   3.11+3.13 restent non déployées 24 h après leur écriture — le correctif de
   la panne (prouvé par un appel payant réel, 0,0392 €, depuis le 27/09)
   dort toujours dans le code local. Conséquence directe, vérifiée chiffres à
@@ -3250,7 +3422,26 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
   disjoncteur de 3.13 n'a lui non plus jamais tourné). **À faire par
   Mathéo, avant tout le reste** : donner l'« OK pour déployer » 3.11+3.13
   (radar) dans une session Claude Code — le test de fumée payant est déjà
-  vert, rien d'autre ne bloque techniquement ce déploiement.
+  vert, rien d'autre ne bloque techniquement ce déploiement.~~ **Résolue
+  (2026-09-28)** : OK de Mathéo reçu et déploiement radar fait, procédure
+  §5 (suite par défaut 411 verts / 0 rouge, secrets relus, rien de suspect).
+  Commit public `37b67463` (`entreprisedaney33-rgb/radar-opportunites`),
+  2026-09-28 12:53:46 UTC. Après confirmation du build par Mathéo, vérifié
+  en base : `opportunities.mots_cles_en`/`mots_cles_fr`,
+  `etats_disjoncteur_enqueteur` et `etats_disjoncteur_api` existent bien
+  (`information_schema`) ; `python -m app.metriques --jour 2026-09-28`
+  répond normalement. **Ce qui n'est PAS encore confirmé** (pas demandé à
+  ce stade, à ne pas lire comme réglé) : que la panne du 26/09 s'est
+  réellement arrêtée en production — au moment de cette vérification,
+  quelques minutes après le déploiement, aucun appel modèle réussi
+  n'était encore enregistré depuis le push (dernier événement à
+  12:50:06 UTC, avant le déploiement, toujours en échec) ; le worker
+  n'avait simplement pas encore fait de nouveau passage. À confirmer par
+  une relecture de `app.metriques` une fois le worker repassé, ou par la
+  mesure à 48h prévue par §5 (point 9) pour les Journaux de 1.6/2.3/3.6 —
+  logiquement la même mesure devrait aussi couvrir 3.11/3.13. Jarvis
+  (bandeau rouge, point 5 de 3.13) reste séparément non déployé, non
+  demandé dans cette session.
 - ~~2026-09-26 (sous-étape 3.8, BLOQUÉ) : impossible de faire l'audit demandé
   — aucune session Claude Code (celle-ci comme les précédentes : 0.5, 0.7,
   3.6, toutes le même jour et le lendemain) ne parvient à se connecter à la

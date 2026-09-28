@@ -40,18 +40,53 @@ def test_le_fichier_reel_charge_sans_erreur():
         assert types[id_reddit_1_2] == "douleur"
 
 
-def test_subreddits_douleur_extrait_les_noms_depuis_les_sources_reelles():
+def test_toutes_les_sources_reddit_sont_en_pause_depuis_3_15():
+    """Sous-étape 3.15 : Reddit (flux RSS et recherches) en pause en
+    attendant l'API officielle Reddit (étape 4.0) — chaque source dont l'URL
+    pointe vers reddit.com doit être `actif: false`. Les autres sources
+    (Hacker News, Product Hunt, TechCrunch) restent inchangées."""
+    sources = charger_sources()
+    for s in sources:
+        if "reddit.com" in s.url:
+            assert s.actif is False, s.id
+        else:
+            assert s.actif is True, s.id
+
+
+def test_subreddits_douleur_vide_sur_les_sources_reelles_tant_que_reddit_est_en_pause():
+    """Sous-étape 3.15 : toutes les sources Reddit réelles sont `actif: false`
+    — le connecteur de recherche sub × expression (1.2) ne doit donc plus
+    rien renvoyer tant que la pause dure, sans quoi `actif: false` dans
+    `app/sources.yaml` n'aurait aucun effet sur la recherche (seule la
+    collecte RSS frontpage en tenait compte avant cette sous-étape)."""
+    assert subreddits_douleur() == []
+
+
+def test_subreddits_douleur_extrait_les_noms_des_sources_actives(tmp_path):
     """Sous-étape 1.2 : une seule liste de vérité (app/sources.yaml) pour le
-    connecteur de recherche — pas de deuxième liste de subs dupliquée."""
-    subs = subreddits_douleur()
+    connecteur de recherche — pas de deuxième liste de subs dupliquée.
+    Vérifié sur une liste explicite (plutôt que sur le fichier réel, où
+    Reddit est en pause depuis la sous-étape 3.15, voir le test dédié
+    ci-dessus)."""
+    liste = [
+        SourceConfig(
+            id="a", nom="Reddit smallbusiness", url="https://www.reddit.com/r/smallbusiness/.rss", type="douleur",
+            secteur_par_defaut=None, langue="en", actif=True, budget_appels_par_nuit=10,
+        ),
+        SourceConfig(
+            id="b", nom="Reddit Accounting", url="https://www.reddit.com/r/Accounting/.rss", type="douleur",
+            secteur_par_defaut=None, langue="en", actif=True, budget_appels_par_nuit=10,
+        ),
+        SourceConfig(
+            id="c", nom="Show HN", url="https://hnrss.org/show", type="offre",
+            secteur_par_defaut=None, langue="en", actif=True, budget_appels_par_nuit=10,
+        ),
+    ]
+    subs = subreddits_douleur(liste)
     assert "smallbusiness" in subs
     assert "Accounting" in subs
-    assert "ecommerce" in subs
-    assert "msp" in subs
-    assert "sysadmin" in subs
-    assert "PropertyManagement" in subs
     assert len(subs) == len(set(subs))  # dédoublonné
-    # Les flux `offre` (Show HN, Product Hunt, TechCrunch) n'en font jamais partie.
+    # Le flux `offre` (Show HN) n'en fait jamais partie.
     assert "show" not in [s.lower() for s in subs]
 
 
@@ -75,6 +110,23 @@ def test_subreddits_douleur_ignore_les_flux_offre_et_non_reddit(tmp_path):
         ),
     ]
     assert subreddits_douleur(liste) == ["exemple"]
+
+
+def test_subreddits_douleur_ignore_une_source_reddit_inactive(tmp_path):
+    """Sous-étape 3.15 : une source Reddit `actif: false` ne doit plus jamais
+    alimenter le connecteur de recherche — avant cette sous-étape,
+    `subreddits_douleur` ne regardait que `type`, jamais `actif`."""
+    liste = [
+        SourceConfig(
+            id="a", nom="Reddit en pause", url="https://www.reddit.com/r/enpause/.rss", type="douleur",
+            secteur_par_defaut=None, langue="en", actif=False, budget_appels_par_nuit=10,
+        ),
+        SourceConfig(
+            id="b", nom="Reddit active", url="https://www.reddit.com/r/active/.rss", type="douleur",
+            secteur_par_defaut=None, langue="en", actif=True, budget_appels_par_nuit=10,
+        ),
+    ]
+    assert subreddits_douleur(liste) == ["active"]
 
 
 def test_config_valide_minimale(tmp_path):

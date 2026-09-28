@@ -80,7 +80,13 @@ def executer_critic(
                 version_prompt=VERSION_PROMPT,
                 role="critic",
                 opportunity_id=opportunity_id,
-                max_tokens=1800,
+                # Sous-étape 3.15 (AMELIORATIONS.md) : 1800 -> 4000, même
+                # raison que l'Analyst (voir app/roles/analyst.py) -- un
+                # dossier multi-sources donne au Critic plus d'affirmations
+                # à objecter. Valeur de l'ordre de grandeur donné par le
+                # plan, à ajuster après mesure réelle du taux de troncature
+                # (`app.metriques.fiabilite_sorties`).
+                max_tokens=4000,
             )
         except BudgetDepasse:
             raise

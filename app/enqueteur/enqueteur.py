@@ -35,6 +35,7 @@ from dataclasses import replace
 
 from sqlalchemy.engine import Engine
 
+from app import config as cfg
 from app.enqueteur.concurrents import Concurrent, identifier_concurrents
 from app.enqueteur.fetch import ETIQUETTE_PREUVE_PRIX, collecter_preuves
 from app.enqueteur.fournisseurs import RegistreFournisseurs, ResultatRecherche
@@ -216,6 +217,7 @@ def enqueter_opportunite(
     concurrents = identifier_concurrents(
         [resultat for resultat in resultats if resultat.fournisseur == "magasin_interne"],
         par_famille["concurrence"],
+        domaines_exclus=cfg.domaines_exclus_concurrents(),
     )
     if concurrents:
         source_ids += _enqueter_prix(

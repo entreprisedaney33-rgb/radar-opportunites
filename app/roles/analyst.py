@@ -96,7 +96,15 @@ def executer_analyst(
                 version_prompt=VERSION_PROMPT,
                 role="analyst",
                 opportunity_id=opportunity_id,
-                max_tokens=2500,
+                # Sous-étape 3.15 (AMELIORATIONS.md) : 2500 -> 6000. Un
+                # dossier multi-sources (Enquêteur, étape 3) a beaucoup plus
+                # à citer qu'un dossier à une seule source -- 2500 pouvait
+                # couper la sortie avant la fin (`sortie_tronquee`, voir
+                # `app.metriques.fiabilite_sorties`). Valeur de l'ordre de
+                # grandeur donné par le plan, pas encore recalibrée sur des
+                # tailles réelles stockées (aucun accès base depuis cette
+                # session) -- à ajuster après mesure du taux de troncature.
+                max_tokens=6000,
             )
         except BudgetDepasse:
             raise

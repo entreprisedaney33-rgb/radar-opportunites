@@ -351,7 +351,12 @@ def test_sans_concurrent_identifie_aucune_enquete_prix_n_est_declenchee(engine_t
 def test_concurrent_identifie_via_magasin_interne_declenche_l_enquete_prix(engine_test, budget, monkeypatch):
     """Point (a) du texte de 3.4b : un résultat du fournisseur `magasin_interne`
     identifie un concurrent, qui déclenche la famille `prix` -- les pages
-    obtenues sont étiquetées `prix`, jamais `preuve_enquete`."""
+    obtenues sont étiquetées `prix`, jamais `preuve_enquete`.
+
+    Titre avec un marqueur d'offre (« logiciel ») : depuis la sous-étape
+    3.15, le magasin interne est lui aussi filtré sur le marqueur d'offre du
+    titre (voir `app.enqueteur.concurrents.identifier_concurrents`) -- sans
+    lui, ce résultat ne serait plus identifié comme concurrent."""
 
     class _FournisseurMagasinInterneSimule:
         nom = "magasin_interne"
@@ -360,7 +365,7 @@ def test_concurrent_identifie_via_magasin_interne_declenche_l_enquete_prix(engin
             return [
                 ResultatRecherche(
                     url="https://concurrent-simule.example/produit",
-                    titre="ConcurrentSimulé",
+                    titre="ConcurrentSimulé, un logiciel de facturation",
                     extrait="Un concurrent déjà connu du magasin de preuves.",
                     horodatage_source=datetime(2026, 9, 20, tzinfo=timezone.utc),
                     fournisseur=self.nom,

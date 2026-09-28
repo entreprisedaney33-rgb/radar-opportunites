@@ -47,6 +47,19 @@ def tarifs() -> dict[str, Any]:
     return _load_yaml("tarifs.yaml")
 
 
+@lru_cache(maxsize=1)
+def domaines_exclus_concurrents() -> frozenset[str]:
+    """Sous-étape 3.15 : domaines qui ne sont jamais des concurrents
+    (`config/domaines_exclus_concurrents.yaml`), utilisé par
+    `app.enqueteur.concurrents.identifier_concurrents`. Les deux catégories
+    du fichier (sources du radar, plateformes) sont combinées en un seul
+    ensemble -- le code n'a jamais besoin de les distinguer."""
+    brut = _load_yaml("domaines_exclus_concurrents.yaml")
+    return frozenset(
+        domaine.lower() for liste in brut.values() for domaine in liste
+    )
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str

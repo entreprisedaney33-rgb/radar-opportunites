@@ -276,6 +276,26 @@ def test_metriques_fiabilite_sorties_troncature_et_historique_sans_issue(engine_
     assert scout["sans_donnee_fiabilite"] == 1
     assert scout["valides"] == 1
     assert scout["taux_sorties_valides"] == 1.0  # dénominateur = 2 - 1 (sans_donnee) = 1
+    assert scout["taux_troncature"] == round(1 / 2, 4)  # sur `appels`, PAS le dénominateur filtré
+
+
+def test_metriques_taux_troncature_par_role(engine_test):
+    """Sous-étape 3.15 : le taux de troncature (`sortie_tronquee`, 3.10) doit
+    apparaître par rôle dans `app.metriques`, pas seulement le compte brut
+    `tronquees` -- utile pour juger si les `max_tokens` relevés par 3.15
+    suffisent, sans avoir à recalculer le ratio à la main à chaque lecture."""
+    _construire_jeu_de_test(engine_test)
+    _cout(engine_test, "c-critic-1", 0.02, JOUR, role="critic", issue="valide", sortie_tronquee=True)
+    _cout(engine_test, "c-critic-2", 0.02, JOUR, role="critic", issue="valide", sortie_tronquee=False)
+    _cout(engine_test, "c-critic-3", 0.02, JOUR, role="critic", issue="valide", sortie_tronquee=False)
+    _cout(engine_test, "c-critic-4", 0.02, JOUR, role="critic", issue="valide", sortie_tronquee=False)
+
+    m = calculer_metriques(engine_test, JOUR)
+    critic = m["fiabilite_sorties"]["critic"]
+
+    assert critic["appels"] == 4
+    assert critic["tronquees"] == 1
+    assert critic["taux_troncature"] == 0.25
 
 
 def _ligne_usage(engine, id_, *, jour=JOUR, fournisseur="anthropic", modele="claude-sonnet-5",

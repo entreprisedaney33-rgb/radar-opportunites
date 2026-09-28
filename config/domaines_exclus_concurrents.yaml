@@ -1,0 +1,40 @@
+# Sous-étape 3.15 (AMELIORATIONS.md) : domaines qui ne sont JAMAIS des
+# concurrents, même si un résultat de recherche les mentionne avec un
+# marqueur d'offre dans son titre (app/enqueteur/concurrents.py). Chargé et
+# combiné en un seul ensemble par app/config.py::domaines_exclus_concurrents
+# -- les deux catégories ci-dessous ne sont qu'une aide à la lecture, le
+# code ne les distingue pas.
+#
+# Faux positif réel qui a motivé cette liste (rapports/POINT_ETAPE_2026-09-28.md,
+# §4, dossier 79a9d42a) : des articles TechCrunch sans rapport ("Mark
+# Wahlberg is coming to Disrupt 2026", l'accord cloud Anthropic-Akamai) ont
+# été identifiés comme des "concurrents" -- l'un sans même de marqueur
+# d'offre dans le titre (trouvé via le magasin interne, qui n'exigeait pas
+# encore ce marqueur avant cette sous-étape), l'autre avec ("platform").
+# Corrigé par DEUX changements combinés dans app/enqueteur/concurrents.py :
+# le marqueur d'offre est désormais exigé pour les DEUX sources (magasin
+# interne ET famille `concurrence`), et un domaine listé ici n'est jamais
+# retenu comme concurrent, quel que soit le titre.
+
+# Sources que le radar utilise lui-même pour collecter des signaux
+# (app/sources.yaml, app/adapters/hn_recherche.py,
+# app/adapters/reddit_recherche.py) : un article DE ces sites n'est pas un
+# concurrent qui vend quelque chose, même si son titre contient un mot comme
+# "platform" ou "app".
+sources_radar:
+  - news.ycombinator.com
+  - techcrunch.com
+  - reddit.com
+  - producthunt.com
+
+# Plateformes génériques où n'importe qui peut publier n'importe quoi
+# (dépôts de code, la plateforme d'IA elle-même, réseaux sociaux et sites de
+# référence généralistes...) : jamais un concurrent en tant que tel.
+plateformes:
+  - anthropic.com
+  - platform.claude.com
+  - github.com
+  - medium.com
+  - substack.com
+  - youtube.com
+  - wikipedia.org

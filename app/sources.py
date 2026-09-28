@@ -113,10 +113,18 @@ def subreddits_douleur(liste_sources: list[SourceConfig] | None = None) -> list[
     (`app/adapters/reddit_recherche.py`, sub × expression) sont exactement
     les sources Reddit déjà déclarées `douleur` ci-dessus — une seule liste
     de vérité, jamais une deuxième dupliquée pour la recherche. Renvoie les
-    noms de subreddits, dans l'ordre de `app/sources.yaml`, dédoublonnés."""
+    noms de subreddits, dans l'ordre de `app/sources.yaml`, dédoublonnés.
+
+    Sous-étape 3.15 : filtre aussi sur `actif` -- avant cette sous-étape,
+    une source Reddit passée à `actif: false` continuait à alimenter le
+    connecteur de recherche (seule la collecte RSS frontpage en tenait
+    compte, voir `app.pipeline.orchestrator._construire_adaptateurs`). Sans
+    ce filtre, mettre Reddit en pause dans `app/sources.yaml` n'aurait rien
+    changé au connecteur de recherche sub × expression, qui consomme
+    pourtant le plus gros du quota de requêtes."""
     vus: list[str] = []
     for src in liste_sources if liste_sources is not None else sources():
-        if src.type != "douleur":
+        if src.type != "douleur" or not src.actif:
             continue
         correspondance = _PATRON_SUBREDDIT.search(src.url)
         if correspondance and correspondance.group(1) not in vus:

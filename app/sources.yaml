@@ -55,7 +55,7 @@
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_accounting_rss
@@ -64,7 +64,7 @@
   type: douleur
   secteur_par_defaut: flux_documentaires
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_ecommerce_rss
@@ -73,7 +73,7 @@
   type: douleur
   secteur_par_defaut: e_commerce
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 # Sous-étape 1.2 : 10 subreddits supplémentaires (mêmes principes que les 3
@@ -88,7 +88,7 @@
   type: douleur
   secteur_par_defaut: outils_internes_it
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_sysadmin_rss
@@ -97,7 +97,7 @@
   type: douleur
   secteur_par_defaut: outils_internes_it
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_bookkeeping_rss
@@ -106,7 +106,7 @@
   type: douleur
   secteur_par_defaut: flux_documentaires
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_tax_rss
@@ -115,7 +115,7 @@
   type: douleur
   secteur_par_defaut: flux_documentaires
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_entrepreneur_rss
@@ -124,7 +124,7 @@
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_freelance_rss
@@ -133,7 +133,7 @@
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_shopify_rss
@@ -142,7 +142,7 @@
   type: douleur
   secteur_par_defaut: e_commerce
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_fba_rss
@@ -151,7 +151,7 @@
   type: douleur
   secteur_par_defaut: e_commerce
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_propertymanagement_rss
@@ -160,7 +160,7 @@
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10
 
 - id: reddit_logistics_rss
@@ -169,5 +169,5 @@
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: true
+  actif: false  # en attente de l'API officielle Reddit, étape 4.0
   budget_appels_par_nuit: 10

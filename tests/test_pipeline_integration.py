@@ -252,15 +252,25 @@ def test_quota_offre_independant_n_affame_jamais_le_quota_douleur(engine_test, m
     assert resume.signaux_lus == 5  # plafonné par max_signaux_par_passage, jamais réduit par l'offre
 
 
-def test_construire_adaptateurs_recherche_reddit_persiste_et_tourne(engine_test):
+def test_construire_adaptateurs_recherche_reddit_persiste_et_tourne(engine_test, monkeypatch):
     """Sous-étape 1.2, bout en bout avec la vraie base (aucun réseau ici :
     `_construire_adaptateurs_recherche_reddit` ne fait que choisir et marquer
     les combinaisons, jamais les interroger — voir `_collecter`) : les
     combinaisons choisies sont marquées visitées, et un deuxième appel
     immédiat (même passage) choisit d'AUTRES combinaisons (rotation), plus
-    jamais les deux premières tout de suite."""
+    jamais les deux premières tout de suite.
+
+    Sous-étape 3.15 : toutes les sources Reddit réelles (`app/sources.yaml`)
+    sont `actif: false` (Reddit en pause), donc `subreddits_douleur()` sur le
+    vrai fichier ne renverrait plus rien — la mécanique de rotation testée
+    ici (toujours nécessaire pour l'étape 4.0, quand Reddit sera réactivé
+    via l'API officielle) est donc vérifiée sur des subs simulés, pas sur le
+    fichier réel. Le comportement RÉEL (rien construit, rien persisté tant
+    que Reddit est en pause) a son propre test ci-dessous."""
     from app import config as cfg
     from app.pipeline import orchestrator as orch
+
+    monkeypatch.setattr(orch.config_sources, "subreddits_douleur", lambda: ["smallbusiness", "accounting", "ecommerce"])
 
     quotas = dict(cfg.quotas())
     quotas["max_flux_recherche_par_passage"] = 2
@@ -278,6 +288,25 @@ def test_construire_adaptateurs_recherche_reddit_persiste_et_tourne(engine_test)
 
     dernieres_visites = repo.lire_dernieres_visites_recherche(engine_test)
     assert (ids_premier_lot | ids_deuxieme_lot) <= set(dernieres_visites.keys())
+
+
+def test_construire_adaptateurs_recherche_reddit_vide_et_ne_persiste_rien_tant_que_reddit_est_en_pause(engine_test):
+    """Sous-étape 3.15 : avec le VRAI `app/sources.yaml` (toutes les sources
+    Reddit `actif: false`), `_construire_adaptateurs_recherche_reddit` ne
+    doit construire aucun adaptateur ET ne doit consommer AUCUN quota ni
+    temps de rotation — ni `repo.lire_dernieres_visites_recherche` ni
+    `repo.marquer_flux_recherche_visites` ne doivent avoir d'effet, faute de
+    combinaison à choisir (`subreddits_douleur()` vide -> retour anticipé
+    avant tout accès base, voir `_construire_adaptateurs_recherche_reddit`)."""
+    from app import config as cfg
+    from app.pipeline import orchestrator as orch
+
+    quotas = dict(cfg.quotas())
+
+    lot = orch._construire_adaptateurs_recherche_reddit(engine_test, quotas)
+
+    assert lot == []
+    assert repo.lire_dernieres_visites_recherche(engine_test) == {}
 
 
 def test_construire_adaptateurs_recherche_hn_persiste_et_tourne(engine_test):
@@ -305,12 +334,37 @@ def test_construire_adaptateurs_recherche_hn_persiste_et_tourne(engine_test):
     assert (ids_premier_lot | ids_deuxieme_lot) <= set(dernieres_visites.keys())
 
 
-def test_construire_adaptateurs_branche_reddit_et_hn_en_tete(engine_test):
+def test_construire_adaptateurs_branche_reddit_et_hn_en_tete(engine_test, monkeypatch):
     """Sous-étape 1.4 : `_construire_adaptateurs` doit combiner les DEUX
     connecteurs de recherche (pas seulement Reddit) avant les flux frontpage
     statiques, pour la même raison que 1.2 (voir la docstring de la
     fonction) : sinon les flux frontpage pourraient épuiser le quota douleur
-    d'un passage avant que la recherche HN n'y goûte jamais."""
+    d'un passage avant que la recherche HN n'y goûte jamais.
+
+    Sous-étape 3.15 : Reddit simulé actif (`subreddits_douleur` monkeypatché)
+    pour continuer à vérifier cette combinaison des deux connecteurs — sur le
+    vrai `app/sources.yaml`, Reddit est en pause (voir
+    `test_construire_adaptateurs_ignore_reddit_en_pause_mais_garde_hn`
+    ci-dessous pour le comportement réel)."""
+    from app import config as cfg
+    from app.pipeline import orchestrator as orch
+
+    monkeypatch.setattr(orch.config_sources, "subreddits_douleur", lambda: ["smallbusiness"])
+
+    quotas = dict(cfg.quotas())
+
+    adaptateurs = orch._construire_adaptateurs(engine_test, forcer_demo=False, quotas=quotas)
+
+    ids = [getattr(a, "id_source", None) for a, _, _ in adaptateurs]
+    assert any(id_ and id_.startswith("reddit_recherche:") for id_ in ids)
+    assert any(id_ and id_.startswith("hn_recherche:") for id_ in ids)
+
+
+def test_construire_adaptateurs_ignore_reddit_en_pause_mais_garde_hn(engine_test):
+    """Sous-étape 3.15 : avec le VRAI `app/sources.yaml` (Reddit en pause),
+    `_construire_adaptateurs` ne doit construire AUCUN adaptateur de
+    recherche Reddit, mais la recherche HN (connecteur indépendant, non
+    affecté par la pause Reddit) doit continuer à fonctionner normalement."""
     from app import config as cfg
     from app.pipeline import orchestrator as orch
 
@@ -319,7 +373,7 @@ def test_construire_adaptateurs_branche_reddit_et_hn_en_tete(engine_test):
     adaptateurs = orch._construire_adaptateurs(engine_test, forcer_demo=False, quotas=quotas)
 
     ids = [getattr(a, "id_source", None) for a, _, _ in adaptateurs]
-    assert any(id_ and id_.startswith("reddit_recherche:") for id_ in ids)
+    assert not any(id_ and id_.startswith("reddit_recherche:") for id_ in ids)
     assert any(id_ and id_.startswith("hn_recherche:") for id_ in ids)
 
 

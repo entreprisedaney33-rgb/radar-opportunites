@@ -323,6 +323,13 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
         stats["taux_sorties_valides"] = (
             round((stats["valides"] + stats["normalisees"]) / denominateur, 4) if denominateur else None
         )
+        # Sous-étape 3.15 : taux de troncature par rôle -- `tronquees` (au-dessus)
+        # comptait déjà les sorties coupées par `max_tokens` (posé en 3.10),
+        # mais seulement en nombre brut, jamais en taux directement comparable
+        # d'un rôle à l'autre ou d'un jour à l'autre. Sur `appels` (jamais le
+        # `denominateur` filtré ci-dessus) : une sortie tronquée reste tronquée
+        # que l'issue finale ait validé ou non (voir le test dédié, 3.10).
+        stats["taux_troncature"] = round(stats["tronquees"] / stats["appels"], 4) if stats["appels"] else None
         stats["cout_appels_perdus_eur"] = round(stats["cout_appels_perdus_eur"], 4)
         stats["cout_non_exploite_eur"] = round(stats["cout_non_exploite_eur"], 4)
 
