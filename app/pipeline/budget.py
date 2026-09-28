@@ -53,6 +53,13 @@ ROLES_APPROFONDIS = {"analyst", "critic"}
 ROLE_ENQUETEUR_RECHERCHE = "enqueteur_recherche"
 ROLE_ENQUETEUR_FETCH = "enqueteur_fetch"
 
+# Sous-étape 3.11 : une opportunité dont les mots-clés (proposition du Scout
+# validée, ou repli dérivé par du code — voir `app.pipeline.mots_cles`) sont
+# vides n'envoie AUCUNE requête `demande`/`concurrence` (§3, garde-fou
+# « jamais de requête vide ») — comptée ici plutôt que silencieusement
+# ignorée, pour que le phénomène reste visible dans `app.metriques`.
+ROLE_ENQUETEUR_REQUETE_EVITEE = "enqueteur_requete_evitee"
+
 
 class BudgetDepasse(Exception):
     pass
@@ -172,6 +179,17 @@ class BudgetTracker:
         repo.inserer_usage_event(
             self.engine, run_id=self.run_id, fournisseur=fournisseur, modele_ou_actor=fournisseur,
             appels=1, tokens_in=None, tokens_out=None, cout=0.0, role=ROLE_ENQUETEUR_RECHERCHE,
+        )
+
+    def enregistrer_requete_evitee(self, *, opportunity_id: str) -> None:
+        """Sous-étape 3.11 : aucun plafond, aucune réserve à gérer — ce
+        compteur n'engage jamais de requête réelle (c'est tout le contraire :
+        il compte celles qu'on n'a PAS envoyées), donc rien à faire avant
+        l'appel, contrairement à `enregistrer_requete_recherche`."""
+        repo.inserer_usage_event(
+            self.engine, run_id=self.run_id, fournisseur="aucun", modele_ou_actor="aucun",
+            appels=1, tokens_in=None, tokens_out=None, cout=0.0,
+            role=ROLE_ENQUETEUR_REQUETE_EVITEE, opportunity_id=opportunity_id,
         )
 
     def verifier_et_engager_fetch_page(self) -> None:

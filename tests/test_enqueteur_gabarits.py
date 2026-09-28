@@ -19,7 +19,7 @@ def test_charger_le_vrai_fichier_a_les_trois_familles_non_vides():
 
 def test_famille_manquante_refusee(tmp_path):
     chemin = tmp_path / "gabarits.yaml"
-    chemin.write_text("demande:\n  - '<douleur> reddit'\nconcurrence:\n  - '<douleur> tool'\n", encoding="utf-8")
+    chemin.write_text("demande:\n  - '<mots_cles> reddit'\nconcurrence:\n  - '<mots_cles> tool'\n", encoding="utf-8")
     with pytest.raises(GabaritsInvalides):
         charger_gabarits(chemin)
 
@@ -50,25 +50,37 @@ def test_fichier_qui_n_est_pas_un_objet_refuse(tmp_path):
 
 _HYPOTHESE = HypotheseEnqueteur(
     acheteur="un cabinet comptable",
-    douleur="le rapprochement manuel des factures",
+    mots_cles="invoice reconciliation manual",
     mecanisme="extraction automatique des lignes de facture",
 )
 
 
-def test_generer_requetes_substitue_la_douleur_dans_demande_et_concurrence():
+def test_generer_requetes_substitue_les_mots_cles_dans_demande_et_concurrence():
     requetes = generer_requetes(_HYPOTHESE)
     assert requetes["demande"] == [
-        f"{_HYPOTHESE.douleur} reddit",
-        f"{_HYPOTHESE.douleur} ask hn",
+        f"{_HYPOTHESE.mots_cles} reddit",
+        f"{_HYPOTHESE.mots_cles} ask hn",
     ]
     assert requetes["concurrence"] == [
-        f"{_HYPOTHESE.douleur} tool",
-        f"{_HYPOTHESE.douleur} software",
-        f"{_HYPOTHESE.douleur} logiciel",
+        f"{_HYPOTHESE.mots_cles} tool",
+        f"{_HYPOTHESE.mots_cles} software",
+        f"{_HYPOTHESE.mots_cles} logiciel",
     ]
     # Aucun placeholder ne doit survivre à la substitution.
     for requete in requetes["demande"] + requetes["concurrence"]:
         assert "<" not in requete and ">" not in requete
+
+
+def test_generer_requetes_mots_cles_vides_aucune_requete_demande_ni_concurrence():
+    """Sous-étape 3.11 : garde-fou « jamais de requête vide » — un gabarit
+    avec le placeholder remplacé par rien (`" reddit"`) ne doit JAMAIS être
+    envoyé à un vrai fournisseur."""
+    hypothese_sans_mots_cles = HypotheseEnqueteur(acheteur="un cabinet comptable", mots_cles="", mecanisme="x")
+    requetes = generer_requetes(hypothese_sans_mots_cles, concurrents=["ConcurrentA"])
+    assert requetes["demande"] == []
+    assert requetes["concurrence"] == []
+    # La famille `prix` ne dépend que des concurrents, jamais des mots-clés.
+    assert requetes["prix"] == ["ConcurrentA pricing", "ConcurrentA tarifs"]
 
 
 def test_generer_requetes_sans_concurrents_famille_prix_vide():
@@ -92,13 +104,13 @@ def test_generer_requetes_est_pure_memes_entrees_memes_sorties():
 
 def test_generer_requetes_utilise_des_gabarits_explicitement_fournis():
     gabarits_fixture = {
-        "demande": ["<douleur> forum"],
-        "concurrence": ["<douleur> alternative"],
+        "demande": ["<mots_cles> forum"],
+        "concurrence": ["<mots_cles> alternative"],
         "prix": ["<nom_concurrent> tarifs"],
     }
     requetes = generer_requetes(_HYPOTHESE, concurrents=["X"], gabarits_charges=gabarits_fixture)
     assert requetes == {
-        "demande": [f"{_HYPOTHESE.douleur} forum"],
-        "concurrence": [f"{_HYPOTHESE.douleur} alternative"],
+        "demande": [f"{_HYPOTHESE.mots_cles} forum"],
+        "concurrence": [f"{_HYPOTHESE.mots_cles} alternative"],
         "prix": ["X tarifs"],
     }

@@ -43,6 +43,10 @@ class StatutOpportunite(str, Enum):
     REJETE = "rejete"
     A_REVOIR = "a_revoir"
     SELECTIONNE = "selectionne"
+    # Sous-étape 3.13 : dossier créé uniquement par repli sans modèle pendant
+    # la panne du 26/09/2026 (voir app.reprise) -- retiré des métriques et de
+    # la liste Jarvis tant qu'il n'est pas repassé par un vrai Scout.
+    A_REPRENDRE = "a_reprendre"
 
 
 class ValeurFinanciere(BaseModel):
@@ -77,7 +81,17 @@ class ScoutSortie(BaseModel):
     citation approximative (voir le prompt système). C'est
     `app.pipeline.normalisation.inferer_secteur` (2.1), branchée dans
     `app/pipeline/orchestrator.py`, qui vérifie la citation et décide si le
-    secteur proposé est réellement retenu (`citation_verifiee`) ou non."""
+    secteur proposé est réellement retenu (`citation_verifiee`) ou non.
+
+    `mots_cles_en`/`mots_cles_fr` (sous-étape 3.11) : 3 à 6 mots courts
+    (lettres/chiffres/espaces uniquement — jamais un opérateur de recherche,
+    jamais une guillemet), qui remplacent la phrase entière (`pain`) dans les
+    requêtes de l'Enquêteur — un moteur de recherche ne répond pas à une
+    phrase de 200 caractères. Optionnels, comme `secteur`/`secteur_citation` :
+    `None` vaut mieux qu'une valeur bricolée pour tenir le format. Validés
+    par du code, jamais fait confiance tels quels :
+    `app.pipeline.mots_cles.valider_mots_cles`, appelée dans
+    `app/pipeline/orchestrator.py` avant toute persistance."""
 
     opportunity_candidate: str
     buyer: str
@@ -89,6 +103,8 @@ class ScoutSortie(BaseModel):
     secteur: str | None = None
     secteur_citation: str | None = None
     cluster_id: str | None = None  # None = nouveau groupe proposé
+    mots_cles_en: str | None = None
+    mots_cles_fr: str | None = None
 
 
 class CritereAnalyst(BaseModel):

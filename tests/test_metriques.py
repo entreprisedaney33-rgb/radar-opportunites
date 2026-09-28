@@ -367,6 +367,8 @@ def test_metriques_compteurs_enqueteur(engine_test):
         "plafond_requetes_recherche_par_jour": quotas["max_requetes_recherche_par_jour"],
         "fetchs_pages_jour": 1,
         "plafond_fetchs_pages_par_jour": quotas["max_fetchs_pages_par_jour"],
+        "requetes_evitees_jour": 0,
+        "disjoncteur_reddit": {"echecs_consecutifs": 0, "pause_jusqu_a": None, "en_pause": False},
     }
     # Gratuit en V1 : ne pollue jamais le coût du jour ni le coût par rôle.
     assert m["cout_par_role_eur"].get("enqueteur_recherche", 0.0) == 0.0
@@ -383,6 +385,41 @@ def test_metriques_compteurs_enqueteur_a_zero_sans_evenement(engine_test):
     assert m["enqueteur"]["fetchs_pages_jour"] == 0
     assert m["enqueteur"]["plafond_requetes_recherche_par_jour"] == quotas["max_requetes_recherche_par_jour"]
     assert m["enqueteur"]["plafond_fetchs_pages_par_jour"] == quotas["max_fetchs_pages_par_jour"]
+    assert m["enqueteur"]["requetes_evitees_jour"] == 0
+    assert m["enqueteur"]["disjoncteur_reddit"] == {"echecs_consecutifs": 0, "pause_jusqu_a": None, "en_pause": False}
+
+
+def test_metriques_requetes_evitees_comptees(engine_test):
+    """Sous-étape 3.11, point 2 : une requête `demande`/`concurrence` jamais
+    envoyée faute de mots-clés utilisables (`app.pipeline.budget.BudgetTracker
+    .enregistrer_requete_evitee`) doit rester visible dans `app.metriques`,
+    jamais silencieusement absente."""
+    _construire_jeu_de_test(engine_test)
+    _cout(engine_test, "evitee-1", 0.0, JOUR, role="enqueteur_requete_evitee", opportunity_id="o1")
+    _cout(engine_test, "evitee-2", 0.0, JOUR, role="enqueteur_requete_evitee", opportunity_id="o2")
+
+    m = calculer_metriques(engine_test, JOUR)
+    assert m["enqueteur"]["requetes_evitees_jour"] == 2
+    # Ce compteur, comme les autres compteurs de l'Enquêteur, ne coûte rien.
+    assert m["cout_par_role_eur"].get("enqueteur_requete_evitee", 0.0) == 0.0
+
+
+def test_metriques_disjoncteur_reddit_visible_quand_en_pause(engine_test):
+    """Sous-étape 3.11, point 4 : l'état du disjoncteur Reddit de l'Enquêteur
+    est lu directement en base (état COURANT, pas borné à `JOUR`) — un
+    process séparé (`python -m app.metriques`) doit pouvoir le voir sans
+    accès à la mémoire du Background Worker."""
+    from datetime import timedelta
+
+    from app.storage import repo
+
+    _construire_jeu_de_test(engine_test)
+    pause_jusqu_a = datetime.now(timezone.utc) + timedelta(minutes=45)
+    repo.ecrire_disjoncteur_enqueteur(engine_test, "reddit", echecs_consecutifs=0, pause_jusqu_a=pause_jusqu_a)
+
+    m = calculer_metriques(engine_test, JOUR)
+    assert m["enqueteur"]["disjoncteur_reddit"]["en_pause"] is True
+    assert m["enqueteur"]["disjoncteur_reddit"]["pause_jusqu_a"] == pause_jusqu_a.isoformat()
 
 
 def test_appels_http_par_flux_compte_429_403_autres_erreurs_et_succes(engine_test):

@@ -2,7 +2,7 @@
 
 Fonction PURE : mêmes entrées -> mêmes requêtes, aucun état, aucun appel
 réseau ou modèle. Compose des requêtes déterministes à partir des champs de
-l'hypothèse du Scout (acheteur, douleur, mécanisme) et des gabarits de
+l'hypothèse du Scout (acheteur, mots-clés, mécanisme) et des gabarits de
 `app/enqueteur/gabarits.yaml`. Chargeur à validation stricte, même esprit que
 `app/sources.py` / `app/lexique_douleur.py` : une famille manquante ou
 inconnue est une ERREUR au chargement, jamais un défaut silencieux.
@@ -21,6 +21,17 @@ Trois familles de gabarits :
   que des concurrents ont été identifiés. Ce module lui-même est inchangé
   par 3.4b -- `generer_requetes` savait déjà produire cette famille dès
   qu'un appelant lui fournissait une liste de noms.
+
+Sous-étape 3.11 : `HypotheseEnqueteur.mots_cles` remplace ce qui était encore
+`douleur` (la phrase ENTIÈRE de la douleur, 150 à 250 caractères en
+production — aucun moteur ne répond à ça). Ce champ porte désormais des
+mots-clés COURTS déjà validés (proposition du Scout,
+`app.pipeline.mots_cles.valider_mots_cles`) ou dérivés par repli
+(`app.pipeline.mots_cles.deriver_mots_cles_repli`) — jamais construits ici,
+ce module reste un simple assembleur de gabarits. Si `mots_cles` est vide
+(`""`), les familles `demande`/`concurrence` ne produisent AUCUNE requête
+(§3, garde-fou « jamais de requête vide ») plutôt que de substituer une
+chaîne vide dans le gabarit.
 """
 from __future__ import annotations
 
@@ -40,7 +51,7 @@ FAMILLES_VALIDES = {"demande", "concurrence", "prix"}
 # ne vient jamais de l'hypothèse, seulement de la liste de concurrents passée
 # à `generer_requetes`.
 _PLACEHOLDERS_HYPOTHESE = {
-    "<douleur>": "douleur",
+    "<mots_cles>": "mots_cles",
     "<acheteur>": "acheteur",
     "<mecanisme>": "mecanisme",
 }
@@ -61,10 +72,18 @@ class HypotheseEnqueteur:
     conversion se fait au branchement réel dans le pipeline (sous-étape 3.4,
     `app.pipeline.orchestrator._phase_enquete`, à partir des colonnes déjà
     persistées `acheteur`/`probleme`/`mecanisme_ia` de l'opportunité, pas
-    directement de la sortie du Scout)."""
+    directement de la sortie du Scout).
+
+    `mots_cles` (sous-étape 3.11, renommé depuis `douleur`) : mots-clés COURTS
+    en anglais (§2 du texte de 3.11 : « anglais pour HN et Reddit », les deux
+    seuls fournisseurs actifs aujourd'hui) — la proposition validée du Scout
+    (`opportunities.mots_cles_en`) ou, à défaut, un repli dérivé par du code
+    de la douleur (`app.pipeline.mots_cles.deriver_mots_cles_repli`). Chaîne
+    vide (`""`), jamais `None` : `generer_requetes` ci-dessous en fait le
+    signal explicite « aucune requête `demande`/`concurrence` à produire »."""
 
     acheteur: str
-    douleur: str
+    mots_cles: str
     mecanisme: str
 
 
@@ -124,12 +143,24 @@ def generer_requetes(
     est la liste de noms déjà identifiés par une recherche `concurrence`
     antérieure (vide par défaut : le branchement réel de la sous-étape 3.4,
     `app.enqueteur.enqueteur`, n'alimente toujours pas cette liste -- voir la
-    docstring de ce module)."""
+    docstring de ce module).
+
+    Sous-étape 3.11 : `hypothese.mots_cles` vide (`""`) -> `demande` et
+    `concurrence` renvoient des listes VIDES (jamais un gabarit avec le
+    placeholder remplacé par rien) -- garde-fou « jamais de requête vide »
+    (§3 d'AMELIORATIONS.md). `prix` n'est pas concerné : elle ne dépend que
+    de `concurrents`, jamais de `mots_cles`."""
     g = gabarits_charges if gabarits_charges is not None else gabarits()
     concurrents = concurrents or []
 
+    if hypothese.mots_cles:
+        demande = [_substituer(m, hypothese) for m in g["demande"]]
+        concurrence = [_substituer(m, hypothese) for m in g["concurrence"]]
+    else:
+        demande, concurrence = [], []
+
     return {
-        "demande": [_substituer(m, hypothese) for m in g["demande"]],
-        "concurrence": [_substituer(m, hypothese) for m in g["concurrence"]],
+        "demande": demande,
+        "concurrence": concurrence,
         "prix": [m.replace(PLACEHOLDER_CONCURRENT, concurrent) for concurrent in concurrents for m in g["prix"]],
     }

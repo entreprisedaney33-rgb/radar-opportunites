@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 
 from app.pipeline.budget import BudgetDepasse, BudgetTracker
@@ -177,6 +179,25 @@ def test_enregistrer_requete_recherche_et_fetch_page_persistent_avec_cout_zero(e
     assert tracker.requetes_recherche_jour_engagees() == 1
     assert tracker.fetchs_pages_jour_engages() == 1
     # Gratuit en V1 : ne consomme jamais le budget en euros.
+    assert tracker.depense_jour_engagee() == pytest.approx(0.0)
+
+
+def test_enregistrer_requete_evitee_persiste_avec_cout_zero_et_sans_plafond(engine_test):
+    """Sous-étape 3.11, point 2 : aucun plafond à vérifier avant (contrairement
+    à `enregistrer_requete_recherche`) -- ce compteur ne consomme jamais
+    `max_requetes_recherche_par_jour`, il compte des requêtes qui n'ont
+    justement PAS été envoyées."""
+    run_id = repo.creer_run(engine_test, mode="reel", version_code="test", version_config="test", quotas={})
+    tracker = _tracker(engine_test, run_id)
+
+    tracker.enregistrer_requete_evitee(opportunity_id="opp-1")
+    tracker.enregistrer_requete_evitee(opportunity_id="opp-2")
+
+    from app.pipeline.budget import ROLE_ENQUETEUR_REQUETE_EVITEE
+
+    jour = datetime.now(timezone.utc).date()
+    assert repo.nombre_evenements_role_jour_utc(engine_test, jour, role=ROLE_ENQUETEUR_REQUETE_EVITEE) == 2
+    assert tracker.requetes_recherche_jour_engagees() == 0  # plafond distinct, jamais consommé
     assert tracker.depense_jour_engagee() == pytest.approx(0.0)
 
 

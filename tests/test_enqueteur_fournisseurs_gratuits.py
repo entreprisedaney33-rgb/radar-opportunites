@@ -14,6 +14,7 @@ from sqlalchemy import create_engine
 
 from app import config as cfg
 from app.adapters import http as http_module
+from app.enqueteur import disjoncteur
 from app.enqueteur.fournisseurs_gratuits import (
     FournisseurAlgoliaHN,
     FournisseurMagasinInterne,
@@ -316,6 +317,84 @@ def test_reddit_avec_engine_journalise_l_appel(monkeypatch, engine_test):
     assert lignes == [{"flux_ou_fournisseur": "enqueteur_recherche:reddit", "code_http": 200, "erreur": None}]
 
 
+# --------------------------------------------- Reddit : disjoncteur (3.11)
+
+class _Reponse429:
+    status_code = 429
+
+    def raise_for_status(self):
+        pass
+
+
+def _simuler_429_persistant(monkeypatch):
+    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: _Reponse429())
+    monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)
+
+
+def test_reddit_sans_engine_jamais_de_disjoncteur(monkeypatch):
+    """Sans base (fournisseur construit directement, comme dans la plupart
+    des tests ci-dessus) : aucun disjoncteur, jamais -- même après plusieurs
+    429 d'affilée, `rechercher` retente à chaque fois (comportement
+    inchangé pour tout appelant qui ne fournit pas d'`engine`)."""
+    _simuler_429_persistant(monkeypatch)
+    f = FournisseurReddit()
+    for _ in range(disjoncteur.SEUIL_ECHECS_CONSECUTIFS + 1):
+        assert f.rechercher("x", limite=10) == []
+
+
+def test_reddit_trois_429_consecutifs_declenche_la_pause(monkeypatch, engine_test):
+    _simuler_429_persistant(monkeypatch)
+    f = FournisseurReddit(engine_test)
+
+    for _ in range(disjoncteur.SEUIL_ECHECS_CONSECUTIFS - 1):
+        assert f.rechercher("x", limite=10) == []
+        assert repo.lire_disjoncteur_enqueteur(engine_test, disjoncteur.NOM_REDDIT)["pause_jusqu_a"] is None
+
+    assert f.rechercher("x", limite=10) == []
+    etat = repo.lire_disjoncteur_enqueteur(engine_test, disjoncteur.NOM_REDDIT)
+    assert etat["echecs_consecutifs"] == 0  # remis à zéro, une pause vient de commencer
+    assert etat["pause_jusqu_a"] is not None
+    assert etat["pause_jusqu_a"] > datetime.now(timezone.utc)
+
+
+def test_reddit_en_pause_ne_tente_meme_pas_l_appel_http(monkeypatch, engine_test):
+    from datetime import timedelta
+
+    appels = []
+    monkeypatch.setattr(
+        "app.enqueteur.fournisseurs_gratuits.get_with_retry",
+        lambda *a, **kw: appels.append(1) or _FauxReponseHTTP(FIXTURE_REDDIT_ATOM_VIDE),
+    )
+    repo.ecrire_disjoncteur_enqueteur(
+        engine_test, disjoncteur.NOM_REDDIT,
+        echecs_consecutifs=0, pause_jusqu_a=datetime.now(timezone.utc) + timedelta(minutes=30),
+    )
+
+    assert FournisseurReddit(engine_test).rechercher("x", limite=10) == []
+    assert appels == []  # aucun appel HTTP tenté pendant la pause
+
+
+def test_reddit_un_succes_remet_le_compteur_a_zero(monkeypatch, engine_test):
+    """2 échecs (sous le seuil), puis un succès : le compteur repart de zéro
+    -- 3 échecs doivent à nouveau être CONSÉCUTIFS pour déclencher la pause,
+    jamais 2+1 cumulés."""
+    _simuler_429_persistant(monkeypatch)
+    f = FournisseurReddit(engine_test)
+    for _ in range(disjoncteur.SEUIL_ECHECS_CONSECUTIFS - 1):
+        f.rechercher("x", limite=10)
+    assert repo.lire_disjoncteur_enqueteur(engine_test, disjoncteur.NOM_REDDIT)["echecs_consecutifs"] == (
+        disjoncteur.SEUIL_ECHECS_CONSECUTIFS - 1
+    )
+
+    monkeypatch.setattr(
+        "app.enqueteur.fournisseurs_gratuits.get_with_retry", lambda *a, **kw: _FauxReponseHTTP(FIXTURE_REDDIT_ATOM_VIDE),
+    )
+    f.rechercher("succes", limite=10)
+    assert repo.lire_disjoncteur_enqueteur(engine_test, disjoncteur.NOM_REDDIT) == {
+        "echecs_consecutifs": 0, "pause_jusqu_a": None,
+    }
+
+
 # ------------------------------------------------------------- Magasin interne
 
 def test_magasin_interne_filtre_sous_le_seuil_et_trie_par_similarite(engine_test):
@@ -374,13 +453,27 @@ def test_magasin_interne_seuil_par_defaut_vient_de_la_config(engine_test):
 
 # ------------------------------------------------------------------ registre
 
-def test_construire_registre_enregistre_les_3_fournisseurs_actifs_par_defaut(engine_test, monkeypatch):
+def test_construire_registre_enregistre_algolia_hn_et_magasin_interne_actifs_par_defaut(engine_test, monkeypatch):
+    """Sous-étape 3.11, point 5 : Reddit N'EST PLUS actif par défaut (tant
+    que l'API officielle n'est pas en place) -- seuls Algolia HN et magasin
+    interne le restent."""
     for nom in ("ALGOLIA_HN", "REDDIT", "MAGASIN_INTERNE"):
         monkeypatch.delenv(f"RADAR_ENQUETEUR_ACTIF_{nom}", raising=False)
 
     registre = construire_registre_fournisseurs_gratuits(engine_test)
     actifs = registre.fournisseurs_actifs()
 
+    assert {f.nom for f in actifs} == {"algolia_hn", "magasin_interne"}
+
+
+def test_construire_registre_reddit_reactivable_explicitement(engine_test, monkeypatch):
+    """Sous-étape 3.11, point 5 : `RADAR_ENQUETEUR_ACTIF_REDDIT=1` réactive
+    Reddit malgré `actif_par_defaut=False` -- même mécanisme que pour le
+    fournisseur payant (3.5), aucun code nouveau nécessaire."""
+    monkeypatch.delenv("RADAR_ENQUETEUR_ACTIF_ALGOLIA_HN", raising=False)
+    monkeypatch.setenv("RADAR_ENQUETEUR_ACTIF_REDDIT", "1")
+    registre = construire_registre_fournisseurs_gratuits(engine_test)
+    actifs = registre.fournisseurs_actifs()
     assert {f.nom for f in actifs} == {"algolia_hn", "reddit", "magasin_interne"}
 
 

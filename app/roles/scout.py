@@ -36,7 +36,16 @@ PROMPT_SYSTEME = (
     "`secteur_citation` : un extrait copié MOT POUR MOT du signal (30 mots maximum), "
     "qui justifie ce secteur — jamais reformulé, jamais résumé. Si tu n'es pas sûr du "
     "secteur, ou si tu ne trouves pas d'extrait exact qui le justifie, laisse `secteur` "
-    "et/ou `secteur_citation` à `null` : `null` vaut mieux qu'une citation approximative."
+    "et/ou `secteur_citation` à `null` : `null` vaut mieux qu'une citation approximative.\n\n"
+    "`mots_cles_en`/`mots_cles_fr` (sous-étape 3.11) : les mots-clés qui serviront à "
+    "chercher des preuves sur Hacker News et Reddit pour CETTE opportunité — jamais une "
+    "phrase, jamais une question. Chacun : 3 à 6 mots COURTS, en lettres/chiffres/espaces "
+    "UNIQUEMENT (aucune ponctuation, aucun opérateur de recherche du type site: ou \"...\", "
+    "aucune guillemet). `mots_cles_en` en anglais, `mots_cles_fr` en français — les deux "
+    "décrivent la MÊME douleur avec les mots qu'un vrai utilisateur taperait dans un moteur "
+    "de recherche ou sur Reddit, pas un résumé de ton hypothèse. Si tu ne peux pas produire "
+    "des mots-clés courts qui respectent ce format, laisse le champ correspondant à `null` : "
+    "`null` vaut mieux qu'une phrase entière ou qu'un format invalide."
 )
 
 
@@ -67,6 +76,12 @@ def _scout_heuristique(signal_id: str, texte: str, secteur: str) -> ScoutSortie:
         secteur=None,
         secteur_citation=None,
         cluster_id=None,
+        # Sous-étape 3.11 : même logique -- aucun mot-clé "deviné" par le
+        # repli. `app/pipeline/orchestrator.py` dérive un repli par du code
+        # (app.pipeline.mots_cles.deriver_mots_cles_repli) quand ce champ est
+        # `None`, plutôt que d'inventer une proposition ici.
+        mots_cles_en=None,
+        mots_cles_fr=None,
     )
 
 

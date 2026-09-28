@@ -232,3 +232,39 @@ def test_migrer_ajoute_les_colonnes_2_1_sur_opportunities_sans_toucher_aux_donne
     assert ligne["secteur"] == "e_commerce"  # donnée d'origine intacte
     assert ligne["secteur_provenance"] is None
     assert ligne["secteur_citation"] is None
+
+
+def test_migrer_ajoute_les_colonnes_3_11_sur_opportunities_sans_toucher_aux_donnees(tmp_path):
+    """Même schéma « ancien » que ci-dessus (donc aussi sans `mots_cles_en`/
+    `mots_cles_fr`, ajoutées seulement en sous-étape 3.11) -- vérifie que la
+    migration les ajoute sans toucher aux données déjà présentes."""
+    moteur = _creer_ancienne_table_opportunities(tmp_path / "ancienne_opportunities_3_11.db")
+
+    migrer(moteur)
+
+    inspecteur = inspect(moteur)
+    colonnes = {c["name"] for c in inspecteur.get_columns("opportunities")}
+    assert {"mots_cles_en", "mots_cles_fr"} <= colonnes
+
+    from app.storage.schema import opportunities
+
+    with moteur.connect() as cx:
+        ligne = cx.execute(select(opportunities).where(opportunities.c.id == "historique-opp-1")).mappings().first()
+    assert ligne["probleme"] == "p"  # donnée d'origine intacte
+    assert ligne["mots_cles_en"] is None
+    assert ligne["mots_cles_fr"] is None
+
+
+def test_migrer_cree_la_table_du_disjoncteur_enqueteur(tmp_path):
+    """Table neuve (sous-étape 3.11) : `metadata.create_all` doit la créer
+    directement, même schéma qu'une base toute neuve (pas de migration
+    additive nécessaire, voir la docstring de `etats_disjoncteur_enqueteur`
+    dans `app/storage/schema.py`)."""
+    moteur = create_engine(
+        f"sqlite:///{tmp_path / 'neuve_3_11.db'}", future=True, connect_args={"check_same_thread": False},
+    )
+    migrer(moteur)
+    inspecteur = inspect(moteur)
+    assert "etats_disjoncteur_enqueteur" in inspecteur.get_table_names()
+    colonnes = {c["name"] for c in inspecteur.get_columns("etats_disjoncteur_enqueteur")}
+    assert {"cle", "echecs_consecutifs", "pause_jusqu_a", "date_maj"} <= colonnes

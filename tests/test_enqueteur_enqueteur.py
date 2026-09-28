@@ -37,7 +37,7 @@ QUOTAS = {
 }
 
 HYPOTHESE = HypotheseEnqueteur(
-    acheteur="PME e-commerce", douleur="rapprochement bancaire manuel", mecanisme="agent de rapprochement",
+    acheteur="PME e-commerce", mots_cles="bank reconciliation manual process", mecanisme="agent de rapprochement",
 )
 
 
@@ -260,7 +260,7 @@ def test_fournisseur_sans_reseau_continue_meme_le_plafond_reseau_deja_atteint(en
 
 def test_enqueter_opportunite_rattache_les_sources_trouvees(engine_test, budget, monkeypatch):
     opp_id = repo.creer_opportunite(
-        engine_test, titre="t", acheteur=HYPOTHESE.acheteur, probleme=HYPOTHESE.douleur,
+        engine_test, titre="t", acheteur=HYPOTHESE.acheteur, probleme=HYPOTHESE.mots_cles,
         mecanisme_ia=HYPOTHESE.mecanisme, secteur="e_commerce", statut="nouveau", cluster_id=None,
     )
     registre, _appels = _registre_deux_fournisseurs_simules()
@@ -308,7 +308,7 @@ def test_enqueter_opportunite_sans_resultat_ne_touche_pas_au_fetch(engine_test, 
 
 def _creer_opportunite(engine_test) -> str:
     return repo.creer_opportunite(
-        engine_test, titre="t", acheteur=HYPOTHESE.acheteur, probleme=HYPOTHESE.douleur,
+        engine_test, titre="t", acheteur=HYPOTHESE.acheteur, probleme=HYPOTHESE.mots_cles,
         mecanisme_ia=HYPOTHESE.mecanisme, secteur="e_commerce", statut="nouveau", cluster_id=None,
     )
 

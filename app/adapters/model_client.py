@@ -30,18 +30,37 @@ correctifs, dans l'ordre :
    sortie échoue malgré tout la validation : UNE SEULE relance, avec le
    message d'erreur de validation joint au prompt utilisateur -- jamais de
    repli silencieux au-delà (voir `appeler_structure`).
+
+Sous-étape 3.13 (AMELIORATIONS.md) : le correctif ci-dessus (`"strict": True`)
+a en réalité cassé TOUS les appels dès son déploiement (26/09/2026, ~13:41
+UTC) -- cause identifiée dans les logs Render (`rapports/POINT_ETAPE_2026-09-27.md`) :
+« Error code: 400 ... tools.0.custom: For 'object' type, 'additionalProperties'
+must be explicitly set to false ». Le mode strict de l'API exige
+`additionalProperties: false` (et la totalité des propriétés en `required`)
+sur CHAQUE objet du schéma, récursivement -- absent du schéma brut que
+`BaseModel.model_json_schema()` produit. Corrigé par
+`app.adapters.schema_strict.rendre_schema_strict`, appliquée à `input_schema`
+ci-dessous, en gardant le mode strict (jamais désactivé). En complément :
+un disjoncteur (`app.pipeline.disjoncteur_api`) coupe court après 5 échecs
+consécutifs -- voir `DisjoncteurAPIOuvert` et `appeler_structure` -- pour
+qu'une panne future de ce genre arrête le pipeline plutôt que de le laisser
+tourner 25 h sur des replis heuristiques sans que personne ne le remarque.
 """
 from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from typing import get_origin
 
 from pydantic import BaseModel, ValidationError
 
 from app import config as cfg
+from app.adapters.schema_strict import rendre_schema_strict
 from app.config import Settings
+from app.pipeline import disjoncteur_api
 from app.pipeline.budget import BudgetTracker
+from app.storage import repo
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +82,19 @@ MAX_TENTATIVES = 2
 
 
 class AccesModeleIndisponible(Exception):
+    pass
+
+
+class DisjoncteurAPIOuvert(Exception):
+    """Sous-étape 3.13 : levée par `appeler_structure` quand le disjoncteur
+    (`app.pipeline.disjoncteur_api`) est ouvert -- aucun appel n'est tenté.
+    Distincte de `AccesModeleIndisponible` (dont un rôle se remet
+    volontairement, via son repli heuristique) : celle-ci n'est PAS attrapée
+    par `app/roles/scout.py`/`analyst.py`/`critic.py`, elle remonte jusqu'à
+    `app.pipeline.orchestrator`, qui doit s'arrêter pour ce passage plutôt
+    que de laisser un rôle retomber sur son repli (§ point 2 de la
+    sous-étape : « aucun dossier n'est créé ni analysé par repli pendant cet
+    état »)."""
     pass
 
 
@@ -170,7 +202,15 @@ class ModelClient:
         if not self.settings.has_model_access:
             raise AccesModeleIndisponible("ANTHROPIC_API_KEY absente : appeler le mode démo à la place.")
 
+        maintenant = datetime.now(timezone.utc)
+        etat_disjoncteur = self._etat_disjoncteur()
+        if disjoncteur_api.doit_bloquer(etat_disjoncteur, maintenant):
+            raise DisjoncteurAPIOuvert(
+                etat_disjoncteur.dernier_message or "Disjoncteur API ouvert (échecs consécutifs du modèle)."
+            )
+
         erreur_precedente: str | None = None
+        dernier_message_echec: str | None = None
         for tentative in range(1, MAX_TENTATIVES + 1):
             derniere_tentative = tentative == MAX_TENTATIVES
             prompt_effectif = prompt_utilisateur
@@ -182,16 +222,23 @@ class ModelClient:
                     "Corrige et renvoie une réponse strictement conforme au schéma."
                 )
 
-            resultat, erreur_validation = self._un_appel(
+            resultat, erreur_validation, message_echec = self._un_appel(
                 modele=modele, prompt_systeme=prompt_systeme, prompt_utilisateur=prompt_effectif,
                 schema=schema, role=role, opportunity_id=opportunity_id, max_tokens=max_tokens,
                 derniere_tentative=derniere_tentative,
             )
-            if resultat is not None or erreur_validation is None:
+            if message_echec is not None:
+                dernier_message_echec = message_echec
+            if resultat is not None:
+                self._maj_disjoncteur(succes=True, message=None)
+                return resultat
+            if erreur_validation is None:
                 # Succès, ou échec non lié à la validation (erreur réseau/API
                 # -- déjà journalisé et jamais relancé, voir `_un_appel`).
-                return resultat
+                self._maj_disjoncteur(succes=False, message=dernier_message_echec)
+                return None
             if derniere_tentative:
+                self._maj_disjoncteur(succes=False, message=dernier_message_echec)
                 return None
             logger.info(
                 "Sortie du modèle %s invalide (role=%s) -- relance %d/%d avec l'erreur jointe.",
@@ -200,16 +247,46 @@ class ModelClient:
             erreur_precedente = erreur_validation
         return None  # jamais atteint (la boucle renvoie toujours avant) -- garde de type
 
+    def _etat_disjoncteur(self) -> disjoncteur_api.EtatDisjoncteurAPI:
+        brut = repo.lire_disjoncteur_api(self.budget.engine)
+        return disjoncteur_api.EtatDisjoncteurAPI(**brut) if brut else disjoncteur_api.ETAT_INITIAL
+
+    def _maj_disjoncteur(self, *, succes: bool, message: str | None) -> None:
+        """Sous-étape 3.13 : une seule mise à jour par appel LOGIQUE à
+        `appeler_structure` (jusqu'à `MAX_TENTATIVES` tentatives réelles) --
+        « 5 échecs consécutifs » compte des appels de rôle, pas des tentatives
+        HTTP individuelles."""
+        etat = self._etat_disjoncteur()
+        if succes:
+            nouvel_etat = disjoncteur_api.apres_succes(etat)
+        else:
+            nouvel_etat = disjoncteur_api.apres_echec(
+                etat, message=message or "échec sans message", maintenant=datetime.now(timezone.utc),
+            )
+            if nouvel_etat.en_erreur:
+                logger.error(
+                    "Disjoncteur API : état « API en erreur » (depuis %s, %d échecs consécutifs) -- %s",
+                    nouvel_etat.depuis, nouvel_etat.echecs_consecutifs, nouvel_etat.dernier_message,
+                )
+        repo.ecrire_disjoncteur_api(
+            self.budget.engine,
+            echecs_consecutifs=nouvel_etat.echecs_consecutifs, en_erreur=nouvel_etat.en_erreur,
+            depuis=nouvel_etat.depuis, pause_jusqu_a=nouvel_etat.pause_jusqu_a,
+            dernier_message=nouvel_etat.dernier_message,
+        )
+
     def _un_appel(
         self, *, modele: str, prompt_systeme: str, prompt_utilisateur: str, schema: type[BaseModel],
         role: str, opportunity_id: str | None, max_tokens: int, derniere_tentative: bool,
-    ) -> tuple[BaseModel | None, str | None]:
+    ) -> tuple[BaseModel | None, str | None, str | None]:
         """UNE tentative réelle (un appel API, un budget engagé, une ligne
-        `usage_events`). Renvoie `(resultat, erreur_validation)` :
+        `usage_events`). Renvoie `(resultat, erreur_validation, message_echec)` :
         `erreur_validation` n'est jamais `None` seulement quand la sortie est
         invalide ET qu'une relance a un sens (voir `appeler_structure`) --
         `None` pour un succès ou pour un échec qui ne se relance jamais
-        (erreur réseau/API, budget)."""
+        (erreur réseau/API, budget). `message_echec` (sous-étape 3.13) est
+        renseigné pour TOUTE tentative invalide, réseau/API compris --
+        nourrit le disjoncteur, indépendamment de la décision de relancer."""
         tokens_in_est = (len(prompt_systeme) + len(prompt_utilisateur)) // 4
         cout_estime = estimer_cout_eur(modele, tokens_in_est, max_tokens)
         self.budget.verifier_et_engager(cout_estime, role=role)  # lève BudgetDepasse si insuffisant
@@ -218,7 +295,11 @@ class ModelClient:
         outil = {
             "name": "repondre",
             "description": "Réponds strictement selon ce schéma JSON, sans champ supplémentaire.",
-            "input_schema": schema.model_json_schema(),
+            # Sous-étape 3.13 : le schéma brut de Pydantic ne respecte pas les
+            # exigences du mode strict de l'API (additionalProperties: false
+            # + required exhaustif, récursivement) -- voir la docstring de
+            # module et `app.adapters.schema_strict`.
+            "input_schema": rendre_schema_strict(schema.model_json_schema()),
             # Sous-étape 3.10 : garantit la forme de la sortie au niveau de
             # l'API elle-même (SDK Anthropic ≥ 1.8, "structured outputs") --
             # voir la docstring de module.
@@ -234,13 +315,24 @@ class ModelClient:
                 tool_choice={"type": "tool", "name": "repondre"},
             )
         except Exception as exc:  # réseau, 429, etc. — journalisé, jamais relancé, pas de crash du run entier
+            message = f"{type(exc).__name__}: {exc}"
             logger.error("Appel modèle échoué (%s): %s", modele, exc)
             self.budget.enregistrer_reel(
                 fournisseur="anthropic", modele_ou_actor=modele, appels=1,
-                tokens_in=None, tokens_out=None, cout_reel=0.0, cout_estime_engage=cout_estime,
+                tokens_in=None, tokens_out=None,
+                # Sous-étape 3.13, point 4 : aucune réponse n'a été reçue, le
+                # coût RÉEL est par construction inconnu -- mais 0 € cassait
+                # le plafond journalier (§4 du cahier des charges : un appel
+                # en échec doit compter, jamais disparaître du calcul), voir
+                # Journal de cette sous-étape. On compte le coût ESTIMÉ
+                # avant appel, jamais 0. Les deux branches d'échec ci-dessous
+                # gardent, elles, leur coût RÉEL (une réponse a bien été
+                # reçue, avec de vrais tokens) -- plus précis qu'une
+                # estimation, jamais remplacé.
+                cout_reel=cout_estime, cout_estime_engage=cout_estime,
                 role=role, opportunity_id=opportunity_id, issue=ISSUE_PERDUE,
             )
-            return None, None
+            return None, None, message
 
         tokens_in_reel = getattr(resp.usage, "input_tokens", tokens_in_est)
         tokens_out_reel = getattr(resp.usage, "output_tokens", 0)
@@ -267,7 +359,8 @@ class ModelClient:
                 issue=issue, sortie_tronquee=sortie_tronquee,
             )
             logger.warning("Aucun tool_use dans la réponse du modèle %s", modele)
-            return None, "aucun bloc tool_use dans la réponse du modèle"
+            message = "aucun bloc tool_use dans la réponse du modèle"
+            return None, message, message
 
         brut_normalise = _normaliser_sortie_outil(bloc_outil.input, schema)
         try:
@@ -281,7 +374,8 @@ class ModelClient:
                 issue=issue, sortie_tronquee=sortie_tronquee,
             )
             logger.warning("Sortie du modèle %s invalide vs schéma %s: %s", modele, schema.__name__, exc)
-            return None, str(exc)[:2000]
+            message = str(exc)[:2000]
+            return None, message, message
 
         issue = ISSUE_NORMALISEE if brut_normalise != bloc_outil.input else ISSUE_VALIDE
         self.budget.enregistrer_reel(
@@ -290,4 +384,4 @@ class ModelClient:
             cout_estime_engage=cout_estime, role=role, opportunity_id=opportunity_id,
             issue=issue, sortie_tronquee=sortie_tronquee,
         )
-        return resultat, None
+        return resultat, None, None

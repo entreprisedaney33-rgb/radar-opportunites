@@ -1,11 +1,19 @@
-sqlalchemy>=2.0
-psycopg[binary]>=3.1
-pydantic>=2.6
-pyyaml>=6.0
-requests>=2.31
-feedparser>=6.0
-beautifulsoup4>=4.12
-anthropic>=0.40
-flask>=3.0
-gunicorn>=22.0
-pytest>=8.0
+# Versions figées exactement (sous-étape 3.13 d'AMELIORATIONS.md) : avant
+# cette sous-étape, toutes les bornes étaient des planchers (`>=`), donc
+# chaque déploiement Render pouvait installer une version différente de
+# celle testée en local -- suspecté comme facteur aggravant de la panne du
+# 26/09/2026 (voir Journal de la sous-étape 3.13). Versions = celles
+# installées et testées dans .venv/ au moment de cette sous-étape
+# (2026-09-27, `pip freeze`). Pour changer une version : l'installer et la
+# tester en local D'ABORD, changer ce fichier ENSUITE -- jamais l'inverse.
+sqlalchemy==2.1.0
+psycopg[binary]==3.3.6
+pydantic==2.13.5
+pyyaml==6.0.3
+requests==2.34.2
+feedparser==6.0.14
+beautifulsoup4==4.15.0
+anthropic==1.8.0
+flask==3.1.3
+gunicorn==26.2.0
+pytest==9.1.1

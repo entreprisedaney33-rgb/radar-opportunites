@@ -33,7 +33,10 @@ _COLONNES_ADDITIVES: dict[str, dict[str, str]] = {
         "issue": "VARCHAR", "sortie_tronquee": "BOOLEAN",
     },
     "sources": {"flux_origine": "VARCHAR", "requete_origine": "VARCHAR", "etiquette": "VARCHAR"},
-    "opportunities": {"secteur_provenance": "VARCHAR", "secteur_citation": "VARCHAR"},
+    "opportunities": {
+        "secteur_provenance": "VARCHAR", "secteur_citation": "VARCHAR",
+        "mots_cles_en": "VARCHAR", "mots_cles_fr": "VARCHAR",  # sous-étape 3.11
+    },
 }
 
 

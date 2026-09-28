@@ -7,20 +7,23 @@
 # réintroduire l'invention de faits par une porte dérobée »).
 #
 # Placeholders reconnus :
-# - <douleur>, <acheteur>, <mecanisme> : issus de l'hypothèse du Scout.
+# - <mots_cles>, <acheteur>, <mecanisme> : issus de l'hypothèse du Scout.
+#   <mots_cles> (sous-étape 3.11, renommé depuis <douleur>) : mots-clés
+#   COURTS (3 à 6 mots), jamais la phrase entière de la douleur — voir
+#   app.pipeline.mots_cles et app.enqueteur.gabarits.HypotheseEnqueteur.
 # - <nom_concurrent> : issu de la liste de concurrents passée en argument à
 #   generer_requetes -- depuis la sous-étape 3.4b, identifiés par du code
 #   (app.enqueteur.concurrents.identifier_concurrents), jamais de
 #   l'hypothèse elle-même, jamais par un modèle.
 
 demande:
-  - "<douleur> reddit"
-  - "<douleur> ask hn"
+  - "<mots_cles> reddit"
+  - "<mots_cles> ask hn"
 
 concurrence:
-  - "<douleur> tool"
-  - "<douleur> software"
-  - "<douleur> logiciel"
+  - "<mots_cles> tool"
+  - "<mots_cles> software"
+  - "<mots_cles> logiciel"
 
 prix:
   - "<nom_concurrent> pricing"

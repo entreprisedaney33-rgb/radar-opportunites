@@ -49,7 +49,9 @@ from app.adapters.model_client import (
     ISSUE_VALIDE,
     estimer_cout_eur,
 )
+from app.enqueteur import disjoncteur
 from app.enqueteur.fetch import ETIQUETTE_PREUVE_ENQUETE, ETIQUETTE_PREUVE_PRIX
+from app.storage import repo
 from app.storage.schema import journal_http, opportunities, opportunity_evidence, scores, sources, usage_events
 
 RACINE = Path(__file__).resolve().parent.parent
@@ -116,7 +118,13 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
     with engine.connect() as cx:
         opps = cx.execute(
             select(opportunities).where(
-                opportunities.c.date_creation >= debut, opportunities.c.date_creation < fin
+                opportunities.c.date_creation >= debut, opportunities.c.date_creation < fin,
+                # Sous-étape 3.13, point 3 : un dossier `a_reprendre` (créé
+                # uniquement par repli sans modèle pendant une panne du
+                # disjoncteur API, voir app.reprise) est exclu des métriques
+                # tant qu'il n'est pas repassé par un vrai Scout -- il
+                # réapparaît de lui-même dès que son statut change.
+                opportunities.c.statut != "a_reprendre",
             )
         ).mappings().all()
         opp_ids = [o["id"] for o in opps]
@@ -147,6 +155,7 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
                 usage_events.c.fournisseur, usage_events.c.modele_ou_actor,
                 usage_events.c.tokens_in, usage_events.c.tokens_out,
                 usage_events.c.issue, usage_events.c.sortie_tronquee,
+                usage_events.c.date_creation,  # sous-étape 3.13 : appels en erreur PAR HEURE
             ).where(
                 usage_events.c.date_creation >= debut, usage_events.c.date_creation < fin
             )
@@ -214,14 +223,14 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
 
     nb_reperees = len(opps)
     nb_analysees = len(scores_par_opp)
-    cout_jour = round(sum(c for (_, _, c, _, _, _, _, _, _) in lignes_couts), 4)
+    cout_jour = round(sum(c for (_, _, c, _, _, _, _, _, _, _) in lignes_couts), 4)
 
     # Traçabilité par rôle et par opportunité (colonnes ajoutées en
     # sous-étape 0.7, NULL pour tout l'historique antérieur — regroupé sous
     # "sans_role" plutôt qu'ignoré, pour que le total reste vérifiable).
     cout_par_role: dict[str, float] = {}
     cout_par_opportunite: dict[str, float] = {}
-    for role, opp_id, cout, _, _, _, _, _, _ in lignes_couts:
+    for role, opp_id, cout, _, _, _, _, _, _, _ in lignes_couts:
         cle_role = role or "sans_role"
         cout_par_role[cle_role] = round(cout_par_role.get(cle_role, 0.0) + cout, 4)
         if opp_id:
@@ -245,7 +254,7 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
     cout_jour_recalcule = 0.0
     nb_evenements_anthropic_couverts = 0
     nb_evenements_anthropic_sans_tokens = 0
-    for _, _, _, fournisseur, modele, tokens_in, tokens_out, _, _ in lignes_couts:
+    for _, _, _, fournisseur, modele, tokens_in, tokens_out, _, _, _ in lignes_couts:
         if fournisseur != "anthropic":
             continue
         if tokens_in is None or tokens_out is None:
@@ -268,7 +277,22 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
     ISSUES_EXPLOITEES = {ISSUE_VALIDE, ISSUE_NORMALISEE}
     ISSUES_NON_EXPLOITEES = {ISSUE_RELANCEE, ISSUE_PERDUE}
     fiabilite_sorties: dict[str, dict] = {}
-    for role, _opp_id, cout, _fournisseur, _modele, _tin, _tout, issue, sortie_tronquee in lignes_couts:
+    # Sous-étape 3.13, point 4 : nombre d'appels en ERREUR (issue="perdue" --
+    # dernière tentative invalide, réseau/API compris, voir
+    # app/adapters/model_client.py) par heure -- pour repérer un incident du
+    # disjoncteur API en un coup d'œil, avant même qu'il ne dure assez
+    # longtemps pour apparaître ailleurs (panne du 26/09/2026 : ~25 h avant
+    # d'être remarquée, voir rapports/POINT_ETAPE_2026-09-27.md).
+    appels_en_erreur_par_heure: dict[str, int] = {}
+    for role, _opp_id, cout, _fournisseur, _modele, _tin, _tout, issue, sortie_tronquee, date_creation in lignes_couts:
+        if role in ("scout", "analyst", "critic") and issue == ISSUE_PERDUE:
+            # SQLite (tests) perd le fuseau horaire d'un `DateTime(timezone=True)`
+            # à la relecture -- forcé en UTC pour une clé cohérente avec la
+            # production (PostgreSQL, déjà "aware"), même remarque que
+            # `app.storage.repo.lire_disjoncteur_enqueteur`.
+            horodatage = date_creation if date_creation.tzinfo else date_creation.replace(tzinfo=timezone.utc)
+            cle_heure = horodatage.replace(minute=0, second=0, microsecond=0).isoformat()
+            appels_en_erreur_par_heure[cle_heure] = appels_en_erreur_par_heure.get(cle_heure, 0) + 1
         if role not in ("scout", "analyst", "critic"):
             continue
         stats = fiabilite_sorties.setdefault(
@@ -360,6 +384,46 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
     quotas_config = cfg.quotas()
     nb_requetes_recherche = sum(1 for role, *_ in lignes_couts if role == "enqueteur_recherche")
     nb_fetchs_pages = sum(1 for role, *_ in lignes_couts if role == "enqueteur_fetch")
+    # Sous-étape 3.11, point 2 : une requête `demande`/`concurrence` jamais
+    # envoyée faute de mots-clés utilisables (opportunité sans proposition
+    # valide du Scout ET sans repli dérivable de la douleur) -- comptée pour
+    # que le phénomène reste visible, jamais ignorée silencieusement.
+    nb_requetes_evitees = sum(1 for role, *_ in lignes_couts if role == "enqueteur_requete_evitee")
+
+    # Sous-étape 3.11, point 4 : état COURANT du disjoncteur Reddit de
+    # l'Enquêteur (`app.enqueteur.disjoncteur`) -- pas borné par `jour` (c'est
+    # un état présent, pas un historique de la journée) : lu directement,
+    # comme `quotas_config` juste au-dessus.
+    etat_disjoncteur_reddit = repo.lire_disjoncteur_enqueteur(engine, disjoncteur.NOM_REDDIT)
+    disjoncteur_reddit_enqueteur = {
+        "echecs_consecutifs": etat_disjoncteur_reddit["echecs_consecutifs"] if etat_disjoncteur_reddit else 0,
+        "pause_jusqu_a": (
+            etat_disjoncteur_reddit["pause_jusqu_a"].isoformat()
+            if etat_disjoncteur_reddit and etat_disjoncteur_reddit["pause_jusqu_a"] else None
+        ),
+        "en_pause": bool(
+            etat_disjoncteur_reddit and etat_disjoncteur_reddit["pause_jusqu_a"]
+            and datetime.now(timezone.utc) < etat_disjoncteur_reddit["pause_jusqu_a"]
+        ),
+    }
+
+    # Sous-étape 3.13, point 2 : état COURANT du disjoncteur de l'appel au
+    # modèle (`app.pipeline.disjoncteur_api`) -- comme ci-dessus, pas borné
+    # par `jour`, lu directement.
+    etat_disjoncteur_api = repo.lire_disjoncteur_api(engine)
+    disjoncteur_api_modele = {
+        "echecs_consecutifs": etat_disjoncteur_api["echecs_consecutifs"] if etat_disjoncteur_api else 0,
+        "en_erreur": bool(etat_disjoncteur_api and etat_disjoncteur_api["en_erreur"]),
+        "depuis": (
+            etat_disjoncteur_api["depuis"].isoformat()
+            if etat_disjoncteur_api and etat_disjoncteur_api["depuis"] else None
+        ),
+        "pause_jusqu_a": (
+            etat_disjoncteur_api["pause_jusqu_a"].isoformat()
+            if etat_disjoncteur_api and etat_disjoncteur_api["pause_jusqu_a"] else None
+        ),
+        "dernier_message": etat_disjoncteur_api["dernier_message"] if etat_disjoncteur_api else None,
+    }
 
     # Sous-étape 3.7, point 2 : par flux/fournisseur -- nombre d'appels, 429,
     # 403, autres erreurs, taux de succès (code HTTP 2xx/3xx, sans erreur).
@@ -410,6 +474,8 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
             "plafond_requetes_recherche_par_jour": quotas_config["max_requetes_recherche_par_jour"],
             "fetchs_pages_jour": nb_fetchs_pages,
             "plafond_fetchs_pages_par_jour": quotas_config["max_fetchs_pages_par_jour"],
+            "requetes_evitees_jour": nb_requetes_evitees,
+            "disjoncteur_reddit": disjoncteur_reddit_enqueteur,
         },
         "appels_http_par_flux": appels_http_par_flux,
         "part_hors_intersectoriel": round(nb_hors_intersectoriel / nb_reperees, 4) if nb_reperees else None,
@@ -435,6 +501,8 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
         "cout_moyen_par_dossier_analyse_eur": round(cout_jour / nb_analysees, 4) if nb_analysees else None,
         "cout_par_role_eur": cout_par_role,
         "fiabilite_sorties": fiabilite_sorties,
+        "appels_en_erreur_par_heure": appels_en_erreur_par_heure,
+        "disjoncteur_api_modele": disjoncteur_api_modele,
         "cout_moyen_par_opportunite_eur": (
             round(sum(cout_par_opportunite.values()) / len(cout_par_opportunite), 4)
             if cout_par_opportunite else None

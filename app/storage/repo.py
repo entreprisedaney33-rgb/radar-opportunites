@@ -19,6 +19,8 @@ from app.storage.schema import (
     assessments,
     controles,
     decisions,
+    etats_disjoncteur_api,
+    etats_disjoncteur_enqueteur,
     etats_flux_recherche,
     journal_http,
     opportunities,
@@ -87,10 +89,18 @@ def get_run(engine: Engine, run_id: str) -> dict | None:
 def run_en_cours_le_plus_recent(engine: Engine) -> dict | None:
     """Le worker continu reprend ce run s'il existe déjà (redémarrage du
     process) au lieu d'en recréer un — jamais deux runs 'en_cours' en même
-    temps pour la même journée."""
+    temps pour la même journée.
+
+    Sous-étape 3.13 : "api_en_erreur" (voir `marquer_disjoncteur_sur_run`
+    ci-dessous) est un état du run EN COURS, pas une fin de run -- inclus ici
+    au même titre que "en_cours", sinon le worker recréerait par erreur un
+    second run pour la même journée dès qu'un incident du disjoncteur API est
+    en cours."""
     with engine.connect() as cx:
         row = cx.execute(
-            select(runs).where(runs.c.statut == "en_cours").order_by(runs.c.debut.desc()).limit(1)
+            select(runs)
+            .where(runs.c.statut.in_(("en_cours", "api_en_erreur")))
+            .order_by(runs.c.debut.desc()).limit(1)
         ).mappings().first()
         return dict(row) if row else None
 
@@ -103,6 +113,26 @@ def mettre_a_jour_progression(engine: Engine, run_id: str, *, couts: dict, resum
         cx.execute(
             update(runs).where(runs.c.id == run_id).values(couts_json=couts, resume_json=resume)
         )
+
+
+def marquer_disjoncteur_sur_run(
+    engine: Engine, run_id: str, *, en_erreur: bool, depuis: datetime | None, message: str | None,
+) -> None:
+    """Sous-étape 3.13, point 2 : rend l'état du disjoncteur de l'appel au
+    modèle visible sur le run EN COURS (`runs.statut`/`erreurs_json`), pour
+    que le workflow Jarvis (`jarvis-radar-recap`) puisse l'afficher sans
+    avoir à connaître `etats_disjoncteur_api` -- jamais appelée sur un run
+    déjà terminé. `statut` passe à "api_en_erreur" (toujours traité comme
+    "en cours" par `run_en_cours_le_plus_recent` ci-dessus) le temps de
+    l'incident, revient à "en_cours" une fois résolu -- ne touche jamais
+    `fin`. `erreurs_json` (sinon toujours `[]` tant qu'un run est en cours --
+    seul `terminer_run` l'alimente normalement, à la fin) porte l'unique
+    message décrivant l'incident courant, remplacé à chaque appel plutôt
+    qu'accumulé (ce n'est pas un journal, c'est un état présent)."""
+    statut = "api_en_erreur" if en_erreur else "en_cours"
+    erreurs = [f"Disjoncteur API en erreur depuis {depuis.isoformat() if depuis else '?'} : {message}"] if en_erreur else []
+    with engine.begin() as cx:
+        cx.execute(update(runs).where(runs.c.id == run_id).values(statut=statut, erreurs_json=erreurs))
 
 
 # ------------------------------------------------------------- sources ----
@@ -239,7 +269,8 @@ def signal_deja_traite(engine: Engine, source_id: str) -> bool:
 
 def creer_opportunite(engine: Engine, *, titre: str, acheteur: str, probleme: str, mecanisme_ia: str,
                        secteur: str, statut: str, cluster_id: str | None,
-                       secteur_provenance: str | None = None, secteur_citation: str | None = None) -> str:
+                       secteur_provenance: str | None = None, secteur_citation: str | None = None,
+                       mots_cles_en: str | None = None, mots_cles_fr: str | None = None) -> str:
     opp_id = _uid()
     with engine.begin() as cx:
         cx.execute(
@@ -252,6 +283,8 @@ def creer_opportunite(engine: Engine, *, titre: str, acheteur: str, probleme: st
                 secteur=secteur,
                 secteur_provenance=secteur_provenance,
                 secteur_citation=secteur_citation,
+                mots_cles_en=mots_cles_en,
+                mots_cles_fr=mots_cles_fr,
                 statut=statut,
                 cluster_id=cluster_id,
                 date_creation=_now(),
@@ -266,6 +299,73 @@ def maj_statut_opportunite(engine: Engine, opportunity_id: str, statut: str) -> 
         cx.execute(
             update(opportunities).where(opportunities.c.id == opportunity_id).values(statut=statut, date_maj=_now())
         )
+
+
+def maj_opportunite_depuis_reprise(
+    engine: Engine, opportunity_id: str, *, titre: str, acheteur: str, probleme: str, mecanisme_ia: str,
+    secteur: str, secteur_provenance: str | None, secteur_citation: str | None,
+    mots_cles_en: str | None, mots_cles_fr: str | None, statut: str,
+) -> None:
+    """Sous-étape 3.13 (`app.reprise`) : une reprise réussie (le Scout a pu
+    être rappelé avec un vrai modèle, voir
+    `app.pipeline.orchestrator._phase_reprise`) MET À JOUR le dossier
+    existant plutôt que d'en créer un nouveau -- même identifiant, donc
+    aucune duplication pour Jarvis/les métriques. Champs non listés ici
+    (`id`, `cluster_id`, `date_creation`) restent inchangés, jamais réécrits
+    par cette fonction."""
+    with engine.begin() as cx:
+        cx.execute(
+            update(opportunities).where(opportunities.c.id == opportunity_id).values(
+                titre=titre, acheteur=acheteur, probleme=probleme, mecanisme_ia=mecanisme_ia,
+                secteur=secteur, secteur_provenance=secteur_provenance, secteur_citation=secteur_citation,
+                mots_cles_en=mots_cles_en, mots_cles_fr=mots_cles_fr, statut=statut, date_maj=_now(),
+            )
+        )
+
+
+def opportunites_creees_par_repli_scout(engine: Engine, depuis: datetime) -> list[dict]:
+    """Sous-étape 3.13 (`app.reprise`) : opportunités À MARQUER `a_reprendre`
+    -- créées à partir de `depuis`, dont TOUTES les évaluations Scout connues
+    sont un repli sans modèle (`assessments.modele == "heuristique"`), pas
+    déjà marquées. Deux façons de sortir de cette liste, la commande reste
+    idempotente sans y penser : le statut passe à `a_reprendre` (ce tour-ci),
+    ou une reprise réussie ajoute une nouvelle évaluation Scout avec un vrai
+    nom de modèle (plus tard, voir `app.pipeline.orchestrator._phase_reprise`)."""
+    scout_reel = select(assessments.c.opportunity_id).where(
+        assessments.c.role == "scout", assessments.c.modele != "heuristique",
+    )
+    with engine.connect() as cx:
+        rows = cx.execute(
+            select(opportunities)
+            .where(
+                opportunities.c.date_creation >= depuis,
+                opportunities.c.statut != "a_reprendre",
+                opportunities.c.id.not_in(scout_reel),
+            )
+            .order_by(opportunities.c.date_creation)
+        ).mappings().all()
+        return [dict(r) for r in rows]
+
+
+def signal_origine_scout(engine: Engine, opportunity_id: str) -> dict | None:
+    """Retrouve le signal d'origine (texte collecté, id de source) qui a
+    produit cette opportunité, via la preuve posée à la création par
+    `app/pipeline/orchestrator.py::_phase_collecte_et_scout`
+    (`claim` commençant par « Scout: »). La PLUS ANCIENNE si plusieurs (une
+    opportunité fusionnée, `app/pipeline/dedupe.py`, peut en porter
+    plusieurs) -- c'est le signal réellement à l'origine du dossier."""
+    with engine.connect() as cx:
+        row = cx.execute(
+            select(opportunity_evidence.c.source_id, sources.c.extrait)
+            .select_from(opportunity_evidence.join(sources, opportunity_evidence.c.source_id == sources.c.id))
+            .where(
+                opportunity_evidence.c.opportunity_id == opportunity_id,
+                opportunity_evidence.c.claim.like("Scout: %"),
+            )
+            .order_by(opportunity_evidence.c.date_creation)
+            .limit(1)
+        ).mappings().first()
+        return dict(row) if row else None
 
 
 def lister_opportunites_ouvertes(engine: Engine, secteur: str | None = None) -> list[dict]:
@@ -636,3 +736,95 @@ def marquer_flux_recherche_visites(engine: Engine, cles: list[str], quand: datet
             stmt = upsert(etats_flux_recherche).values(cle=cle, derniere_visite=quand)
             stmt = stmt.on_conflict_do_update(index_elements=["cle"], set_={"derniere_visite": quand})
             cx.execute(stmt)
+
+
+# ------------------------------------------------- disjoncteur Enquêteur --
+
+def lire_disjoncteur_enqueteur(engine: Engine, cle: str) -> dict | None:
+    """Sous-étape 3.11. `None` si `cle` n'a jamais enregistré d'échec —
+    l'appelant (`app.enqueteur.fournisseurs_gratuits`) le traite alors comme
+    `app.enqueteur.disjoncteur.ETAT_INITIAL`.
+
+    Même remarque que `lire_dernieres_visites_recherche` : SQLite ne
+    conserve pas le fuseau horaire d'une `DateTime(timezone=True)` — une
+    valeur relue redevient naïve, on la force donc en UTC pour rester
+    comparable à `datetime.now(timezone.utc)` côté appelant. Sans effet sur
+    PostgreSQL (production), déjà "aware"."""
+    with engine.connect() as cx:
+        row = cx.execute(
+            select(etats_disjoncteur_enqueteur).where(etats_disjoncteur_enqueteur.c.cle == cle)
+        ).mappings().first()
+    if row is None:
+        return None
+    pause_jusqu_a = row["pause_jusqu_a"]
+    if pause_jusqu_a is not None and pause_jusqu_a.tzinfo is None:
+        pause_jusqu_a = pause_jusqu_a.replace(tzinfo=timezone.utc)
+    return {"echecs_consecutifs": row["echecs_consecutifs"], "pause_jusqu_a": pause_jusqu_a}
+
+
+def ecrire_disjoncteur_enqueteur(
+    engine: Engine, cle: str, *, echecs_consecutifs: int, pause_jusqu_a: datetime | None,
+) -> None:
+    """Idempotent (upsert), même mécanisme que `marquer_flux_recherche_visites`."""
+    upsert = sqlite_upsert if engine.dialect.name == "sqlite" else postgres_upsert
+    with engine.begin() as cx:
+        stmt = upsert(etats_disjoncteur_enqueteur).values(
+            cle=cle, echecs_consecutifs=echecs_consecutifs, pause_jusqu_a=pause_jusqu_a, date_maj=_now(),
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["cle"],
+            set_={"echecs_consecutifs": echecs_consecutifs, "pause_jusqu_a": pause_jusqu_a, "date_maj": _now()},
+        )
+        cx.execute(stmt)
+
+
+# Sous-étape 3.13 : une seule clé -- Scout/Analyst/Critic partagent le même
+# `ModelClient`, donc le même disjoncteur (contrairement à Reddit ci-dessus,
+# qui a une clé par fournisseur, extensible). Constante ici plutôt que dans
+# `app.pipeline.disjoncteur_api` : c'est un détail de STOCKAGE, la ligne d'une
+# table à clé primaire fixe, pas une notion que le module pur a besoin de
+# connaître.
+CLE_DISJONCTEUR_API = "modele"
+
+
+def lire_disjoncteur_api(engine: Engine) -> dict | None:
+    """`None` si aucun échec n'a jamais été enregistré -- l'appelant
+    (`app.adapters.model_client.ModelClient`) le traite alors comme
+    `app.pipeline.disjoncteur_api.ETAT_INITIAL`, même convention que
+    `lire_disjoncteur_enqueteur` ci-dessus (SQLite renvoie un datetime naïf,
+    forcé en UTC pour rester comparable à `datetime.now(timezone.utc))`."""
+    with engine.connect() as cx:
+        row = cx.execute(
+            select(etats_disjoncteur_api).where(etats_disjoncteur_api.c.cle == CLE_DISJONCTEUR_API)
+        ).mappings().first()
+    if row is None:
+        return None
+    depuis = row["depuis"]
+    if depuis is not None and depuis.tzinfo is None:
+        depuis = depuis.replace(tzinfo=timezone.utc)
+    pause_jusqu_a = row["pause_jusqu_a"]
+    if pause_jusqu_a is not None and pause_jusqu_a.tzinfo is None:
+        pause_jusqu_a = pause_jusqu_a.replace(tzinfo=timezone.utc)
+    return {
+        "echecs_consecutifs": row["echecs_consecutifs"],
+        "en_erreur": row["en_erreur"],
+        "depuis": depuis,
+        "pause_jusqu_a": pause_jusqu_a,
+        "dernier_message": row["dernier_message"],
+    }
+
+
+def ecrire_disjoncteur_api(
+    engine: Engine, *, echecs_consecutifs: int, en_erreur: bool, depuis: datetime | None,
+    pause_jusqu_a: datetime | None, dernier_message: str | None,
+) -> None:
+    """Idempotent (upsert), même mécanisme que `ecrire_disjoncteur_enqueteur`."""
+    upsert = sqlite_upsert if engine.dialect.name == "sqlite" else postgres_upsert
+    valeurs = {
+        "echecs_consecutifs": echecs_consecutifs, "en_erreur": en_erreur, "depuis": depuis,
+        "pause_jusqu_a": pause_jusqu_a, "dernier_message": dernier_message, "date_maj": _now(),
+    }
+    with engine.begin() as cx:
+        stmt = upsert(etats_disjoncteur_api).values(cle=CLE_DISJONCTEUR_API, **valeurs)
+        stmt = stmt.on_conflict_do_update(index_elements=["cle"], set_=valeurs)
+        cx.execute(stmt)

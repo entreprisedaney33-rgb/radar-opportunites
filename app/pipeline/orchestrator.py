@@ -37,7 +37,7 @@ from app.adapters.demo_adapter import AdaptateurDemo
 from app.adapters.hn_recherche import TAGS_VALIDES as HN_TAGS_VALIDES
 from app.adapters.hn_recherche import AdaptateurRechercheHN
 from app.adapters.http import TropDeRequetes
-from app.adapters.model_client import ModelClient
+from app.adapters.model_client import DisjoncteurAPIOuvert, ModelClient
 from app.adapters.reddit_recherche import AdaptateurRechercheReddit
 from app.adapters.rss_adapter import AdaptateurRSS
 from app.enqueteur.enqueteur import enqueter_opportunite
@@ -46,6 +46,7 @@ from app.enqueteur.gabarits import HypotheseEnqueteur
 from app.models_schemas import DecisionCritic
 from app.pipeline import dedupe
 from app.pipeline.budget import BudgetDepasse, BudgetTracker
+from app.pipeline.mots_cles import deriver_mots_cles_repli, valider_mots_cles
 from app.pipeline.normalisation import inferer_secteur
 from app.pipeline.planificateur_recherche import FluxRecherche, choisir_flux_a_visiter
 from app.roles import analyst as role_analyst
@@ -92,6 +93,15 @@ class ResumeRun:
     # Sous-étape 3.10, point 5 : Reddit a été mis en pause pour le reste de
     # CE passage (2 réponses 429 consécutives) -- voir `_collecter`.
     reddit_mis_en_pause: bool = False
+    # Sous-étape 3.13 : le disjoncteur de l'appel au modèle
+    # (`app.pipeline.disjoncteur_api`) était ouvert pendant ce passage --
+    # aucun dossier créé ni analysé par repli tant que c'est le cas (voir
+    # `_phase_collecte_et_scout`/`_phase_analyse_et_critique`/`_phase_reprise`).
+    api_en_erreur: bool = False
+    # Dossiers `a_reprendre` (créés uniquement par repli pendant une panne
+    # passée, voir `app.reprise`) repassés avec succès par un vrai Scout ce
+    # passage -- voir `_phase_reprise`.
+    reprises_terminees: int = 0
 
 
 def _pause_demandee(engine: Engine) -> bool:
@@ -418,6 +428,16 @@ def _phase_collecte_et_scout(
             resume.budget_atteint = True
             resume.erreurs.append(str(exc))
             break
+        except DisjoncteurAPIOuvert as exc:
+            # Sous-étape 3.13 : contrairement à `AccesModeleIndisponible`
+            # (jamais attrapée ici -- elle remonte telle quelle), le Scout ne
+            # doit PAS retomber sur son repli heuristique dans cet état :
+            # le signal reste `nouveau` (jamais transformé en opportunité),
+            # retenté au prochain passage une fois le disjoncteur refermé.
+            resume.api_en_erreur = True
+            resume.erreurs.append(str(exc))
+            logger.error("Disjoncteur API ouvert -- collecte/Scout interrompus pour ce passage : %s", exc)
+            break
 
         # Sous-étape 2.2 : la proposition du Scout (secteur + citation) est
         # maintenant disponible -- ré-évaluée ici pour décider du secteur
@@ -441,11 +461,18 @@ def _phase_collecte_et_scout(
             opportunity_id = suggestion.opportunity_id
             resume.opportunites_fusionnees += 1
         else:
+            # Sous-étape 3.11 : la proposition du Scout est vérifiée par du
+            # code AVANT toute persistance (même esprit que `secteur`/
+            # `secteur_citation` en 2.1/2.2, plus haut) -- une proposition qui
+            # ne passe pas `valider_mots_cles` (3 à 6 mots, lettres/chiffres/
+            # espaces uniquement) est écartée, jamais corrigée ni tronquée.
             opportunity_id = repo.creer_opportunite(
                 engine, titre=scout_sortie.opportunity_candidate, acheteur=scout_sortie.buyer,
                 probleme=scout_sortie.pain, mecanisme_ia=scout_sortie.ai_mechanism,
                 secteur=resultat_secteur_final.secteur, statut="nouveau", cluster_id=None,
                 secteur_provenance=resultat_secteur_final.provenance, secteur_citation=resultat_secteur_final.citation,
+                mots_cles_en=valider_mots_cles(scout_sortie.mots_cles_en),
+                mots_cles_fr=valider_mots_cles(scout_sortie.mots_cles_fr),
             )
             opportunites_du_passage.append({
                 "id": opportunity_id, "secteur": secteur, "acheteur": scout_sortie.buyer,
@@ -469,6 +496,94 @@ def _phase_collecte_et_scout(
         )
 
 
+def _phase_reprise(
+    engine: Engine, run_id: str, *, quotas: dict, settings, model_client: ModelClient | None,
+    resume: ResumeRun, debut: float, duree_max: float,
+) -> None:
+    """Sous-étape 3.13, point 3 : dossiers marqués `a_reprendre` par
+    `app.reprise` (créés UNIQUEMENT par repli sans modèle pendant la panne du
+    26/09/2026 -- voir `rapports/POINT_ETAPE_2026-09-27.md`) repassent par un
+    VRAI Scout, en PRIORITÉ -- cette phase tourne avant
+    `_phase_collecte_et_scout` dans chaque passage (voir `executer_run`/
+    `executer_continu`), pour qu'ils soient retraités dès que l'API répond,
+    avant même de lire de nouveaux signaux.
+
+    Si le modèle n'est pas disponible (accès manquant) ou si le disjoncteur
+    est ouvert, rien n'est tenté : le dossier reste `a_reprendre`, retenté au
+    passage suivant -- jamais de second repli sur ces dossiers (ce serait
+    exactement le comportement que cette sous-étape corrige)."""
+    if model_client is None:
+        return
+    a_reprendre = sorted(
+        (o for o in repo.lister_opportunites_ouvertes(engine) if o["statut"] == "a_reprendre"),
+        key=lambda o: o["date_creation"],
+    )
+    if not a_reprendre:
+        return
+
+    max_reprises = quotas.get("max_reprises_par_passage", quotas["max_analyses_par_passage"])
+    modele_tri = settings.model_tri
+    for opportunite in a_reprendre[:max_reprises]:
+        if time.monotonic() - debut > duree_max:
+            resume.temps_ecoule = True
+            break
+
+        origine = repo.signal_origine_scout(engine, opportunite["id"])
+        if origine is None:
+            logger.warning(
+                "Reprise de l'opportunité %s : signal d'origine introuvable -- laissée `a_reprendre`.",
+                opportunite["id"],
+            )
+            continue
+
+        try:
+            scout_sortie, via_modele = role_scout.executer_scout(
+                signal_id=origine["source_id"], texte=origine["extrait"], secteur=opportunite["secteur"],
+                model_client=model_client, modele=modele_tri,
+            )
+        except BudgetDepasse as exc:
+            resume.budget_atteint = True
+            resume.erreurs.append(str(exc))
+            break
+        except DisjoncteurAPIOuvert as exc:
+            resume.api_en_erreur = True
+            resume.erreurs.append(str(exc))
+            logger.error("Disjoncteur API ouvert -- reprise interrompue pour ce passage : %s", exc)
+            break
+
+        if not via_modele:
+            # Toujours sans modèle (sortie invalide malgré la relance) --
+            # rien à mettre à jour, retenté au prochain passage plutôt que
+            # de réécrire le dossier avec un second repli.
+            continue
+
+        resultat_secteur = inferer_secteur(
+            origine["extrait"], secteur_defaut_flux=None,
+            secteur_propose=scout_sortie.secteur, citation_propose=scout_sortie.secteur_citation,
+        )
+        repo.maj_opportunite_depuis_reprise(
+            engine, opportunite["id"],
+            titre=scout_sortie.opportunity_candidate, acheteur=scout_sortie.buyer,
+            probleme=scout_sortie.pain, mecanisme_ia=scout_sortie.ai_mechanism,
+            secteur=resultat_secteur.secteur,
+            secteur_provenance=resultat_secteur.provenance, secteur_citation=resultat_secteur.citation,
+            mots_cles_en=valider_mots_cles(scout_sortie.mots_cles_en),
+            mots_cles_fr=valider_mots_cles(scout_sortie.mots_cles_fr),
+            statut="nouveau",
+        )
+        repo.inserer_assessment(
+            engine, opportunity_id=opportunite["id"], run_id=run_id, role="scout",
+            payload=scout_sortie.model_dump(mode="json"), modele=modele_tri,
+            version_prompt=role_scout.VERSION_PROMPT, inconnues=scout_sortie.missing_facts,
+        )
+        repo.inserer_evidence(
+            engine, opportunity_id=opportunite["id"], source_id=origine["source_id"],
+            claim=f"Scout (reprise): {scout_sortie.pain}", type_="hypothese", independant=True,
+        )
+        resume.reprises_terminees += 1
+        logger.info("Reprise réussie pour l'opportunité %s -- repasse au statut `nouveau`.", opportunite["id"])
+
+
 def _phase_enquete(
     engine: Engine, *, options: OptionsRun, quotas: dict, budget: BudgetTracker, resume: ResumeRun,
     debut: float, duree_max: float,
@@ -481,7 +596,17 @@ def _phase_enquete(
     d'enquête (point 3 du texte de 3.4). `enqueter_opportunite` ne lève
     jamais `BudgetDepasse` (chaque appel est protégé individuellement) ; le
     filet `except Exception` ci-dessous ne couvre qu'une panne totalement
-    inattendue, même esprit que `_collecter` pour une source en panne."""
+    inattendue, même esprit que `_collecter` pour une source en panne.
+
+    Sous-étape 3.11 : `opportunite["mots_cles_en"]` (proposition du Scout,
+    déjà validée AVANT persistance -- voir `_phase_collecte_et_scout`) sert
+    de mots-clés si présente ; sinon (opportunité créée avant cette
+    sous-étape, ou proposition invalide/absente) un repli est dérivé par du
+    code à partir de la douleur (`deriver_mots_cles_repli`). Si les deux sont
+    vides, `hypothese.mots_cles` reste `""` -- `generer_requetes`
+    (`app.enqueteur.gabarits`) ne produit alors aucune requête `demande`/
+    `concurrence` (garde-fou §3 « jamais de requête vide »), comptée ici
+    plutôt que silencieusement absente de `app.metriques`."""
     max_enquetes = min(options.max_analyses or quotas["max_analyses_par_passage"], quotas["max_analyses_par_passage"])
     a_enqueter = _selectionner_pour_enquete(engine, max_enquetes)
     if not a_enqueter:
@@ -493,8 +618,16 @@ def _phase_enquete(
             resume.temps_ecoule = True
             break
 
+        mots_cles = opportunite["mots_cles_en"] or deriver_mots_cles_repli(opportunite["probleme"]) or ""
+        if not mots_cles:
+            logger.info(
+                "Enquête de l'opportunité %s : aucun mot-clé utilisable -- requêtes demande/concurrence évitées.",
+                opportunite["id"],
+            )
+            budget.enregistrer_requete_evitee(opportunity_id=opportunite["id"])
+
         hypothese = HypotheseEnqueteur(
-            acheteur=opportunite["acheteur"], douleur=opportunite["probleme"], mecanisme=opportunite["mecanisme_ia"],
+            acheteur=opportunite["acheteur"], mots_cles=mots_cles, mecanisme=opportunite["mecanisme_ia"],
         )
         try:
             nouvelles_sources = enqueter_opportunite(
@@ -535,6 +668,11 @@ def _phase_analyse_et_critique(
             resume.budget_atteint = True
             resume.erreurs.append(str(exc))
             break
+        except DisjoncteurAPIOuvert as exc:
+            resume.api_en_erreur = True
+            resume.erreurs.append(str(exc))
+            logger.error("Disjoncteur API ouvert -- analyse interrompue pour ce passage : %s", exc)
+            break
 
         repo.inserer_assessment(
             engine, opportunity_id=opportunity_id, run_id=run_id, role="analyst",
@@ -565,6 +703,20 @@ def _phase_analyse_et_critique(
         except BudgetDepasse as exc:
             resume.budget_atteint = True
             resume.erreurs.append(str(exc))
+            break
+        except DisjoncteurAPIOuvert as exc:
+            # L'Analyst a déjà tourné et posé le statut `en_analyse` --
+            # limitation PRÉEXISTANTE (pas introduite ici, `BudgetDepasse`
+            # avait déjà exactement le même effet) : `en_analyse` n'est
+            # resélectionné nulle part (`_selectionner_pour_analyse` ne
+            # connaît que `enquete_terminee`/`rejete`), ce dossier reste
+            # donc bloqué à ce statut jusqu'à une intervention manuelle --
+            # signalé dans le Journal de cette sous-étape plutôt que
+            # corrigé (hors périmètre écrit de 3.13, qui porte sur le
+            # disjoncteur, pas sur cette résilience préexistante).
+            resume.api_en_erreur = True
+            resume.erreurs.append(str(exc))
+            logger.error("Disjoncteur API ouvert -- critique interrompue pour ce passage : %s", exc)
             break
 
         repo.inserer_assessment(
@@ -611,6 +763,8 @@ def _resume_vers_dict(resume: ResumeRun) -> dict:
         "sources_indisponibles": resume.sources_indisponibles,
         "signaux_concurrence_stockes": resume.signaux_concurrence_stockes,
         "reddit_mis_en_pause": resume.reddit_mis_en_pause,
+        "api_en_erreur": resume.api_en_erreur,
+        "reprises_terminees": resume.reprises_terminees,
     }
 
 
@@ -644,12 +798,24 @@ def executer_run(engine: Engine, options: OptionsRun) -> tuple[str, ResumeRun]:
         model_client = ModelClient(settings, budget)
 
     try:
+        # Sous-étape 3.13 : priorité aux dossiers `a_reprendre` (repli sans
+        # modèle pendant une panne passée, voir `app.reprise`) avant même de
+        # lire de nouveaux signaux.
+        _phase_reprise(
+            engine, run_id, quotas=quotas, settings=settings, model_client=model_client,
+            resume=resume, debut=debut, duree_max=duree_max,
+        )
+
+        if resume.budget_atteint or resume.temps_ecoule or resume.api_en_erreur:
+            _finaliser(engine, run_id, budget, resume, statut="interrompu")
+            return run_id, resume
+
         _phase_collecte_et_scout(
             engine, run_id, options=options, quotas=quotas, settings=settings, model_client=model_client,
             resume=resume, debut=debut, duree_max=duree_max,
         )
 
-        if resume.budget_atteint or resume.temps_ecoule:
+        if resume.budget_atteint or resume.temps_ecoule or resume.api_en_erreur:
             _finaliser(engine, run_id, budget, resume, statut="interrompu")
             return run_id, resume
 
@@ -767,16 +933,23 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
         model_client = ModelClient(settings, budget) if settings.has_model_access else None
 
         try:
-            _phase_collecte_et_scout(
-                engine, run_id, options=options, quotas=quotas, settings=settings, model_client=model_client,
+            # Sous-étape 3.13 : priorité aux dossiers `a_reprendre` avant
+            # même de lire de nouveaux signaux (voir `_phase_reprise`).
+            _phase_reprise(
+                engine, run_id, quotas=quotas, settings=settings, model_client=model_client,
                 resume=resume, debut=debut, duree_max=duree_max_passage,
             )
+            if not (resume.budget_atteint or resume.temps_ecoule or resume.api_en_erreur):
+                _phase_collecte_et_scout(
+                    engine, run_id, options=options, quotas=quotas, settings=settings, model_client=model_client,
+                    resume=resume, debut=debut, duree_max=duree_max_passage,
+                )
             if not (resume.budget_atteint or resume.temps_ecoule):
                 _phase_enquete(
                     engine, options=options, quotas=quotas, budget=budget, resume=resume,
                     debut=debut, duree_max=duree_max_passage,
                 )
-            if not (resume.budget_atteint or resume.temps_ecoule):
+            if not (resume.budget_atteint or resume.temps_ecoule or resume.api_en_erreur):
                 _phase_analyse_et_critique(
                     engine, run_id, options=options, quotas=quotas, poids_config=poids_config, settings=settings,
                     model_client=model_client, resume=resume, debut=debut, duree_max=duree_max_passage,
@@ -790,6 +963,18 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
         repo.mettre_a_jour_progression(
             engine, run_id, couts={"total_eur_estime": round(budget.cout_total_reel(), 4)},
             resume=_resume_vers_dict(resume),
+        )
+        # Sous-étape 3.13, point 2 : reflète l'état COURANT (persisté, pas
+        # seulement ce que ce passage a vu -- un incident peut avoir été
+        # ouvert par un passage précédent) sur `runs.statut`/`erreurs_json`,
+        # pour que le workflow Jarvis puisse l'afficher sans connaître
+        # `etats_disjoncteur_api`.
+        etat_disjoncteur_api = repo.lire_disjoncteur_api(engine)
+        repo.marquer_disjoncteur_sur_run(
+            engine, run_id,
+            en_erreur=bool(etat_disjoncteur_api and etat_disjoncteur_api["en_erreur"]),
+            depuis=etat_disjoncteur_api["depuis"] if etat_disjoncteur_api else None,
+            message=etat_disjoncteur_api["dernier_message"] if etat_disjoncteur_api else None,
         )
 
         if resume.budget_atteint:

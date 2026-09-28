@@ -604,6 +604,86 @@ def test_secteur_citation_inventee_ne_devient_jamais_le_secteur_persiste(engine_
     assert opp["secteur_citation"] is None
 
 
+def test_mots_cles_valides_du_scout_persistes_bout_en_bout(engine_test, monkeypatch):
+    """Sous-étape 3.11 : une proposition du Scout qui respecte le format
+    (3 à 6 mots, lettres/chiffres/espaces uniquement) est persistée sur
+    l'opportunité — jamais recalculée ni corrigée."""
+    import re
+
+    from app import config as cfg
+    from app.adapters.model_client import AccesModeleIndisponible
+    from app.models_schemas import ScoutSortie
+    from app.pipeline.orchestrator import OptionsRun, executer_run
+
+    class FauxModelClientMotsCles:
+        def __init__(self, *a, **kw):
+            pass
+
+        def appeler_structure(self, **kwargs):
+            if kwargs.get("role") != "scout":
+                raise AccesModeleIndisponible("hors périmètre de ce test : seul le Scout répond")
+            signal_id = re.search(r"id=([^)]+)\)", kwargs["prompt_utilisateur"]).group(1)
+            return ScoutSortie(
+                opportunity_candidate="x", buyer="x", pain="x", ai_mechanism="x", why_now="x",
+                signal_ids=[signal_id],
+                mots_cles_en="invoice reconciliation manual process",
+                mots_cles_fr="rapprochement facture manuel",
+            )
+
+    monkeypatch.setattr("app.pipeline.orchestrator.ModelClient", FauxModelClientMotsCles)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "cle-de-test")
+    cfg.get_settings.cache_clear()
+    try:
+        executer_run(engine_test, OptionsRun(mode="reel", forcer_demo=True, max_signaux=1, max_analyses=1))
+    finally:
+        cfg.get_settings.cache_clear()
+
+    opp = repo.lister_opportunites_ouvertes(engine_test)[0]
+    assert opp["mots_cles_en"] == "invoice reconciliation manual process"
+    assert opp["mots_cles_fr"] == "rapprochement facture manuel"
+
+
+def test_mots_cles_invalides_du_scout_jamais_persistes(engine_test, monkeypatch):
+    """Une proposition hors format (ici : une phrase entière, pas des
+    mots-clés courts) est écartée par `valider_mots_cles` — jamais persistée
+    telle quelle, jamais corrigée/tronquée pour tenir le format (§3.11)."""
+    import re
+
+    from app import config as cfg
+    from app.adapters.model_client import AccesModeleIndisponible
+    from app.models_schemas import ScoutSortie
+    from app.pipeline.orchestrator import OptionsRun, executer_run
+
+    class FauxModelClientMotsClesInvalides:
+        def __init__(self, *a, **kw):
+            pass
+
+        def appeler_structure(self, **kwargs):
+            if kwargs.get("role") != "scout":
+                raise AccesModeleIndisponible("hors périmètre de ce test : seul le Scout répond")
+            signal_id = re.search(r"id=([^)]+)\)", kwargs["prompt_utilisateur"]).group(1)
+            return ScoutSortie(
+                opportunity_candidate="x", buyer="x", pain="x", ai_mechanism="x", why_now="x",
+                signal_ids=[signal_id],
+                # Une phrase entière (bien plus de 6 mots) -- exactement le
+                # défaut constaté en production qui a motivé cette sous-étape.
+                mots_cles_en="we spend six hours every single week reconciling invoices manually and it is exhausting",
+                mots_cles_fr=None,
+            )
+
+    monkeypatch.setattr("app.pipeline.orchestrator.ModelClient", FauxModelClientMotsClesInvalides)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "cle-de-test")
+    cfg.get_settings.cache_clear()
+    try:
+        executer_run(engine_test, OptionsRun(mode="reel", forcer_demo=True, max_signaux=1, max_analyses=1))
+    finally:
+        cfg.get_settings.cache_clear()
+
+    opp = repo.lister_opportunites_ouvertes(engine_test)[0]
+    assert opp["mots_cles_en"] is None
+    assert opp["mots_cles_fr"] is None
+
+
 def test_secteur_provenance_defaut_en_repli_heuristique_sans_modele(engine_test):
     """Sans modèle (mode démo par défaut, aucune clé), le repli heuristique
     ne propose ni secteur ni citation -- jamais `citation_verifiee`."""

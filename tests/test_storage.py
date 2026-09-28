@@ -120,6 +120,51 @@ def test_creer_opportunite_persiste_la_provenance_et_la_citation_du_secteur(engi
     assert ouvertes[opp_id]["secteur_citation"] == "rapprochement bancaire à la main"
 
 
+def test_creer_opportunite_sans_mots_cles_laisse_les_champs_3_11_a_null(engine_test):
+    """Même compatibilité que les paramètres de la sous-étape 2.1 ci-dessus,
+    pour les deux nouveaux de la sous-étape 3.11."""
+    opp_id = repo.creer_opportunite(
+        engine_test, titre="t", acheteur="a", probleme="p", mecanisme_ia="m",
+        secteur="e_commerce", statut="nouveau", cluster_id=None,
+    )
+    ouvertes = {o["id"]: o for o in repo.lister_opportunites_ouvertes(engine_test)}
+    assert ouvertes[opp_id]["mots_cles_en"] is None
+    assert ouvertes[opp_id]["mots_cles_fr"] is None
+
+
+def test_creer_opportunite_persiste_les_mots_cles(engine_test):
+    opp_id = repo.creer_opportunite(
+        engine_test, titre="t", acheteur="a", probleme="p", mecanisme_ia="m",
+        secteur="flux_documentaires", statut="nouveau", cluster_id=None,
+        mots_cles_en="invoice reconciliation manual", mots_cles_fr="rapprochement facture manuel",
+    )
+    ouvertes = {o["id"]: o for o in repo.lister_opportunites_ouvertes(engine_test)}
+    assert ouvertes[opp_id]["mots_cles_en"] == "invoice reconciliation manual"
+    assert ouvertes[opp_id]["mots_cles_fr"] == "rapprochement facture manuel"
+
+
+def test_disjoncteur_enqueteur_absent_par_defaut(engine_test):
+    assert repo.lire_disjoncteur_enqueteur(engine_test, "reddit") is None
+
+
+def test_disjoncteur_enqueteur_ecriture_puis_lecture(engine_test):
+    pause = datetime(2026, 9, 26, 13, 0, tzinfo=timezone.utc)
+    repo.ecrire_disjoncteur_enqueteur(engine_test, "reddit", echecs_consecutifs=0, pause_jusqu_a=pause)
+    etat = repo.lire_disjoncteur_enqueteur(engine_test, "reddit")
+    assert etat == {"echecs_consecutifs": 0, "pause_jusqu_a": pause}
+
+
+def test_disjoncteur_enqueteur_ecriture_est_un_upsert_idempotent(engine_test):
+    """Rejouer une écriture pour la même clé met à jour la ligne existante,
+    n'en crée jamais une seconde — même mécanisme que
+    `marquer_flux_recherche_visites` (sous-étape 1.2)."""
+    repo.ecrire_disjoncteur_enqueteur(engine_test, "reddit", echecs_consecutifs=1, pause_jusqu_a=None)
+    repo.ecrire_disjoncteur_enqueteur(engine_test, "reddit", echecs_consecutifs=0, pause_jusqu_a=None)
+    assert repo.lire_disjoncteur_enqueteur(engine_test, "reddit") == {
+        "echecs_consecutifs": 0, "pause_jusqu_a": None,
+    }
+
+
 def test_signal_deja_traite_detecte_une_source_deja_lue(engine_test):
     source_id, _ = repo.upsert_source(
         engine_test, url_canonique="https://exemple.invalid/b", domaine="exemple",

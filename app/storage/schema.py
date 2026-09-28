@@ -86,6 +86,15 @@ opportunities = Table(
     # l'historique (app/storage/db.py, _COLONNES_ADDITIVES).
     Column("secteur_provenance", String, nullable=True),
     Column("secteur_citation", Text, nullable=True),
+    # Sous-étape 3.11 : mots-clés courts validés du Scout pour les requêtes
+    # de l'Enquêteur (app.pipeline.mots_cles.valider_mots_cles) — migration
+    # additive, NULL pour l'historique (app/storage/db.py, _COLONNES_ADDITIVES)
+    # et pour toute opportunité dont la proposition du Scout n'a pas passé la
+    # validation. `app.pipeline.orchestrator._phase_enquete` dérive un repli
+    # par du code (app.pipeline.mots_cles.deriver_mots_cles_repli) quand
+    # `mots_cles_en` est NULL, plutôt que d'envoyer une requête vide.
+    Column("mots_cles_en", String, nullable=True),
+    Column("mots_cles_fr", String, nullable=True),
     Column("statut", String, nullable=False),
     Column("cluster_id", String, nullable=True),
     Column("date_creation", DateTime(timezone=True), nullable=False),
@@ -255,3 +264,39 @@ tirages_controle_rejetes = Table(
 # total (contrainte d'unicité ci-dessus, en plus du filtre applicatif dans
 # `app/pipeline/orchestrator.py::_selectionner_pour_analyse`) — voir
 # `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`, §4.
+
+etats_disjoncteur_enqueteur = Table(
+    "etats_disjoncteur_enqueteur",
+    metadata,
+    Column("cle", String, primary_key=True),  # nom du fournisseur, ex. "reddit" (app.enqueteur.disjoncteur.NOM_REDDIT)
+    Column("echecs_consecutifs", Integer, nullable=False),
+    Column("pause_jusqu_a", DateTime(timezone=True), nullable=True),
+    Column("date_maj", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape 3.11 : état persisté du disjoncteur Reddit de l'Enquêteur
+# (`app.enqueteur.disjoncteur`) — DOIT survivre plusieurs passages du
+# Background Worker (fenêtre de pause en MINUTES, pas « le reste de ce
+# passage » comme le disjoncteur du Scout) et rester lisible par
+# `app.metriques`, un processus séparé qui ne voit jamais la mémoire du
+# worker. Table neuve, pas de migration additive nécessaire (même
+# raisonnement que `etats_flux_recherche`/`journal_http` ci-dessus).
+
+etats_disjoncteur_api = Table(
+    "etats_disjoncteur_api",
+    metadata,
+    Column("cle", String, primary_key=True),  # fixe, "modele" (un seul disjoncteur -- Scout+Analyst+Critic partagés)
+    Column("echecs_consecutifs", Integer, nullable=False),
+    Column("en_erreur", Boolean, nullable=False),
+    Column("depuis", DateTime(timezone=True), nullable=True),
+    Column("pause_jusqu_a", DateTime(timezone=True), nullable=True),
+    Column("dernier_message", Text, nullable=True),
+    Column("date_maj", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape 3.13 : état persisté du disjoncteur de l'appel au modèle
+# (`app.pipeline.disjoncteur_api`) -- panne du 26/09/2026 (voir
+# rapports/POINT_ETAPE_2026-09-27.md) : ~100 % des appels Scout/Analyst/
+# Critic ont échoué pendant ~25 h sans qu'aucun signal ne remonte ailleurs
+# qu'une lecture manuelle de la base, chaque dossier retombant en silence sur
+# son repli heuristique. Même raisonnement que `etats_disjoncteur_enqueteur`
+# ci-dessus (fenêtre en MINUTES, doit survivre plusieurs passages, lisible
+# par `app.metriques`) : table neuve, pas de migration additive nécessaire.
