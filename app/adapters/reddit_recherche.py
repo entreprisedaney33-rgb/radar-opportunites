@@ -1,28 +1,21 @@
 """Connecteur de recherche Reddit (sous-étape 1.2 d'AMELIORATIONS.md) : un
 flux = une combinaison (subreddit, expression du lexique de douleur).
 
-Format vérifié manuellement le 25/09/2026 (hors tests, voir Journal 1.2) :
-`https://www.reddit.com/r/<sub>/search.rss?q=<expression>&restrict_sr=on&sort=new`
-renvoie un flux Atom (`application/atom+xml`), pas du RSS 2.0 malgré
-l'extension `.rss` — sans incidence : `feedparser` normalise les deux vers
-les mêmes champs (`link`, `title`, `summary`, `published_parsed`), déjà
-utilisés par `AdaptateurRSS`. Une recherche sans résultat renvoie un flux
-Atom valide à zéro entrée (HTTP 200), jamais une erreur.
+Sous-étape 4.0 : passe par l'API officielle Reddit (`app.adapters.reddit_api`,
+OAuth application, `oauth.reddit.com/r/<sub>/search`), plus jamais par le
+flux Atom `search.rss`. Même dédoublonnage, même lexique, même
+planificateur. Sans les identifiants d'environnement, l'adaptateur est
+inactif (liste vide, dit dans les logs par `reddit_api.obtenir_client`).
 """
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from urllib.parse import quote
 
-import feedparser
-
+from app.adapters import reddit_api
 from app.adapters.base import SignalBrut
-from app.adapters.http import ErreurCollecte, TropDeRequetes, get_with_retry
+from app.adapters.http import ErreurCollecte, TropDeRequetes
 
 logger = logging.getLogger(__name__)
-
-GABARIT_URL = "https://www.reddit.com/r/{sub}/search.rss?q={q}&restrict_sr=on&sort=new"
 
 
 class AdaptateurRechercheReddit:
@@ -31,50 +24,29 @@ class AdaptateurRechercheReddit:
         self.expression_cle = expression_cle
         self.expression_texte = expression_texte
         self.id_source = f"reddit_recherche:{subreddit}:{expression_cle}"
-        self.url = GABARIT_URL.format(sub=subreddit, q=quote(expression_texte))
 
     def collecter(self, budget_appels: int, *, engine=None) -> list[SignalBrut]:
-        """`engine` (sous-étape 3.7 d'AMELIORATIONS.md) : voir
-        `app.adapters.rss_adapter.AdaptateurRSS.collecter`."""
-        journal = {"engine": engine, "contexte": self.id_source} if engine is not None else {}
+        client = reddit_api.obtenir_client()
+        if client is None:
+            return []
         try:
-            resp = get_with_retry(self.url, **journal)
+            listing = client.get_json(
+                f"/r/{self.subreddit}/search",
+                {"q": self.expression_texte, "restrict_sr": 1, "sort": "new", "type": "link",
+                 "limit": max(1, min(budget_appels, 100))},
+                engine=engine, contexte=f"reddit_api:recherche:{self.subreddit}:{self.expression_cle}",
+            )
         except TropDeRequetes:
-            # Sous-étape 3.10 : contrairement à une panne générique (ci-dessous),
-            # laissée remonter TELLE QUELLE -- `app.pipeline.orchestrator._collecter`
-            # en a besoin pour compter les 429 consécutifs et mettre Reddit en
-            # pause pour le reste du passage (disjoncteur, point 5).
+            # Laissé remonter : le disjoncteur par passage de
+            # `app.pipeline.orchestrator._collecter` compte ces 429 (3.10).
             raise
         except ErreurCollecte as exc:
-            # Même politique que AdaptateurRSS : une combinaison
-            # indisponible (timeout, erreur réseau...) n'arrête jamais la
-            # collecte des autres flux — voir
-            # app/pipeline/orchestrator.py::_collecter.
+            # Une combinaison indisponible n'arrête jamais la collecte des autres.
             logger.warning("Recherche Reddit %s indisponible : %s", self.id_source, exc)
             return []
-
-        flux = feedparser.parse(resp.content)
-        signaux: list[SignalBrut] = []
-        for entree in flux.entries[:budget_appels]:
-            url_entree = getattr(entree, "link", None)
-            if not url_entree:
-                continue
-            titre = getattr(entree, "title", "") or ""
-            resume = getattr(entree, "summary", "") or ""
-            date_publication = None
-            if getattr(entree, "published_parsed", None):
-                date_publication = datetime(*entree.published_parsed[:6], tzinfo=timezone.utc)
-            signaux.append(
-                SignalBrut(
-                    url=url_entree,
-                    domaine=f"Reddit r/{self.subreddit} (recherche)",
-                    texte=f"{titre} — {resume}".strip(" —"),
-                    date_publication=date_publication,
-                    type_source="rss",
-                    droits_collecte=f"recherche Reddit publique ({self.url}), conditions du flux",
-                    flux_origine=f"Reddit r/{self.subreddit} — recherche « {self.expression_texte} »",
-                    type_flux="douleur",  # les subs interrogées sont déjà toutes `douleur` (app/sources.py)
-                    requete_origine=self.expression_texte,
-                )
-            )
-        return signaux
+        return reddit_api.signaux_depuis_listing(
+            listing, domaine=f"Reddit r/{self.subreddit} (recherche)",
+            droits=f"API officielle Reddit (OAuth application), /r/{self.subreddit}/search, usage interne, lecture seule",
+            flux_origine=f"Reddit r/{self.subreddit} — recherche « {self.expression_texte} »",
+            requete_origine=self.expression_texte, limite=budget_appels,
+        )

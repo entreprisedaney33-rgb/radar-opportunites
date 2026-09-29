@@ -14,11 +14,13 @@ import logging
 from app.adapters.model_client import AccesModeleIndisponible, ModelClient
 from app.models_schemas import AnalystSortie, CritereAnalyst, NiveauPreuve, TypeAffirmation
 from app.pipeline.budget import BudgetDepasse
+from app.roles.faisabilite import CONSIGNE_FAISABILITE
 from app.roles.prompts_communs import RAPPEL_SECURITE
 
 logger = logging.getLogger(__name__)
 
-VERSION_PROMPT = "analyst-v1"
+# analyst-v2 (sous-étape 4.1) : ajout du bloc `faisabilite` (hypothèses, hors score).
+VERSION_PROMPT = "analyst-v2"
 
 NOMS_CRITERES = [
     "probleme_frequence_cout",
@@ -38,7 +40,8 @@ PROMPT_SYSTEME = (
     "`inconnues` du critère concerné plutôt que de citer une source qui n'est pas listée. "
     "Distingue observé/calculé/hypothèse pour chaque affirmation. Une marge n'est estimable "
     "que si prix de vente ET coûts sont tous deux appuyés par une preuve fournie — sinon "
-    "`marge_indicative` doit rester `null`."
+    "`marge_indicative` doit rester `null`.\n\n"
+    f"{CONSIGNE_FAISABILITE}"
 )
 
 

@@ -38,6 +38,13 @@ def quotas() -> dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
+def faisabilite() -> dict[str, Any]:
+    """Sous-étape 4.1 : critères de « accessible en solo »
+    (`config/faisabilite.yaml`), voir `app.faisabilite`."""
+    return _load_yaml("faisabilite.yaml")
+
+
+@lru_cache(maxsize=1)
 def sources_autorisees() -> dict[str, Any]:
     return _load_yaml("sources_autorisees.yaml")
 

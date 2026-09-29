@@ -90,6 +90,22 @@ Chaque signal passe intégralement par Analyst + Critic. Pour brasser dix fois p
 | 5 | Étalonner le Critic | 3, 4 | 5 à 6 | centimes par banc | après 5.3, puis 48 h après 5.6 |
 | 6 | Réviser le score si le mur persiste | 7 jours après 5 | 1 à 2 | 0 € | après 6.1 |
 | 7 | Onglet Radar (Jarvis) : nouveaux champs | 3 (avancée avant 5, voir note ci-dessous) | 3 | 0 € | après 7.3 |
+| 4.1 (insérée) | Mode économe, tri de faisabilité, Jarvis léger | 3.17, 4.0 | 1 (+ 1 pour Jarvis) | −80 % (5 €/jour au lieu de 25) | — |
+
+**Décision de Mathéo (2026-09-29, soir) — sous-étape 4.1 :** le plan est
+recadré pour un radar **économe** et lisible par une personne seule.
+- **Reddit n'est plus une chose à faire.** 4.0 reste en l'état (code livré, testé,
+  éteint sans identifiants) marquée « **en attente d'identifiants, optionnelle** » :
+  aucune démarche Reddit n'est planifiée, aucune sous-étape n'en dépend. **4.0b
+  supprimée.** Le point Reddit du §9 devient un simple mémo pour le jour où
+  Mathéo choisirait de s'en occuper.
+- **Le moteur web payant est reporté** (Brave Search, 3.5 : reste écrit et
+  désactivé ; l'activation à 4.2c est retirée du programme courant).
+- **4.1 « Mode économe, tri de faisabilité, Jarvis léger »** passe avant le
+  reste de l'étape 4 : budget 5 €/jour, drapeau `accessible_solo` déduit par
+  le code, scores recalculés à la règle actuelle, dossiers < 50 archivés
+  (jamais supprimés), onglet Radar léger. L'ancienne 4.1 « Preuves de prix »
+  devient **4.1b** ; 4.2 à 4.6 gardent leur numéro.
 
 Les étapes se font dans cet ordre. Une étape n'est pas entamée tant que la précédente n'est pas marquée FAIT dans le Journal global (§8), sauf mention explicite.
 
@@ -3130,49 +3146,134 @@ Tests sans réseau. Test de fumée API si `model_client` est touché. Commit
   ajoutés (`tests/test_reprise_au_demarrage.py`), suite : 495 verts. La
   simulation demandée au plan n'existe plus pour ce chemin : `app.reprise
   --simulation` reste utilisable depuis un poste qui a la base.
-- Déploiement : voir la fin de ce Journal (mise à jour au moment du déploiement).
+- Déploiement : **poussé, build Render à confirmer par Mathéo.** OK explicite de
+  Mathéo reçu le 2026-09-29. Procédure §5 : suite par défaut 495 verts / 0 rouge,
+  0 € ; secrets : contrôles intégrés du script passés (aucun fichier ni clé
+  suspects) ; 4bis sans objet (`app/adapters/`, `app/models_schemas.py` et
+  `app/storage/schema.py` inchangés par rapport au dernier déploiement) ; aucune
+  migration de schéma. Synchronisé vers `entreprisedaney33-rgb/radar-opportunites`,
+  commit public `0def4af`, 2026-09-29 17:07:44 CEST (15:07:44 UTC) — vérifié en
+  reclonant : il suit directement `8ac9604` (3.15), aucun commit inattendu.
+  **À faire par Mathéo** : poser `RADAR_REPRISE_DEPUIS=2026-09-26T13:41Z` dans
+  Render (le worker marquera les dossiers de repli au démarrage) ; vérifier
+  ensuite le message « Reprise au démarrage… » dans les logs et
+  `runs.erreurs_json`. **À faire dans cette session après « build terminé »** :
+  point 7 du §5 (le worker a redémarré, premier passage sans erreur), lecture du
+  résumé de reprise, à coller ici.
 
 ---
 
-### Étape 4 — L'entonnoir : monter le volume sans monter le coût
+### Étape 4 — Sources d'acheteurs, preuves de prix, entonnoir, pilotage
 
-**Objectif.** Passer d'un pipeline plat à trois paliers, pour traiter 500+ signaux par jour dans le même budget.
-**Ce que ça change :** l'objectif n°2 de Mathéo (brasser beaucoup plus) devient tenable sans trahir le n°1 (qualité).
-**Coût :** quelques centimes par jour de triage avec le modèle le moins cher.
-**Réussi si (48 h après mise en production) :** coût par dossier analysé stable ou en baisse alors que le volume repéré a triplé ; conversion palier 2 → palier 3 comprise entre 10 % et 30 % (en dessous, triage trop dur ; au-dessus, trop laxiste).
+**Programme décidé par Mathéo (29/09/2026)**, qui remplace le contenu initial de l'étape 4 (l'entonnoir seul, désormais 4.2). Ordre d'exécution : 4.0 → 4.6 (4.1 « mode économe » insérée le 29/09 au soir, l'ancienne 4.1 devient 4.1b), une sous-étape par session, chacune détaillée plus précisément AVANT d'être exécutée (seule 4.0 l'est ici) :
 
-#### Sous-étape 4.1 — Palier code (0 €)
+| Sous-étape | Objet |
+|---|---|
+| 4.0 | API officielle Reddit — **en attente d'identifiants, optionnelle** (Reddit n'est plus à faire ; 4.0b supprimée) |
+| 4.1 | **Mode économe, tri de faisabilité, Jarvis léger** (décisions de Mathéo du 29/09, voir ci-dessous) |
+| 4.1b | Preuves de prix (le critère qui plafonne presque tous les dossiers, voir 3.14/3.16) — ex-4.1 |
+| 4.2 | Entonnoir : palier code → triage modèle → palier complet conditionnel |
+| 4.3 | Cache de prompt et API par lots (réduire le coût des appels Analyst/Critic/triage) |
+| 4.4 | Axe industrie, dont les créateurs de contenu |
+| 4.5 | Audit quotidien réalisé par le worker lui-même, lu dans Jarvis |
+| 4.6 | Pilote automatique |
+
+**Réussi si (48 h après mise en production de l'ensemble) :** coût par dossier analysé stable ou en baisse alors que le volume repéré a triplé ; conversion palier 2 → palier 3 comprise entre 10 % et 30 % ; des dossiers issus de Reddit (acheteurs qui décrivent leur douleur) apparaissent dans les métriques.
+
+#### Sous-étape 4.0 — API officielle Reddit
+
+Reddit (flux RSS et recherches) est en pause depuis 3.15 : l'accès anonyme se fait bloquer (429/403, `robots.txt: Disallow: /`). 4.0 le rétablit par la voie officielle.
+
+A. **Application Reddit** (fait à la main, voir Journal) : type « script », nom `radar-opportunites`, redirect uri `http://localhost:8080`. Client id et secret dans `~/.config/radar-opportunites/env` (hors dépôt, droits 600) sous `RADAR_REDDIT_CLIENT_ID`, `RADAR_REDDIT_CLIENT_SECRET`, `RADAR_REDDIT_USER_AGENT="radar-opportunites/1.0 (by /u/<pseudo>)"` ; posés ensuite par Mathéo lui-même dans Render (Environment du worker). Nulle part ailleurs.
+
+B. **Code** : `app/adapters/reddit_api.py` (client OAuth application `client_credentials`, jeton sur `www.reddit.com/api/v1/access_token`, appels sur `oauth.reddit.com`, jeton renouvelé avant expiration, plafond volontaire 30 requêtes/minute, respect de `X-Ratelimit-*`, un seul retry sur 429) ; `AdaptateurRedditNouveaux` (`/r/<sub>/new`, remplace les flux `.rss`) ; `AdaptateurRechercheReddit` réécrit sur `/r/<sub>/search` ; fournisseur Reddit de l'Enquêteur sur `/search`, réactivé par défaut (dès que les identifiants existent). Sans identifiants : tout est inactif, dit une fois dans les logs, **aucun repli RSS**. Sources Reddit de `app/sources.yaml` repassées `actif: true` (URLs sans `.rss`). Même dédoublonnage, même lexique, même planificateur, même disjoncteur 429. `journal_http` : contextes préfixés `reddit_api:` ; `app.metriques` : blocs `reddit_api` et `reddit_anciens_flux` distincts (ces derniers doivent rester à 0 après déploiement).
+
+C. **Tests** sans réseau sur fixtures JSON de l'API (`tests/test_reddit_api.py`, `tests/test_reddit_recherche.py`, etc.), puis test de fumée réel `tests_payants/fumee_reddit.py` (3 requêtes au plus : jeton + un subreddit).
+
+D. **Déploiement** : Mathéo pose les trois variables dans Render (« variables posées »), puis donne son « OK pour déployer » (§5).
+
+Journal — sous-étape 4.0 : voir ci-dessous.
+
+### Journal — sous-étape 4.0
+- Statut : PARTIEL (code et tests faits ; **A (application Reddit) et test de fumée réel non faits** — voir Écart ; déploiement non fait)
+- Date : 2026-09-29
+- Commit(s) : `[4.0] API officielle Reddit (OAuth application) …` (pas encore déployé)
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Reddit repasse par sa porte officielle (une clé d'accès à toi) au lieu des flux publics qui nous bloquaient : le code est prêt, testé sans internet, et s'éteint tout seul tant que les clés ne sont pas posées. Il reste à créer l'application Reddit (Chrome m'en a refusé l'accès) et à lire un point important sur les conditions de Reddit (§9).
+- Fichiers créés / modifiés : `app/adapters/reddit_api.py` (créé), `app/adapters/reddit_recherche.py` (réécrit), `app/enqueteur/fournisseurs_gratuits.py`, `app/pipeline/orchestrator.py`, `app/sources.py` (`est_source_reddit`), `app/sources.yaml`, `app/metriques.py`, `env.example`, `tests_payants/fumee_reddit.py` (créé), `tests/conftest.py`, `tests/test_reddit_api.py` (créé), `tests/test_reddit_recherche.py`, `tests/test_enqueteur_fournisseurs_gratuits.py`, `tests/test_pipeline_integration.py`, `tests/test_sources_config.py`, `tests/test_metriques.py`
+- Tests : 29 ajoutés ou réécrits pour l'API ; suite par défaut : 524 verts / 0 rouge (495 avant) — dépense : 0 €
+- Chiffres produits : aucun
+- Écart par rapport au plan (et pourquoi) :
+  1. **A non fait** : l'extension Chrome a refusé de naviguer vers reddit.com (« site not allowed due to safety restrictions »). Aucune clé créée, aucun fichier `~/.config/radar-opportunites/env` modifié (il ne contient toujours que `RADAR_DATABASE_URL`). Le navigateur intégré n'est pas connecté au compte de Mathéo, donc non utilisé. **C, partie « test de fumée réel » non faite** pour la même raison (0 requête réelle envoyée à Reddit) ; le script est prêt.
+  2. **Découverte à vérifier (§9)** : d'après des sources tierces (les pages d'aide Reddit m'ont répondu 403), Reddit exigerait depuis fin 2025 une **approbation préalable** pour toute nouvelle application, et réserverait le palier gratuit à un usage **non commercial**.
+  3. Les ids des sources (`reddit_*_rss`) sont conservés (historique, dédoublonnage) bien que la collecte ne passe plus par RSS.
+- Question pour Mathéo / Fable : oui, §9.
+
+#### Sous-étape 4.1 — Mode économe, tri de faisabilité, Jarvis léger
+
+Décisions de Mathéo du 29/09/2026 (voir §2).
+
+1. **Plan** : Reddit retiré des choses à faire ; 4.0 « en attente d'identifiants, optionnelle » ; 4.0b supprimée ; moteur web payant reporté (§2, §8, §9).
+2. **Budget** : plafond journalier `budget_eur_par_jour` 25 → **5 €**, `max_appels_approfondis_par_jour` recalé en proportion (1300 → **260**) ; tirage de contrôle des rejetés à **0** (`echantillon_rejetes_pour_controle: 0.0`, `max_tirages_controle_par_jour: 0`).
+3. **Faisabilité pour Mathéo** : l'Analyst renvoie un bloc `faisabilite`, typé hypothèse, une justification d'une phrase par champ : `investissement_initial` (`moins_de_5k`, `5k_a_20k`, `20k_a_100k`, `plus_de_100k`), `delai_premier_revenu` (`moins_de_3_mois`, `3_a_12_mois`, `plus_de_12_mois`), `marche` (`accessible_depuis_france`, `europe`, `etats_unis_seulement`, `autre`), `competences` (`dev_ia`, `vente`, `reglementaire_lourd`, `materiel_industriel`, `reseau_specifique`), `taille_du_probleme` (`niche_locale`, `segment_pme`, `marche_national_large`, `systemique`). Le **code** en déduit `accessible_solo` (`config/faisabilite.yaml` : investissement ≤ 20 k€, délai ≤ 12 mois, marché accessible depuis la France ou l'Europe, ni réglementaire lourd ni matériel industriel, pas de problème systémique) et un motif d'exclusion lisible sinon. **Jamais dans le score de preuve.** Table neuve `faisabilites` (append-only), migration additive.
+4. **Scores** : recalcul en base, pour tous les dossiers ayant une analyse, avec la règle actuelle (nouvelle ligne `scores.origine = recalcul_4_1`, ancienne conservée) ; dernier score < 50 → statut **`archive_faible`** (conservé, retiré des listes et des requêtes courantes, jamais supprimé ; statut d'avant tracé dans `decisions`). Faisabilité calculée sur les dossiers ≥ 50 par une reprise limitée à eux (`RADAR_FAISABILITE_REPRISE=1`), coût estimé dans le Journal AVANT de la lancer.
+5. **Jarvis (LABO uniquement)** : onglet Radar limité par défaut aux dossiers ≥ 50 et accessibles, 30 à la fois + « voir plus », détail à l'ouverture ; badge « accessible » ou motif d'exclusion sur chaque carte ; filtres « tout voir » / « seulement accessibles » ; vue légère toutes les 60 s, liste toutes les 5 min ; poids et temps de chargement avant / après dans le Journal.
+
+Ordre : Radar (commit `[4.1]`, test de fumée API, OK de Mathéo, déploiement, « build terminé »), puis Jarvis (protocole complet, OK séparé).
+
+Journal — sous-étape 4.1 : voir ci-dessous.
+
+### Journal — sous-étape 4.1
+- Statut : PARTIEL (partie **Radar** — points 1 à 4 — codée, testée, commitée, **pas encore déployée** ; test de fumée API vert ; **partie Jarvis (point 5) non faite**, elle vient après le déploiement du Radar, avec son propre OK)
+- Date : 2026-09-29
+- Commit(s) : `[4.1] Mode économe, tri de faisabilité, recalcul des scores, archive_faible` (pas encore déployé)
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Le radar dépense au plus 5 € par jour et ne fait plus de tirage de contrôle. Chaque nouvelle analyse dit aussi si le sujet est réalisable seul depuis la France (le code décide, pas le modèle, et ça ne change jamais la note). Sur les 1 451 dossiers analysés, seuls 26 tiennent à 50 ou plus avec la règle actuelle : les 1 425 autres seront rangés « archive_faible » (gardés, jamais supprimés) dès que tu allumeras l'interrupteur dans Render.
+- Fichiers créés / modifiés :
+  - Créés : `app/faisabilite.py`, `app/recalcul.py`, `app/roles/faisabilite.py`, `config/faisabilite.yaml`, `tests/test_sous_etape_4_1.py`
+  - Modifiés : `config/quotas.yaml` (5 €, 260 appels, tirage 0), `app/config.py`, `app/models_schemas.py` (enums, `FaisabiliteSortie`, `AnalystSortie.faisabilite`, statut `archive_faible`), `app/roles/analyst.py` (prompt `analyst-v2`), `app/pipeline/orchestrator.py` (bloc rangé, archivage sous 50, `_phase_faisabilite`, recalcul au démarrage), `app/pipeline/budget.py` + `app/storage/repo.py` (rôle `faisabilite` compté dans le plafond d'appels approfondis ; fonctions de lecture/écriture 4.1), `app/storage/schema.py` (table `faisabilites`, colonne `scores.origine`), `app/storage/db.py` (migration additive), `env.example`, `tests_payants/fumee_api.py` (vérifie aussi le bloc de faisabilité), `tests/test_enqueteur_qualite_page.py` et `tests/test_sous_etape_3_17.py` (valeurs de config 3.17 devenues 4.1), `AMELIORATIONS.md`.
+- Tests : 39 ajoutés — suite par défaut : **563 verts / 0 rouge** (524 avant) — dépense : 0 € (suite). Test de fumée payant `tests_payants/fumee_api.py` **VERT, 0,0543 €** : Scout, Analyst, Critic via un vrai modèle, **le bloc de faisabilité est bien rempli par l'Analyst** (schéma strict accepté par l'API) et par le rôle de reprise.
+- Chiffres produits :
+  - **Simulation en lecture seule sur la base réelle** (`python -m app.recalcul --simulation`, 0 écriture, 29/09 ~18 h) : 1 451 dossiers avec analyse. Score prudent des dossiers : anciens médiane 15,0 / p90 37,5 / max 100 → recalculés médiane 15,0 / p90 35,0 / **max 95,0**. 235 baissent, 1 monte, 1 215 inchangés. **Sous 50 → `archive_faible` : 1 425** (dont 533 dont l'analyse est le repli sans modèle de la panne du 26/09) ; **≥ 50 : 26** (dont 95 : `9c0eafe3`, `2cea8873` ; 82,5 : `fce213d9`, `229b5546`). Statuts d'avant des dossiers analysés : 1 206 `incertain`, 229 `rejete`, 11 `nouveau`, 3 `en_analyse`.
+  - **Estimation de la reprise de faisabilité (à valider AVANT de la lancer)** : 26 dossiers ≥ 50, ≈ 36 600 tokens d'entrée + 18 200 de sortie, **≈ 0,22 €** au tarif Sonnet 5 de `config/tarifs.yaml` (estimation par longueur des vrais prompts, pas d'appel modèle ; le test de fumée a coûté 0,054 € pour 4 appels dont 2 de faisabilité). Bien sous le plafond du jour (5 €).
+  - **Mesure Jarvis avant / après** : non faite (partie Jarvis).
+- Écart par rapport au plan (et pourquoi) :
+  1. **Numérotation** : « 4.1 » existait déjà (Preuves de prix). La nouvelle 4.1 est insérée ; l'ancienne devient **4.1b** (§2, §8, tableau de l'étape 4). 4.0b n'existait pas dans le fichier : « supprimée » est simplement écrit au plan.
+  2. **Deux interrupteurs Render, éteints par défaut** (même méthode que `RADAR_REPRISE_DEPUIS`, 3.17) : je n'ai pas de connexion en écriture à la base de production, et une réécriture massive ne doit pas partir toute seule au déploiement. `RADAR_RECALCUL_4_1=1` → au démarrage du worker : recalcul + archivage (0 €, idempotent). `RADAR_FAISABILITE_REPRISE=1` → à chaque passage : faisabilité des dossiers ≥ 50 sans bloc (~0,22 € au total). **À poser par Mathéo, dans cet ordre** (le recalcul d'abord : la reprise vise les dossiers ≥ 50 d'après les nouveaux scores).
+  3. **Archivage aussi pour l'avenir** : tout dossier nouvellement analysé dont le score prudent est < 50 passe directement `archive_faible` (sinon la règle « dernier score < 50 » serait fausse dès le lendemain). Son statut d'avant (avis du Critic) reste dans `scores.decision_critic` et dans `decisions` (action `archive_faible`, « statut avant : … »). Le statut `rejete` disparaît donc du flux courant — sans conséquence : le tirage de contrôle, seul consommateur de `rejete`, est à 0.
+  4. **Le recalcul s'applique à la DERNIÈRE analyse de chaque dossier** avec les sources actuelles du dossier (même méthode que le recalcul à sec de 3.17, qui reproduisait 373 scores stockés sans écart). Un dossier dont la dernière analyse est plus récente que son dernier score (3 cas `en_analyse` : Critic jamais passé, limitation 3.13) peut donc « monter » (1 cas : 15 → 22,5).
+  5. **Le recalcul ne change aucune décision du Critic** : la nouvelle ligne de score reprend `decision_critic` de la précédente.
+  6. **La faisabilité d'une nouvelle analyse est demandée dans le même appel que l'Analyst** (prompt `analyst-v2`, +~400 tokens de sortie par dossier) ; la reprise sur l'existant utilise un appel dédié plus court (`faisabilite-v1`), sans rejouer l'Analyst ni le Critic.
+  7. `app.metriques` **n'exclut pas** `archive_faible` : les métriques du jour comptent tous les dossiers créés ce jour-là ; les exclure ne garderait que les ≥ 50 et fausserait toute la distribution des scores. (`app.metriques` lancé depuis un poste sur la base de production, AVANT la migration, échouera sur la colonne `scores.origine` tant que le worker n'a pas migré — même situation qu'aux sous-étapes 0.7 et 3.10.)
+  8. **Lu** : §0 à §3, §5 à §9, journaux 3.17 et 4.0 en entier, étape 4 ; les journaux 0.1 à 3.16 n'ont été lus que par leurs lignes du §8/§9 (comme en 3.17).
+- Question pour Mathéo / Fable : aucune bloquante. À noter : 533 dossiers archivés (sur 1 425) le seraient parce que leur analyse est un repli de la panne du 26/09 (score 0, jamais réellement évalués) — ils sont « faibles » au sens de la règle, mais pas jugés faibles par un modèle. Ils restent récupérables (statut d'avant tracé dans `decisions`).
+- Déploiement : **en attente de l'OK de Mathéo** (procédure §5 : suite verte 563/0, 0 € ; 4bis vert, 0,0543 € ; migration additive uniquement : table `faisabilites` + colonne `scores.origine`).
+
+**4.2a — Palier code (0 €)** (ex-4.1)
 
 1. Créer `app/lexique_contexte_pro.yaml` (marqueurs d'un contexte professionnel : « client », « facture », « invoice », « équipe », « team », « our company », « my business », noms de métiers, noms d'outils courants) et `app/lexique_lancement.yaml` (marqueurs de promotion : « launching », « we built », « check out », « discount », « beta », « sign up », « nouveau produit », « lancement »).
 2. Un signal `douleur` n'entre dans le pipeline que s'il contient au moins un marqueur de douleur (lexique 1.2) ET un marqueur de contexte pro ET aucun marqueur de lancement. Les autres sont **archivés** avec la raison (jamais supprimés).
 3. Journalisation par palier : combien entrent, combien sortent, motif. Exposé dans `app.metriques` (rendement de l'entonnoir).
 4. Tests sur fixtures de signaux : accepté / refusé pour chaque motif.
 
-Journal — sous-étape 4.1 : *(à remplir)*
-
-#### Sous-étape 4.2 — Palier triage modèle
+**4.2b — Palier triage modèle** (ex-4.2)
 
 1. Appel au modèle le moins cher disponible dans le projet, prompt court, sortie JSON stricte : `{douleur_reelle: bool, acheteur_pro_plausible: bool, citation: str}`. La citation est un extrait mot pour mot du signal ; le code la vérifie textuellement (même fonction qu'en 2.1). Deux vrais + citation retrouvée → passe au Scout. Sinon → archivé avec la raison.
 2. Un signal archivé au triage reste consultable (table ou statut), et peut être réinjecté à la main plus tard.
 3. Compteur budget dédié au triage, inclus dans le budget dur global.
 4. Tests sur réponses simulées : les quatre combinaisons, citation introuvable, JSON malformé (passe par la fonction de nettoyage existante).
 
-Journal — sous-étape 4.2 : *(à remplir)*
-
-#### Sous-étape 4.3 — Palier complet conditionnel
+**4.2c — Palier complet conditionnel** (ex-4.3)
 
 1. Enquêteur complet + Analyst + Critic uniquement si l'hypothèse du Scout a ses champs `acheteur` et `douleur` renseignés de façon non vide et non générique (vérification par code : longueur minimale, pas de valeurs du type « entreprises », « utilisateurs », « tout le monde » — liste dans un YAML). Sinon l'opportunité reste au statut « hypothèse incomplète », visible, archivée après N jours configurables.
-2. Le fournisseur web payant (3.5), s'il est un jour activé, ne l'est **qu'à ce palier**, avec un plafond de requêtes par opportunité.
+2. ~~Le fournisseur web payant (3.5), s'il est un jour activé, ne l'est **qu'à ce palier**, avec un plafond de requêtes par opportunité.~~ **Reporté (décision du 29/09, 4.1)** : le moteur web payant n'est plus au programme courant ; s'il revenait, la règle « seulement à ce palier, avec un plafond par opportunité » resterait valable.
 3. `app.metriques` : rendement complet de l'entonnoir (repérés → palier 1 → palier 2 → Scout → palier 3 → analysés → éligibles).
 4. Tests sur fixtures.
 
-Journal — sous-étape 4.3 : *(à remplir)*
 
-#### Sous-étape 4.4 — Mise en production de l'étape 4 🚦
+**4.2d — Mise en production** : procédure §5. 48 h après : rendement de l'entonnoir, coût par dossier analysé, volume repéré/jour, part archivée par motif. Mathéo transmet à Fable.
 
-Procédure §5. 48 h après : rendement de l'entonnoir, coût par dossier analysé, volume repéré/jour, part archivée par motif. Mathéo transmet à Fable.
-
-Journal — sous-étape 4.4 : *(à remplir)*
+Journaux 4.1 à 4.6 : *(à remplir, chacun à son tour)*
 
 ---
 
@@ -3624,10 +3725,14 @@ Baseline du 25/09/2026 (à confirmer par 0.3). Les cibles sont des ordres de gra
 | 3.15 | FAIT | 2026-09-28 | `[3.15]` | Reddit (flux RSS ET connecteur de recherche sub × expression) mis en pause : `actif: false` dans `app/sources.yaml` + bug réel corrigé (`subreddits_douleur` ignorait `actif`, seule la collecte RSS en tenait compte) -- zéro quota/temps consommé, vérifié sur le vrai fichier. `max_tokens` Analyst 2500→6000, Critic 1800→4000 (ordre de grandeur du plan, pas encore recalibré sur des tailles réelles -- pas d'accès base) ; `app.metriques.fiabilite_sorties[role].taux_troncature` ajouté. Concurrents (3.4b) : marqueur d'offre désormais exigé pour les DEUX sources (magasin interne ET famille `concurrence`, avant seule la seconde l'exigeait) + liste d'exclusion de domaines (`config/domaines_exclus_concurrents.yaml`) -- corrige les 2 faux positifs réels documentés en 3.14 (articles TechCrunch), 3ᵉ cas de test reconstitué (même échec, domaine différent, logs réels non accessibles pour un 3ᵉ titre exact). 16 tests ajoutés, 424 verts, 0 € -- **déployé** (OK de Mathéo, commit public `8ac96048`, 2026-09-28 ~16:09 CEST, « build terminé » confirmé par Mathéo) ; vérification indépendante base/logs Render NON faite dans cette session (accès à `.secrets/render-key.txt` bloqué par le mode automatique), à faire par Mathéo ; mesure 48h reste à faire, voir Journal |
 | 3.16 | FAIT | 2026-09-29 | `[3.16]` | Point d'étape lecture seule (fenêtre 28/09 14:09:53 → 29/09 ~10:07 UTC). Radar sain : 933 appels modèle, 100 % valides, 0 tronqué (3.15 : 8 sorties coupées sur 83 juste avant, 0 sur 746 après), 16,38 €, aucun arrêt sur budget, disjoncteur API jamais déclenché ; **reprise : 0/662, `app.reprise` jamais lancée**. **12 dossiers ≥ 60 (max 100) contre 0 (max 55) — 0 crédible, 2 à confirmer, 10 artefacts, 0 éligible.** Causes : « fort » = 2 affirmations avec un id de source (pas de sources distinctes exigées, 53 % d'inférences), articles d'actualité pris pour des douleurs, mêmes pages rattachées à 26 dossiers (article Nvidia), 1 seule vraie page de prix sur 207 dossiers (faux concurrent « CEO of Mistral: AI is software » qui alimente 45 dossiers), scores non reproductibles (mêmes preuves : écart médian 5 points, jusqu'à 40). Sans sources transversales, 2/12 restent ≥ 60. Critic : 80 % de rejets, 0 éligible, instable (20/185 basculent). 100 % des dossiers viennent de la recherche HN, 0 Reddit. `rapports/POINT_ETAPE_2026-09-29.md` créé |
 | 3.17 | PARTIEL | 2026-09-29 | `[3.17]` | Reprise : marquage fait par le worker au démarrage si `RADAR_REPRISE_DEPUIS` est définie (pas de `DATABASE_URL` en local). Score : « fort » exige deux affirmations sur deux sources distinctes (domaines différents, ou signal d'origine + une autre), poids `2026.09.2` ; recalcul à sec depuis 3.15 (373 lignes, ancienne règle reproduit les scores stockés) : dossiers ≥ 60 : 12 → 6, critères « forts » 345 → 200, médiane des dossiers 27,5 → 22,5. Preuves : page d'erreur/trop courte (< 300 car.) jamais stockée, étiquette `prix` refusée sans marqueur de prix, une source ≤ 3 dossiers (origine exclue), seuil magasin interne 0,15 → 0,21, 44 domaines de presse exclus des concurrents. Tirage de contrôle 10 % → 2 %, ≤ 5/jour. **Température 0 impossible : l'API la retire sur Sonnet 5** (vu au test de fumée, 0,09 €) — code retiré, §9. 495 tests verts. Ni déployé ni reprise (`app.reprise`) : en attente de l'OK de Mathéo |
-| 4.1 | À FAIRE | | | |
-| 4.2 | À FAIRE | | | |
-| 4.3 | À FAIRE | | | |
-| 4.4 🚦 | À FAIRE | | | |
+| 4.0 | PARTIEL — en attente d'identifiants, optionnelle | 2026-09-29 | `[4.0]` | Code API officielle Reddit (OAuth application, 30 req/min, X-Ratelimit, inactif sans identifiants, jamais de repli RSS) + tests sans réseau, 524 verts ; **application Reddit non créée (Chrome refuse reddit.com), test de fumée réel non fait, non déployé** ; conditions Reddit à trancher, voir §9 |
+| 4.1 | EN COURS | 2026-09-29 | `[4.1]` | Mode économe (5 €/jour, 260 appels, tirage de contrôle 0), faisabilité `accessible_solo` déduite par le code, recalcul des scores + `archive_faible`, Jarvis léger — voir Journal |
+| 4.1b | À FAIRE | | | Preuves de prix (ex-4.1) |
+| 4.2 | À FAIRE | | | Entonnoir (paliers code / triage modèle / complet conditionnel) |
+| 4.3 | À FAIRE | | | Cache de prompt et API par lots |
+| 4.4 | À FAIRE | | | Axe industrie (dont créateurs de contenu) |
+| 4.5 | À FAIRE | | | Audit quotidien par le worker, lu dans Jarvis |
+| 4.6 🚦 | À FAIRE | | | Pilote automatique |
 | 5.1 | À FAIRE | | | |
 | 5.2 | À FAIRE | | | |
 | 5.3 🚦 STOP | À FAIRE | | | |
@@ -3648,6 +3753,15 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
 
 À remplir par Claude Code, une ligne par question, datée, avec la sous-étape concernée. Mathéo transmet cette section à Fable telle quelle. Une question résolue est barrée, jamais effacée.
 
+- **2026-09-29 (sous-étape 4.1, décision de Mathéo) — Reddit n'est plus à faire.** Les deux entrées « 4.0 » ci-dessous (conditions d'utilisation ; création de l'application) ne sont plus à trancher : elles restent **en mémo** pour le jour où Mathéo choisirait de s'en occuper. 4.0 = « en attente d'identifiants, optionnelle » ; 4.0b supprimée ; le moteur web payant (Brave, 3.5) est reporté.
+- **2026-09-29 (sous-étape 4.0, MÉMO — plus à trancher, voir ci-dessus)** — conditions d'utilisation de l'API Reddit pour notre usage (lecture de posts publics, faible volume, usage interne). **Limite de cette vérification** : les pages officielles de Reddit (aide, Responsible Builder Policy, Data API Wiki) m'ont répondu 403 ; ce qui suit vient de pages tierces qui les citent (prowlo.com, replydaddy.com, redditapis.com, snitchfeed.com, créatorcrawl.com), à recouper avec le texte de Reddit avant de s'y fier.
+  1. **Approbation préalable** : depuis fin 2025 (« Responsible Builder Policy »), toute nouvelle application doit demander et obtenir l'accord de Reddit avant d'accéder aux données ; l'inscription libre est fermée, délai cité de 2 à 4 semaines. Conséquence : la page `reddit.com/prefs/apps` peut ne pas permettre de créer l'application directement, ou la créer sans que l'accès soit accordé (le test de fumée le dira). **Rien à coder pour ça, mais on ne peut pas garantir une date.**
+  2. **Palier gratuit = usage non commercial** (100 requêtes/minute par client, moyenne sur 10 min). Un usage commercial demande un accord écrit (tarif cité : 0,24 $ / 1 000 appels, ou 12 000 $/mois en forfait). Notre cas : outil interne du labo qui repère des idées, mais le labo est une entreprise qui revend des produits — zone grise à trancher par Mathéo (déclarer honnêtement l'usage dans la demande d'accès ; la politique interdit de masquer l'usage ou de multiplier les demandes).
+  3. **Plafond** : notre limite volontaire de 30 requêtes/minute est bien sous les 100/minute. `X-Ratelimit-*` respectés.
+  4. **Agent utilisateur** exigé au format `<plateforme>:<appid>:<version> (by /u/<pseudo>)` : `RADAR_REDDIT_USER_AGENT` doit finir par « (by /u/<pseudo>) » (le code prévient dans les logs sinon).
+  5. **Suppression** : le contenu supprimé par son auteur ou retiré par les modérateurs doit être effacé de notre côté (règle citée : sous 48 h). Notre base garde les extraits des posts collectés (§0.2.7 : rien n'est effacé). **Non traité dans 4.0** : pas de re-vérification périodique des posts stockés. À décider : un contrôle (relire les posts Reddit stockés par lot et masquer/effacer ceux devenus `[removed]`/`[deleted]`), ou n'y stocker que des références. En attendant, 4.0 ne transforme jamais en signal un post déjà `[removed]`/`[deleted]` au moment de la collecte.
+  6. **Pas d'entraînement de modèle sur les données Reddit** : l'Analyst/Critic lisent les extraits pour juger, ils ne les utilisent pas pour entraîner — usage cité comme interdit hors licence spéciale ; à garder tel quel.
+- **2026-09-29 (sous-étape 4.0, MÉMO — plus à faire)** — Chrome (extension Claude) refuse reddit.com : l'application Reddit doit être créée par Mathéo (ou via une autre session/navigateur autorisé). Étapes : `https://www.reddit.com/prefs/apps` → « create another app » → type **script**, nom `radar-opportunites`, redirect uri `http://localhost:8080` → noter le client id (sous le nom) et le secret ; puis les écrire dans `~/.config/radar-opportunites/env` (RADAR_REDDIT_CLIENT_ID, RADAR_REDDIT_CLIENT_SECRET, RADAR_REDDIT_USER_AGENT), lancer `python tests_payants/fumee_reddit.py`, puis poser les trois variables dans Render.
 - **2026-09-29 (sous-étape 3.17, À TRANCHER)** :
   0. **Tranché par Mathéo (29/09) : option (a) ci-dessous — on accepte, on
      re-mesure la variance après déploiement. À l'étape 5, une seconde analyse

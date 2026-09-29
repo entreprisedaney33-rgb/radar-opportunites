@@ -456,8 +456,32 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
     for stats in appels_http_par_flux.values():
         stats["taux_succes"] = round(stats["succes"] / stats["appels"], 4)
 
+    # Sous-étape 4.0 : l'API officielle Reddit (contextes `reddit_api:*`) est
+    # isolée des anciens flux Reddit (RSS/Atom, `reddit_recherche:*`,
+    # `enqueteur_recherche:reddit`) qui, eux, ne devraient plus jamais
+    # apparaître après le déploiement de 4.0 -- s'ils apparaissent, c'est une
+    # fuite à corriger, pas un bruit à ignorer.
+    def _agreger_reddit(selection) -> dict:
+        lignes = [st for cle, st in appels_http_par_flux.items() if selection(cle)]
+        total = sum(st["appels"] for st in lignes)
+        succes = sum(st["succes"] for st in lignes)
+        return {
+            "appels": total, "succes": succes,
+            "http_429": sum(st["http_429"] for st in lignes),
+            "http_403": sum(st["http_403"] for st in lignes),
+            "autres_erreurs": sum(st["autres_erreurs"] for st in lignes),
+            "taux_succes": round(succes / total, 4) if total else None,
+        }
+
+    reddit_api_http = _agreger_reddit(lambda cle: cle.startswith("reddit_api:"))
+    reddit_anciens_flux_http = _agreger_reddit(
+        lambda cle: "reddit" in cle.lower() and not cle.startswith("reddit_api:")
+    )
+
     return {
         "jour": jour.isoformat(),
+        "reddit_api": reddit_api_http,
+        "reddit_anciens_flux": reddit_anciens_flux_http,
         "opportunites_reperees": nb_reperees,
         "opportunites_analysees": nb_analysees,
         "par_statut": par_statut,

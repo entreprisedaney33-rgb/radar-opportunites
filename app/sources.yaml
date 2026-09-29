@@ -51,29 +51,29 @@
 
 - id: reddit_smallbusiness_rss
   nom: "Reddit r/smallbusiness (douleurs réelles de patrons de petites entreprises)"
-  url: "https://www.reddit.com/r/smallbusiness/.rss"
+  url: "https://www.reddit.com/r/smallbusiness/"
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_accounting_rss
   nom: "Reddit r/Accounting (flux documentaires, comptabilité)"
-  url: "https://www.reddit.com/r/Accounting/.rss"
+  url: "https://www.reddit.com/r/Accounting/"
   type: douleur
   secteur_par_defaut: flux_documentaires
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_ecommerce_rss
   nom: "Reddit r/ecommerce (e-commerce, SAV, retours)"
-  url: "https://www.reddit.com/r/ecommerce/.rss"
+  url: "https://www.reddit.com/r/ecommerce/"
   type: douleur
   secteur_par_defaut: e_commerce
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 # Sous-étape 1.2 : 10 subreddits supplémentaires (mêmes principes que les 3
@@ -84,90 +84,90 @@
 
 - id: reddit_msp_rss
   nom: "Reddit r/msp (prestataires informatiques managés)"
-  url: "https://www.reddit.com/r/msp/.rss"
+  url: "https://www.reddit.com/r/msp/"
   type: douleur
   secteur_par_defaut: outils_internes_it
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_sysadmin_rss
   nom: "Reddit r/sysadmin (administration système)"
-  url: "https://www.reddit.com/r/sysadmin/.rss"
+  url: "https://www.reddit.com/r/sysadmin/"
   type: douleur
   secteur_par_defaut: outils_internes_it
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_bookkeeping_rss
   nom: "Reddit r/Bookkeeping (tenue de comptes)"
-  url: "https://www.reddit.com/r/Bookkeeping/.rss"
+  url: "https://www.reddit.com/r/Bookkeeping/"
   type: douleur
   secteur_par_defaut: flux_documentaires
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_tax_rss
   nom: "Reddit r/tax (fiscalité)"
-  url: "https://www.reddit.com/r/tax/.rss"
+  url: "https://www.reddit.com/r/tax/"
   type: douleur
   secteur_par_defaut: flux_documentaires
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_entrepreneur_rss
   nom: "Reddit r/Entrepreneur (patrons, créateurs d'entreprise)"
-  url: "https://www.reddit.com/r/Entrepreneur/.rss"
+  url: "https://www.reddit.com/r/Entrepreneur/"
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_freelance_rss
   nom: "Reddit r/freelance (indépendants)"
-  url: "https://www.reddit.com/r/freelance/.rss"
+  url: "https://www.reddit.com/r/freelance/"
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_shopify_rss
   nom: "Reddit r/shopify (boutiques Shopify)"
-  url: "https://www.reddit.com/r/shopify/.rss"
+  url: "https://www.reddit.com/r/shopify/"
   type: douleur
   secteur_par_defaut: e_commerce
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_fba_rss
   nom: "Reddit r/FulfillmentByAmazon (vendeurs Amazon FBA)"
-  url: "https://www.reddit.com/r/FulfillmentByAmazon/.rss"
+  url: "https://www.reddit.com/r/FulfillmentByAmazon/"
   type: douleur
   secteur_par_defaut: e_commerce
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_propertymanagement_rss
   nom: "Reddit r/PropertyManagement (gestion locative)"
-  url: "https://www.reddit.com/r/PropertyManagement/.rss"
+  url: "https://www.reddit.com/r/PropertyManagement/"
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10
 
 - id: reddit_logistics_rss
   nom: "Reddit r/logistics (logistique)"
-  url: "https://www.reddit.com/r/logistics/.rss"
+  url: "https://www.reddit.com/r/logistics/"
   type: douleur
   secteur_par_defaut: operations_petites_entreprises
   langue: en
-  actif: false  # en attente de l'API officielle Reddit, étape 4.0
+  actif: true  # API officielle Reddit (étape 4.0), jamais RSS ; inactif de fait sans identifiants
   budget_appels_par_nuit: 10

@@ -216,134 +216,83 @@ def test_algolia_hn_avec_engine_journalise_chaque_tag(monkeypatch, engine_test):
 
 
 # ------------------------------------------------------------------ Reddit
+# Sous-étape 4.0 : API officielle (fixtures JSON, faux serveur `reddit_faux`).
 
-FIXTURE_REDDIT_ATOM = b"""<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">
-<updated>2026-09-25T17:51:40+00:00</updated>
-<title>search results - reconciliation</title>
-<entry>
-  <id>t3_ex1</id>
-  <link href="https://www.reddit.com/r/smallbusiness/comments/ex1/titre/" />
-  <published>2026-09-25T06:25:31+00:00</published>
-  <title>Titre exemple un</title>
-  <summary>R&#233;sum&#233; exemple un.</summary>
-</entry>
-<entry>
-  <id>t3_ex2</id>
-  <link href="https://www.reddit.com/r/Accounting/comments/ex2/titre_deux/" />
-  <published>2026-09-24T05:00:00+00:00</published>
-  <title>Titre exemple deux</title>
-  <summary>R&#233;sum&#233; exemple deux.</summary>
-</entry>
-</feed>"""
+from tests.conftest import FausseReponseReddit, listing_reddit, post_reddit  # noqa: E402
 
-FIXTURE_REDDIT_ATOM_VIDE = b"""<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">
-<updated>2026-09-25T17:51:40+00:00</updated>
-<title>search results - vide</title>
-</feed>"""
+FIXTURE_REDDIT = listing_reddit(
+    post_reddit("ex1", "smallbusiness", "Titre exemple un", "Résumé exemple un.", cree=1790000000),
+    post_reddit("ex2", "Accounting", "Titre exemple deux", "Résumé exemple deux.", cree=1789900000),
+)
 
 
-class _FauxReponseHTTP:
-    def __init__(self, content: bytes):
-        self.content = content
-
-
-def test_reddit_url_construite_sitewide_sans_subreddit(monkeypatch):
-    urls_appelees: list[str] = []
-
-    def _faux_get(url):
-        urls_appelees.append(url)
-        return _FauxReponseHTTP(FIXTURE_REDDIT_ATOM_VIDE)
-
-    monkeypatch.setattr("app.enqueteur.fournisseurs_gratuits.get_with_retry", _faux_get)
-
-    FournisseurReddit().rechercher("réconciliation factures", limite=10)
-
-    assert urls_appelees == ["https://www.reddit.com/search.rss?q=r%C3%A9conciliation%20factures&sort=relevance&type=link"]
-
-
-def test_reddit_parse_titre_et_extrait_separement(monkeypatch):
-    monkeypatch.setattr("app.enqueteur.fournisseurs_gratuits.get_with_retry", lambda url: _FauxReponseHTTP(FIXTURE_REDDIT_ATOM))
-
-    resultats = FournisseurReddit().rechercher("reconciliation", limite=10)
-
-    assert len(resultats) == 2
-    premier = resultats[0]
-    assert premier.url == "https://www.reddit.com/r/smallbusiness/comments/ex1/titre/"
-    assert premier.titre == "Titre exemple un"
-    assert premier.extrait == "Résumé exemple un."
-    assert premier.fournisseur == "reddit"
-    assert premier.horodatage_source == datetime(2026, 9, 25, 6, 25, 31, tzinfo=timezone.utc)
-
-
-def test_reddit_respecte_la_limite(monkeypatch):
-    monkeypatch.setattr("app.enqueteur.fournisseurs_gratuits.get_with_retry", lambda url: _FauxReponseHTTP(FIXTURE_REDDIT_ATOM))
-    assert len(FournisseurReddit().rechercher("reconciliation", limite=1)) == 1
-
-
-def test_reddit_recherche_sans_resultat_renvoie_liste_vide(monkeypatch):
-    monkeypatch.setattr("app.enqueteur.fournisseurs_gratuits.get_with_retry", lambda url: _FauxReponseHTTP(FIXTURE_REDDIT_ATOM_VIDE))
-    assert FournisseurReddit().rechercher("rien", limite=10) == []
-
-
-def test_reddit_429_persistant_ne_plante_pas(monkeypatch):
-    class Reponse429:
-        status_code = 429
-
-        def raise_for_status(self):
-            pass
-
-    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: Reponse429())
-    monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)
-
+def test_reddit_inactif_sans_identifiants_renvoie_vide_sans_appel():
     assert FournisseurReddit().rechercher("x", limite=10) == []
 
 
-def test_reddit_avec_engine_journalise_l_appel(monkeypatch, engine_test):
-    """Sous-étape 3.7, point 1 : voir `test_algolia_hn_avec_engine_journalise_chaque_tag`."""
+def test_reddit_recherche_sitewide_par_l_api(reddit_faux):
+    serveur, _ = reddit_faux
+    FournisseurReddit().rechercher("réconciliation factures", limite=10)
+    appel = serveur.appels_get[0]
+    assert appel["url"] == "https://oauth.reddit.com/search"
+    assert appel["params"] == {
+        "q": "réconciliation factures", "sort": "relevance", "type": "link", "limit": 10, "raw_json": 1,
+    }
 
-    class _FauxReponseComplete:
-        status_code = 200
-        content = FIXTURE_REDDIT_ATOM_VIDE
 
-        def raise_for_status(self):
-            pass
+def test_reddit_parse_titre_et_extrait(reddit_faux):
+    serveur, _ = reddit_faux
+    serveur.reponses = [FausseReponseReddit(200, FIXTURE_REDDIT)]
+    resultats = FournisseurReddit().rechercher("reconciliation", limite=10)
+    assert len(resultats) == 2
+    premier = resultats[0]
+    assert premier.url == "https://www.reddit.com/r/smallbusiness/comments/ex1/x/"
+    assert premier.titre == "Titre exemple un"
+    assert "Résumé exemple un." in premier.extrait
+    assert premier.fournisseur == "reddit"
+    assert premier.horodatage_source == datetime.fromtimestamp(1790000000, tz=timezone.utc)
 
-    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: _FauxReponseComplete())
 
+def test_reddit_respecte_la_limite(reddit_faux):
+    serveur, _ = reddit_faux
+    serveur.reponses = [FausseReponseReddit(200, FIXTURE_REDDIT)]
+    assert len(FournisseurReddit().rechercher("reconciliation", limite=1)) == 1
+
+
+def test_reddit_recherche_sans_resultat_renvoie_liste_vide(reddit_faux):
+    assert FournisseurReddit().rechercher("rien", limite=10) == []
+
+
+def test_reddit_429_persistant_ne_plante_pas(reddit_faux):
+    serveur, _ = reddit_faux
+    serveur.reponses = [FausseReponseReddit(429)]
+    assert FournisseurReddit().rechercher("x", limite=10) == []
+
+
+def test_reddit_avec_engine_journalise_l_appel(reddit_faux, engine_test):
     FournisseurReddit(engine_test).rechercher("réconciliation factures", limite=10)
-
     jour = datetime.now(timezone.utc).date()
     lignes = repo.lister_appels_http_jour_utc(engine_test, jour)
-    assert lignes == [{"flux_ou_fournisseur": "enqueteur_recherche:reddit", "code_http": 200, "erreur": None}]
+    assert {l["flux_ou_fournisseur"] for l in lignes} == {"reddit_api:jeton", "reddit_api:enqueteur"}
 
 
 # --------------------------------------------- Reddit : disjoncteur (3.11)
 
-class _Reponse429:
-    status_code = 429
-
-    def raise_for_status(self):
-        pass
+def _simuler_429_persistant(serveur):
+    serveur.reponses = [FausseReponseReddit(429)]
 
 
-def _simuler_429_persistant(monkeypatch):
-    monkeypatch.setattr(http_module.requests, "get", lambda *a, **kw: _Reponse429())
-    monkeypatch.setattr(http_module.time, "sleep", lambda *_a, **_kw: None)
-
-
-def test_reddit_sans_engine_jamais_de_disjoncteur(monkeypatch):
-    """Sans base (fournisseur construit directement, comme dans la plupart
-    des tests ci-dessus) : aucun disjoncteur, jamais -- même après plusieurs
-    429 d'affilée, `rechercher` retente à chaque fois (comportement
-    inchangé pour tout appelant qui ne fournit pas d'`engine`)."""
-    _simuler_429_persistant(monkeypatch)
+def test_reddit_sans_engine_jamais_de_disjoncteur(reddit_faux):
+    serveur, _ = reddit_faux
+    _simuler_429_persistant(serveur)
     f = FournisseurReddit()
     for _ in range(disjoncteur.SEUIL_ECHECS_CONSECUTIFS + 1):
         assert f.rechercher("x", limite=10) == []
 
 
-def test_reddit_trois_429_consecutifs_declenche_la_pause(monkeypatch, engine_test):
-    _simuler_429_persistant(monkeypatch)
+def test_reddit_trois_429_consecutifs_declenche_la_pause(reddit_faux, engine_test):
+    serveur, _ = reddit_faux
+    _simuler_429_persistant(serveur)
     f = FournisseurReddit(engine_test)
 
     for _ in range(disjoncteur.SEUIL_ECHECS_CONSECUTIFS - 1):
@@ -352,43 +301,34 @@ def test_reddit_trois_429_consecutifs_declenche_la_pause(monkeypatch, engine_tes
 
     assert f.rechercher("x", limite=10) == []
     etat = repo.lire_disjoncteur_enqueteur(engine_test, disjoncteur.NOM_REDDIT)
-    assert etat["echecs_consecutifs"] == 0  # remis à zéro, une pause vient de commencer
+    assert etat["echecs_consecutifs"] == 0
     assert etat["pause_jusqu_a"] is not None
     assert etat["pause_jusqu_a"] > datetime.now(timezone.utc)
 
 
-def test_reddit_en_pause_ne_tente_meme_pas_l_appel_http(monkeypatch, engine_test):
+def test_reddit_en_pause_ne_tente_meme_pas_l_appel_http(reddit_faux, engine_test):
     from datetime import timedelta
 
-    appels = []
-    monkeypatch.setattr(
-        "app.enqueteur.fournisseurs_gratuits.get_with_retry",
-        lambda *a, **kw: appels.append(1) or _FauxReponseHTTP(FIXTURE_REDDIT_ATOM_VIDE),
-    )
+    serveur, _ = reddit_faux
     repo.ecrire_disjoncteur_enqueteur(
         engine_test, disjoncteur.NOM_REDDIT,
         echecs_consecutifs=0, pause_jusqu_a=datetime.now(timezone.utc) + timedelta(minutes=30),
     )
-
     assert FournisseurReddit(engine_test).rechercher("x", limite=10) == []
-    assert appels == []  # aucun appel HTTP tenté pendant la pause
+    assert serveur.appels_get == [] and serveur.appels_post == []
 
 
-def test_reddit_un_succes_remet_le_compteur_a_zero(monkeypatch, engine_test):
-    """2 échecs (sous le seuil), puis un succès : le compteur repart de zéro
-    -- 3 échecs doivent à nouveau être CONSÉCUTIFS pour déclencher la pause,
-    jamais 2+1 cumulés."""
-    _simuler_429_persistant(monkeypatch)
+def test_reddit_un_succes_remet_le_compteur_a_zero(reddit_faux, engine_test):
+    serveur, _ = reddit_faux
+    _simuler_429_persistant(serveur)
     f = FournisseurReddit(engine_test)
     for _ in range(disjoncteur.SEUIL_ECHECS_CONSECUTIFS - 1):
         f.rechercher("x", limite=10)
     assert repo.lire_disjoncteur_enqueteur(engine_test, disjoncteur.NOM_REDDIT)["echecs_consecutifs"] == (
         disjoncteur.SEUIL_ECHECS_CONSECUTIFS - 1
     )
-
-    monkeypatch.setattr(
-        "app.enqueteur.fournisseurs_gratuits.get_with_retry", lambda *a, **kw: _FauxReponseHTTP(FIXTURE_REDDIT_ATOM_VIDE),
-    )
+    serveur.appels_get.clear()
+    serveur.reponses = [FausseReponseReddit(200, listing_reddit())]
     f.rechercher("succes", limite=10)
     assert repo.lire_disjoncteur_enqueteur(engine_test, disjoncteur.NOM_REDDIT) == {
         "echecs_consecutifs": 0, "pause_jusqu_a": None,
@@ -453,28 +393,30 @@ def test_magasin_interne_seuil_par_defaut_vient_de_la_config(engine_test):
 
 # ------------------------------------------------------------------ registre
 
-def test_construire_registre_enregistre_algolia_hn_et_magasin_interne_actifs_par_defaut(engine_test, monkeypatch):
-    """Sous-étape 3.11, point 5 : Reddit N'EST PLUS actif par défaut (tant
-    que l'API officielle n'est pas en place) -- seuls Algolia HN et magasin
-    interne le restent."""
+def test_construire_registre_reddit_inactif_sans_identifiants(engine_test, monkeypatch):
+    """Sous-étape 4.0 : sans identifiants d'environnement, Reddit reste inactif
+    par défaut (aucune requête ni compteur gaspillés) ; Algolia HN et le
+    magasin interne le sont toujours."""
     for nom in ("ALGOLIA_HN", "REDDIT", "MAGASIN_INTERNE"):
         monkeypatch.delenv(f"RADAR_ENQUETEUR_ACTIF_{nom}", raising=False)
-
     registre = construire_registre_fournisseurs_gratuits(engine_test)
-    actifs = registre.fournisseurs_actifs()
-
-    assert {f.nom for f in actifs} == {"algolia_hn", "magasin_interne"}
+    assert {f.nom for f in registre.fournisseurs_actifs()} == {"algolia_hn", "magasin_interne"}
 
 
-def test_construire_registre_reddit_reactivable_explicitement(engine_test, monkeypatch):
-    """Sous-étape 3.11, point 5 : `RADAR_ENQUETEUR_ACTIF_REDDIT=1` réactive
-    Reddit malgré `actif_par_defaut=False` -- même mécanisme que pour le
-    fournisseur payant (3.5), aucun code nouveau nécessaire."""
+def test_construire_registre_reddit_actif_par_defaut_avec_identifiants(engine_test, monkeypatch, reddit_faux):
+    """Sous-étape 4.0 : réactivé PAR DÉFAUT dès que les trois variables sont
+    posées."""
+    for nom in ("ALGOLIA_HN", "REDDIT", "MAGASIN_INTERNE"):
+        monkeypatch.delenv(f"RADAR_ENQUETEUR_ACTIF_{nom}", raising=False)
+    registre = construire_registre_fournisseurs_gratuits(engine_test)
+    assert {f.nom for f in registre.fournisseurs_actifs()} == {"algolia_hn", "reddit", "magasin_interne"}
+
+
+def test_construire_registre_reddit_desactivable_meme_avec_identifiants(engine_test, monkeypatch, reddit_faux):
     monkeypatch.delenv("RADAR_ENQUETEUR_ACTIF_ALGOLIA_HN", raising=False)
-    monkeypatch.setenv("RADAR_ENQUETEUR_ACTIF_REDDIT", "1")
+    monkeypatch.setenv("RADAR_ENQUETEUR_ACTIF_REDDIT", "0")
     registre = construire_registre_fournisseurs_gratuits(engine_test)
-    actifs = registre.fournisseurs_actifs()
-    assert {f.nom for f in actifs} == {"algolia_hn", "reddit", "magasin_interne"}
+    assert "reddit" not in {f.nom for f in registre.fournisseurs_actifs()}
 
 
 def test_construire_registre_chaque_fournisseur_reste_desactivable_individuellement(engine_test, monkeypatch):

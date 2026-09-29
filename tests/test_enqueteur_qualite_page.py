@@ -336,5 +336,6 @@ def test_seuils_et_plafonds_de_la_sous_etape_3_17(_vrais_quotas):
     assert _vrais_quotas["seuil_similarite_magasin_interne"] == 0.21
     assert _vrais_quotas["max_dossiers_par_source"] == 3
     assert _vrais_quotas["enqueteur_page_longueur_min_caracteres"] == 300
-    assert _vrais_quotas["echantillon_rejetes_pour_controle"] == 0.02
-    assert _vrais_quotas["max_tirages_controle_par_jour"] == 5
+    # 4.1 : tirage de contrôle supprimé (mode économe, décision de Mathéo du 29/09).
+    assert _vrais_quotas["echantillon_rejetes_pour_controle"] == 0.0
+    assert _vrais_quotas["max_tirages_controle_par_jour"] == 0

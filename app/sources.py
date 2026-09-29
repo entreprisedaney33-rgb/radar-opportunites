@@ -108,6 +108,13 @@ def sources() -> list[SourceConfig]:
 _PATRON_SUBREDDIT = re.compile(r"reddit\.com/r/([A-Za-z0-9_]+)/")
 
 
+def est_source_reddit(src: SourceConfig) -> bool:
+    """Sous-étape 4.0 : une source dont l'URL pointe vers un subreddit est
+    collectée par l'API officielle (`app.adapters.reddit_api`), jamais par
+    `AdaptateurRSS`."""
+    return _PATRON_SUBREDDIT.search(src.url) is not None
+
+
 def subreddits_douleur(liste_sources: list[SourceConfig] | None = None) -> list[str]:
     """Sous-étape 1.2 : les subreddits éligibles au connecteur de recherche
     (`app/adapters/reddit_recherche.py`, sub × expression) sont exactement

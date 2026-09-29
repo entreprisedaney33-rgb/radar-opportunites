@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 
 from app import config as cfg
 from app.adapters import http as http_module
+from app.adapters import reddit_api
 from app.storage.db import migrer
 
 
@@ -37,6 +38,11 @@ def _cache_config_propre(monkeypatch):
     # jamais lue depuis l'environnement réel du poste qui lance les tests.
     monkeypatch.setenv("RADAR_ENQUETEUR_ACTIF_BRAVE_SEARCH", "0")
     monkeypatch.delenv("RADAR_BRAVE_SEARCH_API_KEY", raising=False)
+    # Sous-étape 4.0 : jamais d'identifiants Reddit réels dans la suite (le
+    # poste de Mathéo peut les avoir exportés) ; client partagé remis à zéro.
+    for variable in reddit_api.VARIABLES_ENV:
+        monkeypatch.delenv(variable, raising=False)
+    reddit_api.reinitialiser_pour_tests()
     cfg.get_settings.cache_clear()
     # Sous-étape 3.6, point 4 : l'espacement proactif par hôte
     # (app.adapters.http, `_dernier_appel_par_hote`) est un état du PROCESSUS,
@@ -73,3 +79,75 @@ def engine_test(tmp_path):
     moteur = create_engine(f"sqlite:///{chemin}", future=True, connect_args={"check_same_thread": False})
     migrer(moteur)
     return moteur
+
+
+# --------------------------------------------------------------- Reddit (4.0)
+class FausseReponseReddit:
+    def __init__(self, status_code=200, corps=None, en_tetes=None):
+        self.status_code = status_code
+        self._corps = corps if corps is not None else {}
+        self.headers = en_tetes or {}
+
+    def json(self):
+        if isinstance(self._corps, Exception):
+            raise self._corps
+        return self._corps
+
+
+class FauxServeurReddit:
+    """Sert de `http` au `ClientRedditAPI` : `post` = jeton, `get` = données.
+    Réponses de données consommées dans l'ordre de `reponses` (la dernière est
+    répétée) ; tout est enregistré dans `appels_get` / `appels_post`."""
+
+    def __init__(self):
+        self.reponses = [FausseReponseReddit(200, {"data": {"children": []}})]
+        self.appels_get: list[dict] = []
+        self.appels_post: list[dict] = []
+        self.reponse_jeton = lambda n: FausseReponseReddit(200, {"access_token": f"jeton{n}", "expires_in": 86400})
+
+    def post(self, url, **kw):
+        self.appels_post.append({"url": url, **kw})
+        return self.reponse_jeton(len(self.appels_post))
+
+    def get(self, url, **kw):
+        self.appels_get.append({"url": url, **kw})
+        index = min(len(self.appels_get) - 1, len(self.reponses) - 1)
+        return self.reponses[index]
+
+
+@pytest.fixture
+def reddit_faux(monkeypatch):
+    """Identifiants factices posés dans l'environnement + client partagé
+    branché sur un faux serveur, horloge et attente simulées (aucun réseau,
+    aucune vraie attente). Renvoie `(serveur, attentes)`."""
+    monkeypatch.setenv("RADAR_REDDIT_CLIENT_ID", "id_factice")
+    monkeypatch.setenv("RADAR_REDDIT_CLIENT_SECRET", "secret_factice")
+    monkeypatch.setenv("RADAR_REDDIT_USER_AGENT", "radar-test/1.0 (by /u/factice)")
+    serveur = FauxServeurReddit()
+    attentes: list[float] = []
+    temps = {"t": 1000.0}
+
+    def _dormir(secondes):
+        attentes.append(secondes)
+        temps["t"] += secondes
+
+    client = reddit_api.ClientRedditAPI(
+        "id_factice", "secret_factice", "radar-test/1.0 (by /u/factice)",
+        http=serveur, horloge=lambda: temps["t"], dormir=_dormir,
+    )
+    client.temps = temps  # les tests peuvent faire avancer l'horloge
+    reddit_api._client = client
+    reddit_api._cle_client = reddit_api._identifiants()
+    return serveur, attentes
+
+
+def listing_reddit(*posts):
+    """JSON de liste Reddit à partir de dicts de champs de posts."""
+    return {"kind": "Listing", "data": {"children": [{"kind": "t3", "data": p} for p in posts]}}
+
+
+def post_reddit(identifiant="a1", sub="smallbusiness", titre="Titre", texte="Corps du post", cree=1790000000, **extra):
+    return {
+        "id": identifiant, "subreddit": sub, "title": titre, "selftext": texte,
+        "permalink": f"/r/{sub}/comments/{identifiant}/x/", "created_utc": cree, **extra,
+    }

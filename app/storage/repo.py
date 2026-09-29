@@ -9,7 +9,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import func, inspect, insert, select, update
 from sqlalchemy.engine import Engine
 
 from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import insert as postgres_upsert
 
 from app.storage.schema import (
     assessments,
+    faisabilites,
     controles,
     decisions,
     etats_disjoncteur_api,
@@ -515,7 +516,7 @@ def inserer_assessment(engine: Engine, *, opportunity_id: str, run_id: str, role
 
 def inserer_score(engine: Engine, *, opportunity_id: str, run_id: str, version_poids: str, valeurs: dict,
                    score_brut: float, score_prudent: float, couverture_preuves: float, flags: list,
-                   decision_critic: str | None) -> str:
+                   decision_critic: str | None, origine: str | None = None) -> str:
     """Toujours un INSERT : jamais d'UPDATE sur cette table (historique
     conservé, §5 « pas d'écrasement silencieux »)."""
     s_id = _uid()
@@ -532,6 +533,7 @@ def inserer_score(engine: Engine, *, opportunity_id: str, run_id: str, version_p
                 couverture_preuves=couverture_preuves,
                 flags_json=flags,
                 decision_critic=decision_critic,
+                origine=origine,
                 date_creation=_now(),
             )
         )
@@ -633,7 +635,7 @@ def nombre_appels_approfondis_jour_utc(engine: Engine, jour: date) -> int:
             select(func.count()).select_from(usage_events).where(
                 usage_events.c.date_creation >= debut,
                 usage_events.c.date_creation < fin,
-                usage_events.c.role.in_(("analyst", "critic")),
+                usage_events.c.role.in_(("analyst", "critic", "faisabilite")),
             )
         ).scalar_one()
 
@@ -885,3 +887,83 @@ def ecrire_disjoncteur_api(
         stmt = upsert(etats_disjoncteur_api).values(cle=CLE_DISJONCTEUR_API, **valeurs)
         stmt = stmt.on_conflict_do_update(index_elements=["cle"], set_=valeurs)
         cx.execute(stmt)
+
+
+# --------------------------------------------- sous-étape 4.1 (faisabilité) ---
+
+def inserer_faisabilite(engine: Engine, *, opportunity_id: str, run_id: str | None, origine: str, payload: dict,
+                        accessible_solo: bool | None, motif_exclusion: str | None, modele: str | None) -> str:
+    """Append-only, comme `scores` : la dernière ligne par dossier fait foi."""
+    f_id = _uid()
+    with engine.begin() as cx:
+        cx.execute(
+            insert(faisabilites).values(
+                id=f_id, opportunity_id=opportunity_id, run_id=run_id, origine=origine, payload_json=payload,
+                accessible_solo=accessible_solo, motif_exclusion=motif_exclusion, modele=modele,
+                date_creation=_now(),
+            )
+        )
+    return f_id
+
+
+def dossiers_avec_faisabilite(engine: Engine) -> set[str]:
+    """Vide si la table n'existe pas encore (base lue en lecture seule AVANT
+    la migration de déploiement -- simulation de `app.recalcul`)."""
+    if "faisabilites" not in inspect(engine).get_table_names():
+        return set()
+    with engine.connect() as cx:
+        return {r[0] for r in cx.execute(select(faisabilites.c.opportunity_id).distinct()).all()}
+
+
+def dernier_score_par_dossier(engine: Engine) -> dict[str, dict]:
+    """Dernière ligne de `scores` de chaque dossier (par `date_creation`).
+    Ne sélectionne que les colonnes réellement présentes (la colonne
+    `origine` de 4.1 manque tant que la migration n'a pas tourné -- base lue
+    en lecture seule avant le déploiement)."""
+    presentes = {c["name"] for c in inspect(engine).get_columns("scores")}
+    colonnes = [c for c in scores.c if c.name in presentes]
+    with engine.connect() as cx:
+        lignes = cx.execute(select(*colonnes).order_by(scores.c.date_creation)).mappings().all()
+    derniers: dict[str, dict] = {}
+    for ligne in lignes:  # ordre croissant : la dernière écrase
+        derniers[ligne["opportunity_id"]] = {"origine": None, **dict(ligne)}
+    return derniers
+
+
+def dernier_assessment(engine: Engine, opportunity_id: str, role: str) -> dict | None:
+    with engine.connect() as cx:
+        row = cx.execute(
+            select(assessments).where(assessments.c.opportunity_id == opportunity_id, assessments.c.role == role)
+            .order_by(assessments.c.date_creation.desc()).limit(1)
+        ).mappings().first()
+    return dict(row) if row else None
+
+
+def derniers_assessments_par_dossier(engine: Engine, role: str) -> dict[str, dict]:
+    """Version en une seule requête de `dernier_assessment` pour tous les
+    dossiers (recalcul 4.1 : une requête distante par dossier était trop lente)."""
+    with engine.connect() as cx:
+        lignes = cx.execute(
+            select(assessments).where(assessments.c.role == role).order_by(assessments.c.date_creation)
+        ).mappings().all()
+    derniers: dict[str, dict] = {}
+    for ligne in lignes:  # ordre croissant : la dernière écrase
+        derniers[ligne["opportunity_id"]] = dict(ligne)
+    return derniers
+
+
+def infos_sources_tous_dossiers(engine: Engine) -> dict[str, dict[str, dict]]:
+    """Version en une seule requête de `infos_sources_du_dossier` :
+    `{opportunity_id: {source_id: {"domaine", "origine"}}}`."""
+    with engine.connect() as cx:
+        rows = cx.execute(
+            select(opportunity_evidence.c.opportunity_id, opportunity_evidence.c.source_id, sources.c.domaine,
+                   opportunity_evidence.c.claim)
+            .select_from(opportunity_evidence.join(sources, opportunity_evidence.c.source_id == sources.c.id))
+        ).all()
+    tous: dict[str, dict[str, dict]] = {}
+    for opp_id, source_id, domaine, claim in rows:
+        info = tous.setdefault(opp_id, {}).setdefault(source_id, {"domaine": domaine, "origine": False})
+        if claim.startswith("Scout: "):
+            info["origine"] = True
+    return tous

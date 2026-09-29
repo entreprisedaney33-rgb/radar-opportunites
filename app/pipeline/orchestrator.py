@@ -38,12 +38,15 @@ from app.adapters.hn_recherche import TAGS_VALIDES as HN_TAGS_VALIDES
 from app.adapters.hn_recherche import AdaptateurRechercheHN
 from app.adapters.http import TropDeRequetes
 from app.adapters.model_client import DisjoncteurAPIOuvert, ModelClient
+from app.adapters import reddit_api
+from app.adapters.reddit_api import AdaptateurRedditNouveaux
 from app.adapters.reddit_recherche import AdaptateurRechercheReddit
 from app.adapters.rss_adapter import AdaptateurRSS
 from app.enqueteur.enqueteur import enqueter_opportunite
 from app.enqueteur.fournisseurs_gratuits import construire_registre_fournisseurs_gratuits
 from app.enqueteur.gabarits import HypotheseEnqueteur
 from app.models_schemas import DecisionCritic
+from app import recalcul
 from app.pipeline import dedupe
 from app.pipeline.budget import BudgetDepasse, BudgetTracker
 from app.pipeline.mots_cles import deriver_mots_cles_repli, valider_mots_cles
@@ -51,6 +54,7 @@ from app.pipeline.normalisation import inferer_secteur
 from app.pipeline.planificateur_recherche import FluxRecherche, choisir_flux_a_visiter
 from app.roles import analyst as role_analyst
 from app.roles import critic as role_critic
+from app.roles import faisabilite as role_faisabilite
 from app.roles import scout as role_scout
 from app.roles.critic import STATUT_PAR_DECISION
 from app.reprise import reprise_au_demarrage
@@ -126,6 +130,12 @@ def _construire_adaptateurs_recherche_reddit(
     subs = config_sources.subreddits_douleur()
     expressions_douleur = lexique_douleur.expressions()
     if not subs or not expressions_douleur:
+        return []
+    if reddit_api.obtenir_client() is None:
+        # Sous-étape 4.0 : API inactive (identifiants absents, dit dans les
+        # logs) -- aucun créneau de rotation consommé, aucune combinaison
+        # marquée visitée : tout reprendra normalement dès que les variables
+        # seront posées.
         return []
 
     tous_les_flux = [
@@ -225,9 +235,16 @@ def _construire_adaptateurs(
     adaptateurs.extend(_construire_adaptateurs_recherche_reddit(engine, quotas))
     adaptateurs.extend(_construire_adaptateurs_recherche_hn(engine, quotas))
     actives = [src for src in config_sources.sources() if src.actif]
-    adaptateurs.extend(
-        (AdaptateurRSS(src.id, src.nom, src.url), src.budget_appels_par_nuit, src) for src in actives
-    )
+    for src in actives:
+        if config_sources.est_source_reddit(src):
+            # Sous-étape 4.0 : Reddit ne passe plus JAMAIS par un flux RSS,
+            # seulement par l'API officielle ; sans identifiants, ignoré.
+            if reddit_api.obtenir_client() is not None:
+                adaptateurs.append(
+                    (AdaptateurRedditNouveaux(src.id, src.nom, src.url), src.budget_appels_par_nuit, src)
+                )
+            continue
+        adaptateurs.append((AdaptateurRSS(src.id, src.nom, src.url), src.budget_appels_par_nuit, src))
     if not adaptateurs:
         conf = cfg.sources_autorisees()
         for src in conf.get("demo", []):
@@ -270,7 +287,7 @@ def _collecter(
     consecutifs_429_reddit = 0
     reddit_en_pause = False
     for adaptateur, budget_source, config_source in adaptateurs:
-        est_reddit = isinstance(adaptateur, AdaptateurRechercheReddit)
+        est_reddit = isinstance(adaptateur, (AdaptateurRechercheReddit, AdaptateurRedditNouveaux))
         if est_reddit and reddit_en_pause:
             continue
         type_flux = config_source.type if config_source is not None else "douleur"
@@ -710,6 +727,13 @@ def _phase_analyse_et_critique(
             version_prompt=role_analyst.VERSION_PROMPT,
             inconnues=[i for c in analyst_sortie.criteres for i in c.inconnues],
         )
+        if analyst_sortie.faisabilite is not None:
+            # Sous-étape 4.1 : hypothèses de faisabilité, JAMAIS dans le score
+            # (`calculer_score` ne lit que `analyst_sortie.criteres`).
+            recalcul.enregistrer_faisabilite(
+                engine, opportunity_id, run_id, analyst_sortie.faisabilite,
+                origine="analyse", modele=modele_approfondi,
+            )
         empreintes_existantes = repo.empreintes_sources_citees(engine, opportunity_id)
         for critere in analyst_sortie.criteres:
             for affirmation in critere.affirmations:
@@ -778,6 +802,49 @@ def _phase_analyse_et_critique(
             score_brut=resultat_score.score_brut, score_prudent=resultat_score.score_prudent,
             couverture_preuves=resultat_score.couverture_preuves, flags=resultat_score.flags,
             decision_critic=critic_sortie.decision.value,
+        )
+        if resultat_score.score_prudent < cfg.faisabilite()["seuil_score_liste"]:
+            # Sous-étape 4.1 : sous le seuil, le dossier est archivé (gardé,
+            # jamais supprimé) au lieu de rester dans les listes courantes.
+            recalcul.archiver_faible(
+                engine, opportunity_id, statut_avant=statut_final, score=resultat_score.score_prudent,
+            )
+
+
+def _phase_faisabilite(
+    engine: Engine, run_id: str, *, quotas: dict, settings, model_client: ModelClient | None,
+    resume: ResumeRun, debut: float, duree_max: float,
+) -> None:
+    """Sous-étape 4.1 : reprise de la faisabilité des dossiers déjà notés >= 50
+    (`app.recalcul.dossiers_pour_faisabilite`), SEULEMENT si
+    `RADAR_FAISABILITE_REPRISE=1`. Un appel court par dossier
+    (`app.roles.faisabilite`), sans relancer l'Analyst ni le Critic ; le
+    plafond de budget du jour s'applique comme partout."""
+    if model_client is None or not recalcul.reprise_faisabilite_active():
+        return
+    candidats = recalcul.dossiers_pour_faisabilite(engine)
+    for o in candidats[: quotas.get("max_faisabilites_par_passage", quotas["max_analyses_par_passage"])]:
+        if time.monotonic() - debut > duree_max:
+            resume.temps_ecoule = True
+            break
+        try:
+            bloc = role_faisabilite.executer_faisabilite(
+                opportunity_id=o["id"], opportunite=_opportunite_par_id(engine, o["id"]),
+                preuves=_charger_preuves(engine, o["id"]), model_client=model_client, modele=settings.model_approfondi,
+            )
+        except BudgetDepasse as exc:
+            resume.budget_atteint = True
+            resume.erreurs.append(str(exc))
+            break
+        except DisjoncteurAPIOuvert as exc:
+            resume.api_en_erreur = True
+            resume.erreurs.append(str(exc))
+            logger.error("Disjoncteur API ouvert -- reprise de faisabilité interrompue : %s", exc)
+            break
+        if bloc is None:
+            continue  # sortie invalide après relance : retenté au passage suivant, jamais de valeur inventée
+        recalcul.enregistrer_faisabilite(
+            engine, o["id"], run_id, bloc, origine=recalcul.ORIGINE_FAISABILITE_REPRISE, modele=settings.model_approfondi,
         )
 
 
@@ -899,6 +966,10 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
     # le retraitement lui-même est fait par `_phase_reprise` ci-dessous, en
     # priorité à chaque passage. Le résumé est recopié dans `runs.erreurs_json`.
     resume_reprise = reprise_au_demarrage(engine)
+    # Sous-étape 4.1 : recalcul des scores + archivage si RADAR_RECALCUL_4_1=1
+    # (voir app.recalcul) ; même canal de message que la reprise ci-dessus.
+    message_recalcul = recalcul.recalcul_au_demarrage(engine)
+    resume_reprise = " | ".join(m for m in (resume_reprise, message_recalcul) if m) or None
 
     while True:
         if _pause_demandee(engine):
@@ -981,6 +1052,11 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
                 engine, run_id, quotas=quotas, settings=settings, model_client=model_client,
                 resume=resume, debut=debut, duree_max=duree_max_passage,
             )
+            if not (resume.budget_atteint or resume.temps_ecoule or resume.api_en_erreur):
+                _phase_faisabilite(
+                    engine, run_id, quotas=quotas, settings=settings, model_client=model_client,
+                    resume=resume, debut=debut, duree_max=duree_max_passage,
+                )
             if not (resume.budget_atteint or resume.temps_ecoule or resume.api_en_erreur):
                 _phase_collecte_et_scout(
                     engine, run_id, options=options, quotas=quotas, settings=settings, model_client=model_client,

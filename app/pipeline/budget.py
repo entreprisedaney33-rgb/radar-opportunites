@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 # Rôles dont le modèle est l'« approfondi » (Analyst/Critic) — le Scout
 # utilise le modèle de tri, bien moins cher, et n'est jamais compté ici.
-ROLES_APPROFONDIS = {"analyst", "critic"}
+ROLES_APPROFONDIS = {"analyst", "critic", "faisabilite"}  # faisabilite : sous-étape 4.1
 
 # Rôles journalisés dans `usage_events` pour les deux compteurs de
 # l'Enquêteur (sous-étape 3.1) — jamais de coût réel en V1 (fournisseurs

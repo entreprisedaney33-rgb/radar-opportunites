@@ -32,6 +32,13 @@ chaque produit déployé a son propre petit dépôt externe).
 - Ne jamais éditer directement dans le dépôt de déploiement : toujours
   modifier ici, tester, puis synchroniser.
 
+État au 2026-09-29 (sous-étape 4.1) : mode économe (5 €/jour, 260 appels
+approfondis, tirage de contrôle 0), bloc de faisabilité `accessible_solo`
+(`app/faisabilite.py`, `config/faisabilite.yaml`), recalcul des scores +
+statut `archive_faible` sous 50 (`app/recalcul.py`, interrupteurs Render
+`RADAR_RECALCUL_4_1` / `RADAR_FAISABILITE_REPRISE`, éteints par défaut).
+Reddit (4.0) : optionnelle, en attente d'identifiants ; moteur web payant reporté.
+
 État au 2026-09-25 :
 - **Phase 0 et Phase 1 faites** : pipeline local complet et testé (38 tests,
   aucun appel réseau/modèle dans les tests).

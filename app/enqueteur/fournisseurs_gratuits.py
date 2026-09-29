@@ -2,68 +2,35 @@
 Algolia HN, Reddit, magasin interne. Les trois implémentent
 `FournisseurRecherche` (`app.enqueteur.fournisseurs`) — appelés par le
 pipeline réel depuis la sous-étape 3.4
-(`app.pipeline.orchestrator._phase_enquete`). Algolia HN et magasin interne
-sont actifs par défaut ; Reddit ne l'est plus depuis la sous-étape 3.11 (voir
-plus bas) -- les trois restent activables/désactivables individuellement via
-`RADAR_ENQUETEUR_ACTIF_<NOM>` (`app.enqueteur.fournisseurs.RegistreFournisseurs.est_actif`).
-Dans la suite de tests par défaut, Algolia HN et Reddit (seuls à faire de
-vrais appels réseau) sont en plus désactivés par un réglage global
-(`tests/conftest.py`, garde-fou §0.2.5) — seul « magasin interne » (aucun
-réseau) reste actif par défaut en test.
+(`app.pipeline.orchestrator._phase_enquete`), chacun activable/désactivable
+via `RADAR_ENQUETEUR_ACTIF_<NOM>`
+(`app.enqueteur.fournisseurs.RegistreFournisseurs.est_actif`). Dans la suite
+de tests par défaut, Algolia HN et Reddit sont désactivés par un réglage
+global (`tests/conftest.py`, garde-fou §0.2.5 : aucun réseau).
 
-Algolia HN et Reddit réutilisent le client HTTP et les précautions de débit
-des connecteurs de recherche du Scout (sous-étapes 1.2/1.3,
-`app.adapters.reddit_recherche` / `app.adapters.hn_recherche` : même
-`get_with_retry` — User-Agent stable, retry plafonné, backoff sur 429 — même
-parseur), mais interrogent une REQUÊTE LIBRE générée par
-`app.enqueteur.gabarits` pour UNE opportunité donnée, pas une expression fixe
-du lexique de douleur pour tout le radar. Différence pour Reddit : l'Enquêteur
-n'a pas de subreddit cible (contrairement au Scout, où le sub vient de
-`app/sources.yaml`), donc la recherche porte sur Reddit entier
-(`/search.rss`, pas `/r/<sub>/search.rss`) — format Atom du même service,
-non re-vérifié manuellement séparément (celui de 1.2 l'a été).
-
-Le magasin interne, lui, ne fait AUCUNE requête réseau : il compare la
-requête aux items `signal_concurrence` déjà stockés (sous-étape 1.1) avec la
-même mesure de similarité que le dédoublonnage
-(`app.pipeline.dedupe.similarite_lexicale`).
-
-Format Reddit site entier — vérifié par 2 requêtes réelles hors tests le
-25/09/2026 (voir Journal de la sous-étape 3.3) : sans `type=link`, la
-recherche `/search.rss` mélange des posts ET des résultats de communauté
-(un `<entry>` dont le lien pointe vers la racine d'un subreddit, sans date
-de publication — 3 des 25 premiers résultats pour la requête `manually`).
-Avec `type=link`, les 25 résultats sont bien des posts, chacun avec son
-`<published>`. `GABARIT_URL_REDDIT_SITEWIDE` inclut donc `type=link`.
-
-Sous-étape 3.11 :
-- `FournisseurReddit` est désormais `actif_par_defaut=False` (point 5 du
-  texte de 3.11) -- tant que l'API officielle Reddit n'est pas en place
-  (piste notée en §9 d'AMELIORATIONS.md à l'étape 3.9), le laisser actif par
-  défaut ne fait qu'exposer le disjoncteur ci-dessous en conditions réelles.
-  `RADAR_ENQUETEUR_ACTIF_REDDIT=1` (mécanisme déjà posé en 3.1,
-  `RegistreFournisseurs.est_actif`) le réactive explicitement.
-- Disjoncteur (`app.enqueteur.disjoncteur`) : après
-  `disjoncteur.SEUIL_ECHECS_CONSECUTIFS` réponses 429 CONSÉCUTIVES (une par
-  appel à `rechercher`, chacun ayant déjà épuisé ses tentatives internes --
-  `TropDeRequetes`), Reddit est mis en pause pour
-  `disjoncteur.DUREE_PAUSE_MINUTES` : `rechercher` renvoie `[]`
-  immédiatement, sans même tenter l'appel HTTP, tant que la pause n'est pas
-  écoulée. État persisté en base (jamais en mémoire du processus, voir la
-  docstring de `app.enqueteur.disjoncteur`) -- absent si `engine` est `None`
-  (comportement d'un fournisseur construit directement dans un test unitaire
-  sans base : jamais de disjoncteur dans ce cas, comme pour la journalisation
-  HTTP ci-dessus)."""
+- Algolia HN réutilise le client HTTP et le gabarit d'URL du connecteur 1.3
+  (`app.adapters.hn_recherche`) pour une REQUÊTE LIBRE générée par
+  `app.enqueteur.gabarits` pour UNE opportunité donnée.
+- Reddit (sous-étape 4.0) passe par l'API officielle (`app.adapters.reddit_api`),
+  recherche site entier ; actif par défaut uniquement si les identifiants
+  d'environnement sont présents. Disjoncteur 429 (sous-étape 3.11,
+  `app.enqueteur.disjoncteur`) conservé, état persisté en base (absent si
+  `engine` est `None`).
+- Le magasin interne ne fait AUCUNE requête réseau : il compare la requête
+  aux items `signal_concurrence` déjà stockés (sous-étape 1.1) avec la même
+  mesure de similarité que le dédoublonnage
+  (`app.pipeline.dedupe.similarite_lexicale`).
+"""
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-import feedparser
 from sqlalchemy.engine import Engine
 
 from app import config as cfg
+from app.adapters import reddit_api
 from app.adapters.hn_recherche import GABARIT_URL as GABARIT_URL_HN
 from app.adapters.http import ErreurCollecte, TropDeRequetes, get_with_retry
 from app.enqueteur import disjoncteur
@@ -76,8 +43,6 @@ from app.pipeline.dedupe import similarite_lexicale
 from app.storage import repo
 
 logger = logging.getLogger(__name__)
-
-GABARIT_URL_REDDIT_SITEWIDE = "https://www.reddit.com/search.rss?q={q}&sort=relevance&type=link"
 
 _TAGS_HN = ("comment", "ask_hn")
 
@@ -166,28 +131,26 @@ class FournisseurAlgoliaHN:
 
 
 class FournisseurReddit:
-    """Réutilise le client HTTP et le parseur Atom du connecteur de 1.2
-    (`app.adapters.reddit_recherche`, `feedparser` déjà employé pour les
-    mêmes champs `link`/`title`/`summary`/`published_parsed`), mais sur la
-    recherche Reddit SITE ENTIER : l'Enquêteur enquête sur une opportunité
-    donnée, pas sur un subreddit fixé à l'avance par `app/sources.yaml`.
-    `type=link` dans `GABARIT_URL_REDDIT_SITEWIDE` est nécessaire : sans lui,
-    Reddit mélange des résultats de communauté (posts d'accueil de
-    subreddits, sans date) parmi les vrais posts (vérifié le 25/09/2026,
-    sous-étape 3.3)."""
+    """Sous-étape 4.0 : recherche Reddit SITE ENTIER par l'API officielle
+    (`app.adapters.reddit_api`, `oauth.reddit.com/search`, `type=link`), plus
+    jamais par le flux Atom `search.rss`. L'Enquêteur enquête sur une
+    opportunité donnée, pas sur un subreddit fixé à l'avance. Sans les
+    identifiants d'environnement, le fournisseur n'est pas actif (voir
+    `construire_registre_fournisseurs_gratuits`) et, s'il est appelé quand
+    même, renvoie `[]` sans aucune requête."""
 
     nom = "reddit"
     sans_reseau = False  # vrai appel réseau -- consomme max_requetes_recherche_par_jour
 
     def __init__(self, engine: Engine | None = None):
-        """`engine` (sous-étape 3.7) : voir `FournisseurAlgoliaHN.__init__`.
-        Sous-étape 3.11 : sert aussi de clé pour le disjoncteur (lecture/
-        écriture en base) -- absent (`None`, cas des tests unitaires qui
-        construisent ce fournisseur directement), le disjoncteur est
-        simplement désactivé (jamais en pause, jamais mis à jour)."""
+        """`engine` : journalisation `journal_http` et disjoncteur (3.11) --
+        `None` (tests unitaires directs) : ni l'un ni l'autre."""
         self.engine = engine
 
     def rechercher(self, requete: str, limite: int) -> list[ResultatRecherche]:
+        client = reddit_api.obtenir_client()
+        if client is None:
+            return []
         if self.engine is not None:
             etat = _lire_etat_disjoncteur(self.engine, disjoncteur.NOM_REDDIT)
             if disjoncteur.est_en_pause(etat, datetime.now(timezone.utc)):
@@ -197,12 +160,11 @@ class FournisseurReddit:
                 )
                 return []
 
-        url = GABARIT_URL_REDDIT_SITEWIDE.format(q=quote(requete))
-        journal = (
-            {"engine": self.engine, "contexte": f"enqueteur_recherche:{self.nom}"} if self.engine is not None else {}
-        )
         try:
-            resp = get_with_retry(url, **journal)
+            listing = client.get_json(
+                "/search", {"q": requete, "sort": "relevance", "type": "link", "limit": max(1, min(limite, 100))},
+                engine=self.engine, contexte="reddit_api:enqueteur",
+            )
         except TropDeRequetes as exc:
             logger.warning("Enquêteur Reddit : 429 persistant pour %r : %s", requete, exc)
             if self.engine is not None:
@@ -226,27 +188,20 @@ class FournisseurReddit:
                 disjoncteur.apres_succes(_lire_etat_disjoncteur(self.engine, disjoncteur.NOM_REDDIT)),
             )
 
-        flux = feedparser.parse(resp.content)
-        resultats: list[ResultatRecherche] = []
-        for entree in flux.entries[:limite]:
-            url_entree = getattr(entree, "link", None)
-            if not url_entree:
-                continue
-            titre = getattr(entree, "title", "") or ""
-            extrait = getattr(entree, "summary", "") or ""
-            horodatage_source = None
-            if getattr(entree, "published_parsed", None):
-                horodatage_source = datetime(*entree.published_parsed[:6], tzinfo=timezone.utc)
-            resultats.append(
-                ResultatRecherche(
-                    url=url_entree,
-                    titre=titre,
-                    extrait=extrait or titre,
-                    horodatage_source=horodatage_source,
-                    fournisseur=self.nom,
-                )
+        signaux = reddit_api.signaux_depuis_listing(
+            listing, domaine="reddit.com", droits="API officielle Reddit (OAuth application), /search, usage interne",
+            flux_origine="reddit", requete_origine=requete, limite=limite,
+        )
+        return [
+            ResultatRecherche(
+                url=s.url,
+                titre=s.texte.split(" — ", 1)[0],
+                extrait=s.texte,
+                horodatage_source=s.date_publication,
+                fournisseur=self.nom,
             )
-        return resultats
+            for s in signaux
+        ]
 
 
 class FournisseurMagasinInterne:
@@ -315,10 +270,13 @@ def construire_registre_fournisseurs_gratuits(engine: Engine) -> RegistreFournis
         DefinitionFournisseur(nom="algolia_hn", fabrique=lambda: FournisseurAlgoliaHN(engine), actif_par_defaut=True)
     )
     registre.enregistrer(
-        # Sous-étape 3.11, point 5 : désactivé par défaut tant que l'API
-        # officielle Reddit n'est pas en place -- RADAR_ENQUETEUR_ACTIF_REDDIT=1
-        # le réactive explicitement (mécanisme déjà posé en 3.1).
-        DefinitionFournisseur(nom="reddit", fabrique=lambda: FournisseurReddit(engine), actif_par_defaut=False)
+        # Sous-étape 4.0 : réactivé par défaut, via l'API officielle -- mais
+        # seulement si les identifiants d'environnement sont présents (sans
+        # eux, jamais actif : aucune requête gaspillée ni compteur consommé).
+        # RADAR_ENQUETEUR_ACTIF_REDDIT=0/1 garde la priorité (mécanisme 3.1).
+        DefinitionFournisseur(
+            nom="reddit", fabrique=lambda: FournisseurReddit(engine), actif_par_defaut=reddit_api.configuree(),
+        )
     )
     registre.enregistrer(
         DefinitionFournisseur(

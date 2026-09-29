@@ -709,3 +709,27 @@ def test_main_comparer_date_invalide(capsys):
     code = main(["--jour", "2026-01-15", "--comparer", "pas-une-date"])
     assert code == 1
     assert "Format de date invalide" in capsys.readouterr().err
+
+
+def test_reddit_api_distinguee_des_anciens_flux_reddit(engine_test):
+    """Sous-étape 4.0 : `reddit_api` (contextes `reddit_api:*`) est agrégé à
+    part des anciens flux Reddit (RSS/Atom), qui ne devraient plus apparaître."""
+    _construire_jeu_de_test(engine_test)
+    _appel_http(engine_test, "r1", flux_ou_fournisseur="reddit_api:jeton", code_http=200)
+    _appel_http(engine_test, "r2", flux_ou_fournisseur="reddit_api:new:msp", code_http=200)
+    _appel_http(engine_test, "r3", flux_ou_fournisseur="reddit_api:enqueteur", code_http=429)
+    _appel_http(engine_test, "r4", flux_ou_fournisseur="reddit_recherche:msp:manually_en", code_http=200)
+    _appel_http(engine_test, "r5", flux_ou_fournisseur="rss:product_hunt", code_http=200)
+
+    m = calculer_metriques(engine_test, JOUR)
+
+    assert m["reddit_api"] == {
+        "appels": 3, "succes": 2, "http_429": 1, "http_403": 0, "autres_erreurs": 0, "taux_succes": 0.6667,
+    }
+    assert m["reddit_anciens_flux"]["appels"] == 1
+
+
+def test_reddit_api_sans_appel_donne_taux_null(engine_test):
+    _construire_jeu_de_test(engine_test)
+    m = calculer_metriques(engine_test, JOUR)
+    assert m["reddit_api"]["appels"] == 0 and m["reddit_api"]["taux_succes"] is None

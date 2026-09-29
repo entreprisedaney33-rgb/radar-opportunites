@@ -141,6 +141,10 @@ scores = Table(
     Column("flags_json", JSON, nullable=False, default=list),
     Column("decision_critic", String, nullable=True),
     Column("date_creation", DateTime(timezone=True), nullable=False),
+    # Sous-étape 4.1 (migration additive, NULL pour tout l'historique) :
+    # `recalcul_4_1` = ligne écrite par `app.recalcul` (règle actuelle
+    # appliquée à une analyse ancienne), jamais par une vraie analyse.
+    Column("origine", String, nullable=True),
 )
 # Append-only par construction : le code ne fait jamais d'UPDATE sur `scores`,
 # uniquement des INSERT (voir storage/repo.py). L'historique des scores
@@ -300,3 +304,20 @@ etats_disjoncteur_api = Table(
 # son repli heuristique. Même raisonnement que `etats_disjoncteur_enqueteur`
 # ci-dessus (fenêtre en MINUTES, doit survivre plusieurs passages, lisible
 # par `app.metriques`) : table neuve, pas de migration additive nécessaire.
+
+faisabilites = Table(
+    "faisabilites",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("opportunity_id", String, nullable=False),
+    Column("run_id", String, nullable=True),
+    Column("origine", String, nullable=False),  # analyse | reprise_4_1
+    Column("payload_json", JSON, nullable=False),  # FaisabiliteSortie (valeurs + justifications, type=hypothese)
+    Column("accessible_solo", Boolean, nullable=True),  # dérivé par le CODE ; NULL = non évaluée
+    Column("motif_exclusion", Text, nullable=True),  # dérivé par le CODE, lisible ; NULL si accessible
+    Column("modele", String, nullable=True),
+    Column("date_creation", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape 4.1 : faisabilité pour Mathéo, append-only (la dernière ligne par
+# dossier fait foi). Table neuve : aucune migration de colonne nécessaire.
+# Ne sert JAMAIS au score de preuve. Lue par le workflow Jarvis (onglet Radar).

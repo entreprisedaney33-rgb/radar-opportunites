@@ -15,7 +15,8 @@
 # (§1 du cahier des charges : la qualité prime sur le volume). Ce ne sont
 # pas des estimations de prix fournisseur.
 
-budget_eur_par_jour: 25.0
+# Sous-étape 4.1 (décision de Mathéo, 29/09/2026) : mode économe -- 25 -> 5 €.
+budget_eur_par_jour: 5.0
 
 # Second garde-fou, ajouté en sous-étape 0.7 (AMELIORATIONS.md), INDÉPENDANT
 # de toute estimation de prix : un plafond dur sur le nombre d'appels/jour au
@@ -32,7 +33,10 @@ budget_eur_par_jour: 25.0
 # (2/3) × (0,877/0,92) ≈ 19,44 €, soit ≈0,0187 €/appel approfondi. 25 € /
 # 0,0187 € ≈ 1334 appels — arrondi à la baisse par prudence (ce calcul reste
 # une extrapolation à partir d'UNE seule journée, pas une moyenne stable).
-max_appels_approfondis_par_jour: 1300
+#
+# Sous-étape 4.1 : recalé EN PROPORTION du plafond en euros (1300 x 5/25 = 260)
+# -- les deux garde-fous restent cohérents ; le premier atteint arrête.
+max_appels_approfondis_par_jour: 260
 
 # Taille d'UN passage (pas un plafond définitif : le retard non traité est
 # repris automatiquement au passage suivant).
@@ -89,8 +93,12 @@ pause_apres_passage_actif_secondes: 30
 # Analyst+Critic, ~7,7 €) pour 20 basculements en « à vérifier » ; à 0.02 le
 # nombre attendu par passage (max_analyses_par_passage x 0.02 = 0,3) est
 # tiré au sort (`app.pipeline.orchestrator._nombre_de_tirages`), pas arrondi.
-echantillon_rejetes_pour_controle: 0.02
-max_tirages_controle_par_jour: 5
+#
+# Sous-étape 4.1 : 0.02 -> 0 (mode économe, décision de Mathéo du 29/09) : plus
+# aucun tirage de contrôle des rejetés. À l'étape 5, une seconde analyse ne
+# sera déclenchée qu'au seuil d'éligibilité (voir §9, 3.17).
+echantillon_rejetes_pour_controle: 0.0
+max_tirages_controle_par_jour: 0
 
 # Réessais réseau : plafonnés, avec délai croissant, sur 429/5xx.
 retry_max_tentatives: 3

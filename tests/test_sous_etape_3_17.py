@@ -129,10 +129,11 @@ def test_sans_plafond_le_comportement_historique_est_inchange(engine_test):
     assert len([o for o in selection if o.get("tirage_controle")]) == 4
 
 
-def test_la_config_reelle_donne_2_pourcent_et_5_par_jour():
+def test_la_config_reelle_ne_tire_plus_aucun_controle():
+    # 3.17 avait posé 2 % / 5 par jour ; 4.1 (mode économe, 29/09) les passe à 0.
     quotas = cfg._load_yaml("quotas.yaml")
-    assert quotas["echantillon_rejetes_pour_controle"] == 0.02
-    assert quotas["max_tirages_controle_par_jour"] == 5
+    assert quotas["echantillon_rejetes_pour_controle"] == 0.0
+    assert quotas["max_tirages_controle_par_jour"] == 0
 
 
 # --------------------------------------------------- domaines de presse ----

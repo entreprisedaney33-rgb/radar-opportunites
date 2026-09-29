@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -47,6 +48,9 @@ class StatutOpportunite(str, Enum):
     # la panne du 26/09/2026 (voir app.reprise) -- retiré des métriques et de
     # la liste Jarvis tant qu'il n'est pas repassé par un vrai Scout.
     A_REPRENDRE = "a_reprendre"
+    # Sous-étape 4.1 : dernier score < 50 (règle actuelle) -- conservé en
+    # base, retiré des listes et des requêtes courantes, jamais supprimé.
+    ARCHIVE_FAIBLE = "archive_faible"
 
 
 class ValeurFinanciere(BaseModel):
@@ -107,6 +111,82 @@ class ScoutSortie(BaseModel):
     mots_cles_fr: str | None = None
 
 
+class InvestissementInitial(str, Enum):
+    MOINS_DE_5K = "moins_de_5k"
+    DE_5K_A_20K = "5k_a_20k"
+    DE_20K_A_100K = "20k_a_100k"
+    PLUS_DE_100K = "plus_de_100k"
+
+
+class DelaiPremierRevenu(str, Enum):
+    MOINS_DE_3_MOIS = "moins_de_3_mois"
+    DE_3_A_12_MOIS = "3_a_12_mois"
+    PLUS_DE_12_MOIS = "plus_de_12_mois"
+
+
+class Marche(str, Enum):
+    ACCESSIBLE_DEPUIS_FRANCE = "accessible_depuis_france"
+    EUROPE = "europe"
+    ETATS_UNIS_SEULEMENT = "etats_unis_seulement"
+    AUTRE = "autre"
+
+
+class Competence(str, Enum):
+    DEV_IA = "dev_ia"
+    VENTE = "vente"
+    REGLEMENTAIRE_LOURD = "reglementaire_lourd"
+    MATERIEL_INDUSTRIEL = "materiel_industriel"
+    RESEAU_SPECIFIQUE = "reseau_specifique"
+
+
+class TailleProbleme(str, Enum):
+    NICHE_LOCALE = "niche_locale"
+    SEGMENT_PME = "segment_pme"
+    MARCHE_NATIONAL_LARGE = "marche_national_large"
+    SYSTEMIQUE = "systemique"
+
+
+class ChampInvestissement(BaseModel):
+    valeur: InvestissementInitial
+    justification: str  # une phrase
+
+
+class ChampDelai(BaseModel):
+    valeur: DelaiPremierRevenu
+    justification: str
+
+
+class ChampMarche(BaseModel):
+    valeur: Marche
+    justification: str
+
+
+class ChampCompetences(BaseModel):
+    valeurs: list[Competence]
+    justification: str
+
+
+class ChampTaille(BaseModel):
+    valeur: TailleProbleme
+    justification: str
+
+
+class FaisabiliteSortie(BaseModel):
+    """Sous-étape 4.1 : faisabilité pour Mathéo (seul, depuis la France),
+    bloc structuré SUPPLÉMENTAIRE de l'Analyst. Toujours une HYPOTHÈSE
+    (`type` figé) : ne touche JAMAIS au score de preuve
+    (`app.scoring.engine`, qui ignore ce bloc). `accessible_solo` et le motif
+    d'exclusion n'en sont pas des champs : le CODE les déduit
+    (`app.faisabilite.evaluer_accessibilite`)."""
+
+    type: Literal["hypothese"] = "hypothese"
+    investissement_initial: ChampInvestissement
+    delai_premier_revenu: ChampDelai
+    marche: ChampMarche
+    competences: ChampCompetences
+    taille_du_probleme: ChampTaille
+
+
 class CritereAnalyst(BaseModel):
     nom: str
     affirmations: list[Affirmation] = Field(default_factory=list)
@@ -121,6 +201,8 @@ class AnalystSortie(BaseModel):
     contradictions: list[str] = Field(default_factory=list)
     prochain_test_moins_couteux: str
     niveau_preuve_global: NiveauPreuve
+    # Sous-étape 4.1 : bloc de faisabilité (hypothèse, jamais dans le score).
+    faisabilite: FaisabiliteSortie | None = None
 
 
 class Objection(BaseModel):

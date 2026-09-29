@@ -11,7 +11,7 @@ Objectif précis : la panne du 26/09/2026 (voir
 parce qu'AUCUN test, réel ou simulé, n'appelle jamais vraiment l'API
 Anthropic -- la suite par défaut simule le client, elle ne peut donc jamais
 détecter un rejet 400 de l'API elle-même sur la forme réelle du schéma
-envoyé. Ce script exerce les TROIS rôles (Scout, Analyst, Critic) sur un
+envoyé. Ce script exerce les TROIS rôles (+ le bloc de faisabilité de 4.1, dans l'Analyst et dans son rôle de reprise) (Scout, Analyst, Critic) sur un
 dossier fixture minimal, avec un VRAI `ModelClient`, et échoue (code de
 sortie 1) si l'un des trois retombe sur son repli heuristique -- exactement
 le symptôme de la panne : un appel qui échoue ne lève pas forcément une
@@ -80,6 +80,29 @@ def main() -> int:
         print(f"Analyst : via_modele={via_modele_analyst}  criteres={len(analyst_sortie.criteres)}")
         if not via_modele_analyst:
             echecs.append("analyst")
+        # Sous-étape 4.1 : le schéma de l'Analyst a changé (bloc `faisabilite`) --
+        # un vrai appel doit le remplir, sinon la consigne n'est pas suivie.
+        faisabilite = analyst_sortie.faisabilite
+        print(f"Faisabilité (Analyst) : {'présente' if faisabilite else 'ABSENTE'}")
+        if faisabilite is None:
+            echecs.append("analyst.faisabilite")
+        else:
+            from app.faisabilite import evaluer_accessibilite
+
+            resultat = evaluer_accessibilite(faisabilite)
+            print(f"  accessible_solo={resultat.accessible_solo}  motif={resultat.motif_exclusion!r}")
+            print(f"  {faisabilite.model_dump(mode='json')}")
+
+        # Sous-étape 4.1 : le rôle de reprise (appel court dédié).
+        from app.roles import faisabilite as role_faisabilite
+
+        bloc_reprise = role_faisabilite.executer_faisabilite(
+            opportunity_id="fumee-opp-1", opportunite={**opportunite, "mecanisme_ia": scout_sortie.ai_mechanism},
+            preuves=preuves, model_client=model_client, modele=settings.model_approfondi,
+        )
+        print(f"Faisabilité (reprise) : {'présente' if bloc_reprise else 'ABSENTE'}")
+        if bloc_reprise is None:
+            echecs.append("faisabilite (reprise)")
 
         critic_sortie, via_modele_critic = role_critic.executer_critic(
             opportunity_id="fumee-opp-1", opportunite=opportunite, analyst_sortie=analyst_sortie,

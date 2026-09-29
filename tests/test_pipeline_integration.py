@@ -252,7 +252,7 @@ def test_quota_offre_independant_n_affame_jamais_le_quota_douleur(engine_test, m
     assert resume.signaux_lus == 5  # plafonné par max_signaux_par_passage, jamais réduit par l'offre
 
 
-def test_construire_adaptateurs_recherche_reddit_persiste_et_tourne(engine_test, monkeypatch):
+def test_construire_adaptateurs_recherche_reddit_persiste_et_tourne(engine_test, monkeypatch, reddit_faux):
     """Sous-étape 1.2, bout en bout avec la vraie base (aucun réseau ici :
     `_construire_adaptateurs_recherche_reddit` ne fait que choisir et marquer
     les combinaisons, jamais les interroger — voir `_collecter`) : les
@@ -290,20 +290,14 @@ def test_construire_adaptateurs_recherche_reddit_persiste_et_tourne(engine_test,
     assert (ids_premier_lot | ids_deuxieme_lot) <= set(dernieres_visites.keys())
 
 
-def test_construire_adaptateurs_recherche_reddit_vide_et_ne_persiste_rien_tant_que_reddit_est_en_pause(engine_test):
-    """Sous-étape 3.15 : avec le VRAI `app/sources.yaml` (toutes les sources
-    Reddit `actif: false`), `_construire_adaptateurs_recherche_reddit` ne
-    doit construire aucun adaptateur ET ne doit consommer AUCUN quota ni
-    temps de rotation — ni `repo.lire_dernieres_visites_recherche` ni
-    `repo.marquer_flux_recherche_visites` ne doivent avoir d'effet, faute de
-    combinaison à choisir (`subreddits_douleur()` vide -> retour anticipé
-    avant tout accès base, voir `_construire_adaptateurs_recherche_reddit`)."""
+def test_construire_adaptateurs_recherche_reddit_vide_et_ne_persiste_rien_sans_identifiants(engine_test):
+    """Sous-étape 4.0 : sans les variables d'environnement Reddit, l'adaptateur
+    est inactif -- aucun adaptateur, et AUCUN créneau de rotation consommé
+    (tout reprendra normalement dès que les variables seront posées)."""
     from app import config as cfg
     from app.pipeline import orchestrator as orch
 
-    quotas = dict(cfg.quotas())
-
-    lot = orch._construire_adaptateurs_recherche_reddit(engine_test, quotas)
+    lot = orch._construire_adaptateurs_recherche_reddit(engine_test, dict(cfg.quotas()))
 
     assert lot == []
     assert repo.lire_dernieres_visites_recherche(engine_test) == {}
@@ -334,7 +328,7 @@ def test_construire_adaptateurs_recherche_hn_persiste_et_tourne(engine_test):
     assert (ids_premier_lot | ids_deuxieme_lot) <= set(dernieres_visites.keys())
 
 
-def test_construire_adaptateurs_branche_reddit_et_hn_en_tete(engine_test, monkeypatch):
+def test_construire_adaptateurs_branche_reddit_et_hn_en_tete(engine_test, monkeypatch, reddit_faux):
     """Sous-étape 1.4 : `_construire_adaptateurs` doit combiner les DEUX
     connecteurs de recherche (pas seulement Reddit) avant les flux frontpage
     statiques, pour la même raison que 1.2 (voir la docstring de la
@@ -360,21 +354,60 @@ def test_construire_adaptateurs_branche_reddit_et_hn_en_tete(engine_test, monkey
     assert any(id_ and id_.startswith("hn_recherche:") for id_ in ids)
 
 
-def test_construire_adaptateurs_ignore_reddit_en_pause_mais_garde_hn(engine_test):
-    """Sous-étape 3.15 : avec le VRAI `app/sources.yaml` (Reddit en pause),
-    `_construire_adaptateurs` ne doit construire AUCUN adaptateur de
-    recherche Reddit, mais la recherche HN (connecteur indépendant, non
-    affecté par la pause Reddit) doit continuer à fonctionner normalement."""
+def test_construire_adaptateurs_sans_identifiants_ignore_reddit_mais_garde_hn(engine_test):
+    """Sous-étape 4.0 : sans identifiants, ni recherche Reddit ni flux Reddit
+    (et JAMAIS de repli RSS) ; Hacker News continue normalement."""
     from app import config as cfg
+    from app.adapters.rss_adapter import AdaptateurRSS
     from app.pipeline import orchestrator as orch
 
-    quotas = dict(cfg.quotas())
-
-    adaptateurs = orch._construire_adaptateurs(engine_test, forcer_demo=False, quotas=quotas)
+    adaptateurs = orch._construire_adaptateurs(engine_test, forcer_demo=False, quotas=dict(cfg.quotas()))
 
     ids = [getattr(a, "id_source", None) for a, _, _ in adaptateurs]
-    assert not any(id_ and id_.startswith("reddit_recherche:") for id_ in ids)
+    assert not any(id_ and "reddit" in id_ for id_ in ids)
     assert any(id_ and id_.startswith("hn_recherche:") for id_ in ids)
+    assert not any(isinstance(a, AdaptateurRSS) and "reddit.com" in a.url for a, _, _ in adaptateurs)
+
+
+def test_construire_adaptateurs_avec_identifiants_collecte_reddit_par_l_api_jamais_par_rss(
+    engine_test, reddit_faux,
+):
+    """Sous-étape 4.0 : avec identifiants, les 13 sources Reddit de
+    `app/sources.yaml` deviennent des `AdaptateurRedditNouveaux` (API), et
+    aucun `AdaptateurRSS` ne pointe vers reddit.com."""
+    from app import config as cfg
+    from app.adapters.reddit_api import AdaptateurRedditNouveaux
+    from app.adapters.rss_adapter import AdaptateurRSS
+    from app.pipeline import orchestrator as orch
+
+    adaptateurs = orch._construire_adaptateurs(engine_test, forcer_demo=False, quotas=dict(cfg.quotas()))
+
+    nouveaux = [a for a, _, _ in adaptateurs if isinstance(a, AdaptateurRedditNouveaux)]
+    assert len(nouveaux) == 13
+    assert not any(isinstance(a, AdaptateurRSS) and "reddit.com" in a.url for a, _, _ in adaptateurs)
+
+
+def test_collecte_reddit_api_bout_en_bout_donne_un_signal_douleur_avec_secteur_du_flux(engine_test, reddit_faux):
+    """Sous-étape 4.0 : `_collecter` sur un flux Reddit (`/r/<sub>/new`) simulé
+    -- le signal porte le nom du flux et le secteur par défaut de la config."""
+    from app.adapters.reddit_api import AdaptateurRedditNouveaux
+    from app.pipeline import orchestrator as orch
+    from app import sources as config_sources
+    from tests.conftest import FausseReponseReddit, listing_reddit, post_reddit
+
+    serveur, _ = reddit_faux
+    serveur.reponses = [FausseReponseReddit(200, listing_reddit(post_reddit("z1", "smallbusiness", "Titre", "Je fais ça à la main.")))]
+    src = next(s for s in config_sources.sources() if s.id == "reddit_smallbusiness_rss")
+    resume = orch.ResumeRun()
+
+    bruts = orch._collecter(
+        engine_test, [(AdaptateurRedditNouveaux(src.id, src.nom, src.url), 10, src)], 10, 10, resume,
+    )
+
+    assert len(bruts) == 1
+    assert bruts[0].flux_origine == src.nom
+    assert bruts[0].secteur_par_defaut == "operations_petites_entreprises"
+    assert serveur.appels_get[0]["url"] == "https://oauth.reddit.com/r/smallbusiness/new"
 
 
 def test_resultat_hn_devient_un_signal_dans_le_pipeline(engine_test, monkeypatch):

@@ -1,0 +1,17 @@
+# Sous-étape 4.1 (AMELIORATIONS.md) : ce que « accessible en solo » veut dire
+# pour Mathéo (décision du 29/09/2026). Lu par app/faisabilite.py ; toute
+# valeur doit être un membre des énumérations de app/models_schemas.py
+# (vérifié par tests/test_faisabilite.py). N'entre JAMAIS dans le score de
+# preuve : c'est un drapeau d'information, pas une note.
+
+# Un dossier est `accessible_solo` seulement si TOUTES les conditions tiennent.
+investissements_acceptes: [moins_de_5k, 5k_a_20k]        # investissement <= 20 k€
+delais_acceptes: [moins_de_3_mois, 3_a_12_mois]          # premier revenu <= 12 mois
+marches_acceptes: [accessible_depuis_france, europe]
+competences_refusees: [reglementaire_lourd, materiel_industriel]
+tailles_refusees: [systemique]
+
+# Un dossier dont le dernier score (règle actuelle) est sous ce seuil passe au
+# statut `archive_faible` ; l'onglet Radar ne charge par défaut que les
+# dossiers >= ce seuil ET accessibles.
+seuil_score_liste: 50
