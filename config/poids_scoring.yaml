@@ -4,7 +4,7 @@
 # garde la version des poids utilisée au moment du calcul (pas d'écrasement
 # silencieux de l'historique).
 
-version: "2026.09.1"
+version: "2026.09.2"
 
 criteres:
   probleme_frequence_cout:

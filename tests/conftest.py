@@ -52,6 +52,19 @@ def _cache_config_propre(monkeypatch):
     http_module._dernier_appel_par_hote.clear()
 
 
+@pytest.fixture(autouse=True)
+def _pages_courtes_permises_par_defaut(monkeypatch):
+    """Sous-étape 3.17 : depuis cette sous-étape, une page fetchée de moins de
+    `enqueteur_page_longueur_min_caracteres` (300) caractères n'est jamais
+    stockée. La plupart des tests de la suite fabriquent des pages de
+    quelques mots (`<p>Contenu.</p>`) pour exercer autre chose que ce
+    contrôle : le seuil est donc ramené à 1 par défaut pour toute la suite.
+    Les tests de ce contrôle (`tests/test_enqueteur_qualite_page.py`) le
+    remettent explicitement à sa vraie valeur."""
+    reel = cfg.quotas()
+    monkeypatch.setattr(cfg, "quotas", lambda: {**reel, "enqueteur_page_longueur_min_caracteres": 1})
+
+
 @pytest.fixture
 def engine_test(tmp_path):
     # Fichier sqlite dédié au test (pas ":memory:" : chaque connexion du pool

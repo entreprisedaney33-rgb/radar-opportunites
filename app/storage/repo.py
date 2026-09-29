@@ -117,6 +117,7 @@ def mettre_a_jour_progression(engine: Engine, run_id: str, *, couts: dict, resum
 
 def marquer_disjoncteur_sur_run(
     engine: Engine, run_id: str, *, en_erreur: bool, depuis: datetime | None, message: str | None,
+    messages_permanents: list[str] | None = None,
 ) -> None:
     """Sous-étape 3.13, point 2 : rend l'état du disjoncteur de l'appel au
     modèle visible sur le run EN COURS (`runs.statut`/`erreurs_json`), pour
@@ -128,9 +129,14 @@ def marquer_disjoncteur_sur_run(
     `fin`. `erreurs_json` (sinon toujours `[]` tant qu'un run est en cours --
     seul `terminer_run` l'alimente normalement, à la fin) porte l'unique
     message décrivant l'incident courant, remplacé à chaque appel plutôt
-    qu'accumulé (ce n'est pas un journal, c'est un état présent)."""
+    qu'accumulé (ce n'est pas un journal, c'est un état présent).
+
+    `messages_permanents` (sous-étape 3.17) : lignes ajoutées APRÈS le message
+    d'incident (jamais devant : Jarvis relit le premier), qui doivent survivre
+    à ce remplacement -- le résumé de la reprise au démarrage du worker."""
     statut = "api_en_erreur" if en_erreur else "en_cours"
     erreurs = [f"Disjoncteur API en erreur depuis {depuis.isoformat() if depuis else '?'} : {message}"] if en_erreur else []
+    erreurs = erreurs + list(messages_permanents or [])
     with engine.begin() as cx:
         cx.execute(update(runs).where(runs.c.id == run_id).values(statut=statut, erreurs_json=erreurs))
 
@@ -423,6 +429,42 @@ def sources_deja_citees(engine: Engine, opportunity_id: str) -> set[str]:
         return {r[0] for r in rows}
 
 
+def dossiers_rattaches_a_url(engine: Engine, url_canonique: str) -> set[str]:
+    """Sous-étape 3.17 : les dossiers auxquels cette URL est déjà rattachée
+    comme preuve, toutes versions de la page confondues (une même URL peut
+    avoir plusieurs lignes `sources`, une par empreinte de contenu), SIGNAL
+    D'ORIGINE EXCLU (preuve « Scout: … », posée à la création du dossier) --
+    c'est le nombre que plafonne `max_dossiers_par_source`."""
+    with engine.connect() as cx:
+        rows = cx.execute(
+            select(opportunity_evidence.c.opportunity_id)
+            .select_from(opportunity_evidence.join(sources, opportunity_evidence.c.source_id == sources.c.id))
+            .where(sources.c.url_canonique == url_canonique, ~opportunity_evidence.c.claim.like("Scout: %"))
+            .distinct()
+        ).all()
+        return {r[0] for r in rows}
+
+
+def infos_sources_du_dossier(engine: Engine, opportunity_id: str) -> dict[str, dict]:
+    """Sous-étape 3.17 : pour chaque source rattachée à ce dossier,
+    `{"domaine": ..., "origine": bool}` -- ce dont le moteur de score a besoin
+    pour exiger deux sources distinctes (`app.scoring.engine.InfoSource`).
+    `origine` : la source porte une preuve « Scout: … » pour ce dossier (le
+    signal que le Scout a lu, voir `signal_origine_scout`)."""
+    with engine.connect() as cx:
+        rows = cx.execute(
+            select(opportunity_evidence.c.source_id, sources.c.domaine, opportunity_evidence.c.claim)
+            .select_from(opportunity_evidence.join(sources, opportunity_evidence.c.source_id == sources.c.id))
+            .where(opportunity_evidence.c.opportunity_id == opportunity_id)
+        ).all()
+    infos: dict[str, dict] = {}
+    for source_id, domaine, claim in rows:
+        info = infos.setdefault(source_id, {"domaine": domaine, "origine": False})
+        if claim.startswith("Scout: "):
+            info["origine"] = True
+    return infos
+
+
 def opportunite_pour_source(engine: Engine, source_id: str) -> str | None:
     """Si ce source_id est déjà cité comme preuve d'une opportunité,
     renvoie son id — sert à la reprise après panne (ne pas recréer un
@@ -632,6 +674,21 @@ def nombre_evenements_role_fournisseur_jour_utc(
 
 
 # ------------------------------------------------ tirages de contrôle ----
+
+def nombre_tirages_controle_jour_utc(engine: Engine, jour: date) -> int:
+    """Sous-étape 3.17 : tirages de contrôle déjà effectués pendant cette
+    journée UTC, tous runs confondus -- même clé que le plafond en euros
+    (`nombre_appels_approfondis_jour_utc`), pour qu'un redémarrage du worker
+    ne remette jamais le compteur à zéro."""
+    debut, fin = _bornes_jour_utc(jour)
+    with engine.connect() as cx:
+        return cx.execute(
+            select(func.count()).select_from(tirages_controle_rejetes).where(
+                tirages_controle_rejetes.c.date_creation >= debut,
+                tirages_controle_rejetes.c.date_creation < fin,
+            )
+        ).scalar_one()
+
 
 def opportunites_deja_tirees_controle(engine: Engine) -> set[str]:
     """Opportunités déjà retirées au moins une fois par l'échantillon de

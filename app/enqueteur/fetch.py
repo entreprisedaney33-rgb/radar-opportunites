@@ -42,6 +42,16 @@ collecte du Scout pour la même plateforme depuis la sous-étape 1.2
 (`app.adapters.reddit_recherche` : jamais de fetch de la page réelle non
 plus, seulement le contenu du flux de recherche Atom).
 
+Sous-étape 3.17 (contrôles de qualité, `app.enqueteur.qualite_page`) : une
+page fetchée dont le contenu porte un marqueur d'erreur ou qui est trop
+courte n'est jamais stockée (`recuperer_page`) ; une page demandée avec
+l'étiquette `prix` qui ne contient aucun marqueur de prix perd cette
+étiquette et est stockée comme preuve d'enquête ordinaire
+(`collecter_preuves`) ; une URL déjà rattachée à `max_dossiers_par_source`
+dossiers (signal d'origine exclu) n'est plus proposée à un nouveau dossier
+-- écartée AVANT la sélection, donc sans fetch ni compteur consommé, et sans
+occuper une des places de `max_resultats`.
+
 Garde-fou injection (§3.6 du cahier des charges, point 3 du texte de 3.3) :
 le texte extrait d'une page est stocké tel quel, comme n'importe quel autre
 contenu collecté (`sources.extrait`) — ce module ne l'interprète jamais, ne
@@ -67,6 +77,7 @@ from sqlalchemy.engine import Engine
 from app import config as cfg
 from app.adapters.http import USER_AGENT, ErreurCollecte, get_avec_limite_taille, get_with_retry
 from app.enqueteur.fournisseurs import ResultatRecherche
+from app.enqueteur.qualite_page import contient_marqueur_prix, motif_page_inexploitable
 from app.enqueteur.selection import selectionner_resultats
 from app.pipeline import dedupe
 from app.pipeline.budget import BudgetDepasse, BudgetTracker
@@ -189,6 +200,12 @@ def recuperer_page(
     if not texte:
         logger.info("Enquêteur : page vide après extraction, ignorée (%s).", resultat.url)
         return None
+    motif = motif_page_inexploitable(
+        titre or resultat.titre, texte, longueur_min=quotas["enqueteur_page_longueur_min_caracteres"],
+    )
+    if motif is not None:
+        logger.info("Enquêteur : page ignorée (%s) : %s.", resultat.url, motif)
+        return None
 
     return PageCollectee(
         url=resultat.url,
@@ -268,6 +285,23 @@ def stocker_page(engine: Engine, page: PageCollectee, *, etiquette: str = ETIQUE
     )
 
 
+def _source_saturee(engine: Engine, url: str, opportunity_id: str, max_dossiers: int) -> bool:
+    """Sous-étape 3.17 : cette URL est-elle déjà rattachée à `max_dossiers`
+    dossiers (signal d'origine exclu), sans être l'un d'eux ? Un dossier qui la
+    porte déjà (enquête reprise) n'est jamais concerné : le plafond ne sert
+    qu'à empêcher un NOUVEAU rattachement."""
+    dossiers = repo.dossiers_rattaches_a_url(engine, dedupe.canonicaliser_url(url))
+    if opportunity_id in dossiers:
+        return False
+    if len(dossiers) >= max_dossiers:
+        logger.info(
+            "Enquêteur : %s déjà rattachée à %d dossiers (plafond %d) -- écartée pour ce dossier.",
+            url, len(dossiers), max_dossiers,
+        )
+        return True
+    return False
+
+
 def collecter_preuves(
     engine: Engine,
     resultats: list[ResultatRecherche],
@@ -316,6 +350,12 @@ def collecter_preuves(
     if delai_entre_fetchs is None:
         delai_entre_fetchs = quotas["enqueteur_fetch_delai_secondes"]
 
+    if opportunity_id:
+        resultats = [
+            r for r in resultats
+            if not _source_saturee(engine, r.url, opportunity_id, quotas["max_dossiers_par_source"])
+        ]
+
     selectionnes = selectionner_resultats(resultats, max_resultats=max_resultats)
 
     deja_citees: set[str] = repo.sources_deja_citees(engine, opportunity_id) if opportunity_id else set()
@@ -347,7 +387,14 @@ def collecter_preuves(
         if extrait_direct:
             source_id, _cree = stocker_extrait_flux(engine, page)
         else:
-            source_id, _cree = stocker_page(engine, page, etiquette=etiquette)
+            etiquette_page = etiquette
+            if etiquette == ETIQUETTE_PREUVE_PRIX and not contient_marqueur_prix(page.texte):
+                logger.info(
+                    "Enquêteur : étiquette « prix » refusée pour %s (aucun marqueur de prix dans la page) -- "
+                    "stockée comme preuve d'enquête.", page.url,
+                )
+                etiquette_page = ETIQUETTE_PREUVE_ENQUETE
+            source_id, _cree = stocker_page(engine, page, etiquette=etiquette_page)
         source_ids.append(source_id)
 
         if opportunity_id and source_id not in deja_citees:

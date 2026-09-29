@@ -378,7 +378,7 @@ def test_concurrent_identifie_via_magasin_interne_declenche_l_enquete_prix(engin
     monkeypatch.setattr(fetch_module, "get_with_retry", lambda url, **kw: type("R", (), {"text": "", "status_code": 404})())
     monkeypatch.setattr(
         fetch_module, "get_avec_limite_taille",
-        lambda url, **kw: b"<html><body><p>Page de tarification suffisante.</p></body></html>",
+        lambda url, **kw: b"<html><body><p>Tarifs : offre Pro a 49 $ par mois.</p></body></html>",
     )
     monkeypatch.setattr(fetch_module.time, "sleep", lambda *_a, **_kw: None)
 

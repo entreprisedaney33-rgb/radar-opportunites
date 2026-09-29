@@ -2553,9 +2553,12 @@ reprise en simulation). Suite verte. Commit `[3.13]`.
      déploiement Jarvis. Les données nécessaires existent déjà côté base
      (`runs.statut = "api_en_erreur"`, `runs.erreurs_json`, voir point 2
      ci-dessus) — rien à ajouter côté radar pour que Jarvis puisse les lire.
+     **FAIT le 2026-09-28 (session dédiée, build 83)** — voir addendum en fin
+     de Journal 3.13 : point 5 écrit et déployé, code d'origine ci-dessus
+     confirmé exact (rien à ajouter côté radar).
 - Question pour Mathéo / Fable (sinon « aucune ») : voir §9 — limitation
-  préexistante du statut `en_analyse` (point 2 ci-dessus) et point 5 (Jarvis)
-  non fait.
+  préexistante du statut `en_analyse` (point 2 ci-dessus) ; point 5 (Jarvis)
+  FAIT le 2026-09-28 (voir addendum).
 - Déploiement :
   - **Radar (3.11 + 3.13 ensemble) : FAIT.** OK explicite de Mathéo reçu le
     2026-09-28, procédure §5 suivie (suite par défaut 411 verts / 0 rouge
@@ -2582,6 +2585,57 @@ reprise en simulation). Suite verte. Commit `[3.13]`.
     n'a pas été écrit dans cette session de déploiement, hors périmètre de
     la demande de Mathéo (« déploie le radar »). À faire séparément, avec
     son propre protocole (verrou pris/libéré, voir « Écart » ci-dessus).
+    **FAIT le 2026-09-28, addendum ci-dessous.**
+
+### Addendum — point 5 (Jarvis), sous-étape 3.13, 2026-09-28
+
+Session dédiée, OK explicite de Mathéo pour déployer Jarvis. Périmètre
+strict : uniquement le point 5, rien d'autre touché côté radar ni côté MCS.
+
+- Côté n8n (`🎛️ Jarvis Web · Radar (opportunités)`, id `Qm6yJZBqjbHeBR0j`,
+  verrou pris/libéré dans `VERROU.md`) : le nœud `Assembler etat radar`
+  lisait déjà `run_aujourdhui_statut`/`run_aujourdhui_erreurs` (remontés par
+  la requête SQL depuis la sous-étape 7.1, avant même l'existence du
+  disjoncteur) sans jamais les exploiter — confirmé le constat du Journal
+  ci-dessus (« rien à ajouter côté radar »). Ajouté : un état `api_en_erreur`
+  (bandeau + libellé dédiés, avec l'heure de début et le message — reparsés
+  depuis la chaîne unique écrite par `repo.py::marquer_disjoncteur_sur_run`,
+  repli sur la chaîne brute si le format change un jour côté radar) ; une
+  alerte distincte `alerte_silence_modele` (aucun appel modèle — succès ou
+  échec confondus — depuis plus de 30 min alors que `run_aujourdhui_statut
+  = "en_cours"`, calculée sur `MAX(usage_events.date_creation)` tous jours
+  confondus pour ne pas se déclencher à tort juste après minuit UTC ; pas
+  d'alerte si aucun `usage_events` n'existe encore, silence non mesurable).
+  Testé par 5 scénarios simulés (Node, `$` stubé) avant déploiement : actif
+  récent, silence 50 min, `api_en_erreur`, pause manuelle prioritaire même
+  si le disjoncteur est ouvert (cas limite qui ne devrait jamais survenir en
+  réel), aucun `usage_events` jamais écrit. Déployé par PUT (`n8n-verrou-modifier.py`,
+  seul chemin autorisé), confirmé par un appel réel du webhook (compte de
+  test `labo-audit-fumee`) : `run_statut: "en_cours"`, `alerte_silence_modele:
+  false` — le radar tourne normalement au moment du test (265 dossiers
+  analysés), donc pas d'occasion de voir le bandeau rouge en conditions
+  réelles, mais les 5 scénarios simulés couvrent ce chemin.
+- Côté app (`produits/jarvis/telecommande-pages/index.html`, onglet Radar,
+  labo uniquement) : verrou LABO pris/libéré (`VERROU-APP.md`). Point rouge +
+  fond rouge du bandeau sur `statut === 'api_en_erreur'` (même teinte
+  `#ff6d5a` que `#radar-error`, déjà utilisée plus haut dans cet onglet) ;
+  nouvelle case `#radar-alerte-silence` (orange `#FF9F0A`, déjà utilisé en
+  dur ailleurs dans ce fichier pour l'avertissement labo) affichée
+  uniquement quand `alerte_silence_modele` est vrai. `APPV_LABO` 1.03 → 1.04.
+- Déploiement : `push-jarvis-app-protege.py --tenant LABO`, protocole complet
+  — non-régression MCS (232 lignes/153 007,18 € HT), pixel-identique LABO
+  (28 variables `:root`), 10/10 contrôles de fumée par onglet MCS + écran
+  LABO (125 éléments `#app`), recap facturation MCS de septembre (30
+  contrats/22 141,75 € HT), TVA VMC, aperçu = PDF — tous verts. **Build 83**
+  (`entreprisedaney33-rgb/jarvis-app`, commit `a9651e5`), confirmé par
+  relecture fraîche du dépôt de déploiement après le push (`APPV_LABO =
+  '1.04'`, `BUILD = 83`, le code du bandeau/de l'alerte bien présent).
+  Aucune modification côté MCS (tenant `MCS` du verrou applicatif resté
+  occupé par Dorian tout du long, jamais touché).
+- Écart par rapport au plan : aucun — le texte de la sous-étape 3.13 disait
+  exactement « les données existent déjà côté base, rien à ajouter côté
+  radar », confirmé à l'usage.
+- Point 5 de la sous-étape 3.13 : **FAIT.**
 
 #### Sous-étape 3.14 — Point d'étape après 3.13
 
@@ -2798,10 +2852,285 @@ Tests sans réseau, suite verte, 0 €.
   reconduite (Jarvis toujours pas déployé, panne 26/09 restant à confirmer
   éteinte par la mesure à 48h) -- rien de nouveau ouvert par cette
   sous-étape, qui ne touche ni au déploiement ni à la production.
-- Déploiement : pas encore fait -- en attente de l'« OK pour déployer » de
-  Mathéo, demandé en fin de session, procédure §5 à suivre le moment venu
-  (point 4bis non applicable : aucun changement dans
-  `app/adapters/model_client.py` ni `app/models_schemas.py`).
+- Déploiement : **FAIT (partiellement vérifié).** OK explicite de Mathéo
+  reçu dans la session (« ok deploye »), procédure §5 suivie : suite par
+  défaut re-confirmée verte juste avant (424/424, 0 €), diff relu (aucun
+  secret), point 4bis non applicable (aucun changement dans
+  `app/adapters/model_client.py` ni `app/models_schemas.py`), migrations de
+  schéma : aucune dans cette sous-étape. `scripts/deployer_vers_github.sh`
+  exécuté avec succès (ses propres contrôles anti-secret intégrés n'ont rien
+  trouvé). Synchronisé vers le dépôt public
+  (`entreprisedaney33-rgb/radar-opportunites`), commit `8ac96048`,
+  2026-09-28 16:09:53 CEST (14:09:53 UTC) — vérifié en clonant le dépôt
+  public dans cette session : ce commit suit directement `37b67463`
+  (déploiement de 3.11+3.13, même après-midi), aucun commit inattendu entre
+  les deux (même vigilance que l'incident du 11/08/2026 documenté dans
+  `CLAUDE.md` racine).
+  **Point 7 (vérifier sur Render que le Background Worker a redémarré, que
+  le premier passage s'est terminé sans erreur, que la base répond) :
+  PARTIEL.** Mathéo a confirmé « build terminé » dans la session -- preuve
+  que le service Render a fini de construire et déployer le commit
+  `8ac96048`. Cette session n'a en revanche pas pu faire la vérification
+  indépendante habituelle (base de production ou logs Render) : lecture de
+  `.secrets/render-key.txt` bloquée par le mode automatique de Claude Code
+  (motif « Credential Materialization »), aucun identifiant local pour
+  `radar_lecture` non plus -- contrairement aux sessions précédentes
+  (3.10/3.11/3.13), qui avaient pu lire ce fichier et vérifier directement
+  en base après un « build terminé » de Mathéo. Point de vigilance honnête,
+  à ne pas confondre avec une confirmation complète : le build a réussi,
+  mais rien ne prouve encore depuis CETTE session que le premier passage du
+  worker s'est terminé sans erreur avec le nouveau code (Reddit bien en
+  pause en pratique, `max_tokens` bien appliqués, aucun concurrent identifié
+  à tort). **À faire, par Mathéo ou dans une session autorisée à lire cette
+  clé** : lire les logs Render ou `python -m app.metriques --jour
+  2026-09-28` pour confirmer que le worker tourne normalement sur ce
+  commit. Mesure à 48 h (point 9, `python -m app.metriques --comparer
+  <baseline>`) toujours à faire dans une session ultérieure, comme pour
+  1.6/2.3/3.6/3.9/3.10/3.11/3.13.
+
+#### Sous-étape 3.16 — Point d'étape du 29/09 — premiers scores > 60
+
+Ajoutée après coup (29/09/2026), après le déploiement de 3.15 (28/09 ~14:09
+UTC). Lecture seule (rôle `radar_lecture`), aucun appel modèle, aucune
+modification, aucun déploiement. Périmètre : depuis le déploiement de 3.15
+jusqu'à maintenant. Écrire `rapports/POINT_ETAPE_2026-09-29.md` :
+
+1. Santé : appels 200 vs erreurs par heure, taux de sorties valides et de
+   troncature par rôle, disjoncteur API, coût par heure, heure d'arrêt sur
+   budget, avancement de la reprise des dossiers vides.
+2. Tous les dossiers à score prudent ≥ 60, un par un : titre, hypothèse
+   (acheteur, douleur, mécanisme, pourquoi maintenant), liste complète des
+   sources (URL, étiquette, fournisseur, horodatage), affirmations typées
+   avec la source citée, score par critère, décision et objections du Critic,
+   prochain test. Pour chacun, une vérification de plausibilité : sources
+   distinctes et réelles ? même source citée pour plusieurs critères ? preuves
+   de prix = vraies pages de prix ? score identique sans les extraits de
+   flux ? Conclusion par dossier : crédible / à confirmer / artefact, avec la
+   raison.
+3. Distribution des scores prudents depuis 3.15 (min, médiane, p90, max,
+   nombre > 60), comparée au 28/09 matin ; sources par dossier (médiane, part
+   à une seule source) ; part des dossiers avec au moins une preuve de prix.
+4. Le Critic : répartition des décisions et des objections, taux d'accord
+   avec le code, dossiers éligibles s'il y en a.
+5. Entonnoir et file : repérés, enquêtés, analysés, en attente ; part venant
+   de chaque flux depuis la pause Reddit.
+6. Conclusion en dix lignes : le plafond est-il vraiment tombé, ou
+   artificiellement ? Qu'est-ce qui distingue les dossiers > 60 des autres ?
+   Quelle est maintenant la contrainte principale ?
+
+### Journal — sous-étape 3.16
+- Statut : FAIT
+- Date : 2026-09-29
+- Commit(s) : `[3.16] Point d'étape du 29/09 — premiers scores > 60 (lecture seule)`
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Le radar tourne enfin de bout en bout : 933 appels au modèle en 20 h, tous
+  valides, 16,4 €. Douze dossiers dépassent 60 (jusqu'à 100), mais lus un par
+  un aucun n'est crédible (2 à confirmer, 10 artefacts) : actualités prises
+  pour des douleurs, mêmes articles rattachés à 26 dossiers, aucune vraie page
+  de prix, et un même dossier noté 32,5 puis 62,5 sur les mêmes preuves. Le
+  vrai blocage n'est plus le plafond mais la fiabilité de l'évaluation.
+- Fichiers créés / modifiés : `rapports/POINT_ETAPE_2026-09-29.md` (créé),
+  `AMELIORATIONS.md` (sous-étape 3.16 + Journal + §8 + §9)
+- Tests : 0 ajoutés (lecture seule, rien à tester) — suite par défaut : non
+  relancée dans cette sous-étape (aucun code touché) — dépense : 0 €
+- Chiffres produits (si la sous-étape en produit, sinon « aucun ») : voir
+  `rapports/POINT_ETAPE_2026-09-29.md` — fenêtre 28/09 14:09:53 → 29/09 ~10:07
+  UTC : 933 appels Scout/Analyst/Critic, 100 % valides, 0 tronqué, 0 perdu,
+  16,38 € (28/09 complet : 10,44 €), disjoncteur API jamais déclenché, aucun
+  arrêt sur budget ; reprise : 0 dossier repris sur 662 (`app.reprise` jamais
+  lancée) ; scores : 12 dossiers ≥ 60 (max 100 ; 28/09 matin : 0, max 55),
+  médiane 27,5 (22,5), p90 52,5 (37,5) ; sources par dossier médiane 2, 46,4 %
+  à une seule ; preuve de prix : 49/207 dossiers (23,7 %) mais 1 seule vraie
+  page de prix ; Critic : 80 % de rejets (27 % avant), 0 éligible, 20 rejets
+  sur 185 basculent à la relecture ; entonnoir : 186 dossiers créés, 104
+  enquêtés, 207 scorés, 100 % venant de la recherche Hacker News, 0 Reddit ;
+  verdicts sur les 12 dossiers ≥ 60 : 0 crédible, 2 à confirmer, 10 artefacts ;
+  recalcul à sec sans sources transversales : 2 dossiers sur 12 restent ≥ 60.
+- Écart par rapport au plan (et pourquoi) : (1) « taux d'accord avec le code »
+  et « objections par type » : sans objet, étape 5 non commencée — mesures de
+  substitution (décision vs score, objections par mots-clés, signalées comme
+  heuristiques). (2) « extraits de flux » : aucune source `extrait_flux` dans la
+  fenêtre (Reddit en pause) — interprété comme le signal d'origine (recherche
+  Hacker News). (3) « requêtes émises par dossier » non mesurable :
+  `usage_events` ne porte pas d'`opportunity_id` pour l'Enquêteur. (4) « ≥ 60 »
+  interprété comme « au moins une analyse depuis 3.15 à ≥ 60 » (12 dossiers) ;
+  6 d'entre eux ont deux analyses (tirage de contrôle), le détail porte sur
+  l'analyse la plus haute.
+- Question pour Mathéo / Fable (sinon « aucune ») : voir §9 — règle de score
+  (« fort » sans exigence de sources distinctes ni de pertinence), sources
+  transversales et pages d'erreur comptées comme preuves, faux concurrents
+  (3.4b) toujours actifs, `app.reprise` jamais lancée, poids du tirage de
+  contrôle.
+- Déploiement : sans objet (sous-étape de lecture seule).
+
+#### Sous-étape 3.17 — Intégrité des preuves et du score
+
+Ajoutée après coup (29/09/2026), à partir du rapport de 3.16
+(`rapports/POINT_ETAPE_2026-09-29.md`) : le plafond de score est tombé dans les
+chiffres, pas dans les faits (0 dossier crédible sur 12). Code, tests et recalcul
+à sec d'abord ; déploiement seulement sur « OK pour déployer » de Mathéo.
+
+1. Score : un critère n'est « fort » (100 %) que s'il est appuyé par au moins
+   deux affirmations de type observé ou calculé citant deux sources distinctes
+   (domaines différents, ou signal d'origine + une autre). Une inférence ou une
+   hypothèse ne compte jamais pour un fait fort. Mettre le code en conformité
+   avec `SCORING.md`, et recalculer à sec les scores depuis 3.15 pour le
+   Journal (avant / après).
+2. Preuves : une page dont le contenu porte des marqueurs d'erreur (404,
+   introuvable, page not found, accès refusé) ou trop courte n'est jamais
+   stockée ; une page étiquetée « prix » doit contenir des marqueurs de prix
+   (€, $, /mois, per month, plan, tarif). Le magasin interne remonte son seuil
+   de similarité (de 0,15 à une valeur qui exclut l'article Nvidia des dossiers
+   sans rapport, calibrée sur les cas du rapport) et une même source ne peut
+   être rattachée qu'à 3 dossiers au plus, hors signal d'origine. Ajouter les
+   domaines de presse à la liste d'exclusion des concurrents.
+3. Variance : l'Analyst et le Critic passent à température 0. Journaliser la
+   valeur utilisée.
+4. Tirage de contrôle des rejetés : de 10 % à 2 %, plafonné à 5 par jour.
+5. Reprise : après déploiement, lancer `app.reprise --depuis 2026-09-26T13:41Z`
+   en simulation, coller le résumé dans le Journal, puis en réel.
+   **Modifié sur demande de Mathéo (29/09, pas de `DATABASE_URL` en local)** :
+   le marquage de `app.reprise` s'exécute dans le worker au démarrage si la
+   variable d'environnement `RADAR_REPRISE_DEPUIS` est définie (idempotent,
+   résumé dans les logs et dans `runs.erreurs_json`), puis la phase de reprise
+   existante (`_phase_reprise`) traite les dossiers marqués en priorité. Mathéo
+   pose la variable dans Render ; pas de simulation préalable.
+
+Tests sans réseau. Test de fumée API si `model_client` est touché. Commit
+`[3.17]`, demander l'OK pour déployer.
+
+### Journal — sous-étape 3.17
+- Statut : PARTIEL (points 1, 2, 4 codés, testés, recalculés à sec ; **point 3
+  impossible tel que demandé** ; déploiement et point 5 — reprise — en attente
+  de l'« OK pour déployer » de Mathéo)
+- Date : 2026-09-29
+- Commit(s) : `[3.17] Intégrité des preuves et du score` (pas encore déployé)
+- Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
+  Un critère n'est plus noté « solide » que si deux faits viennent de deux sites
+  différents ; les pages d'erreur ou trop courtes ne sont plus gardées comme
+  preuves ; une même page ne peut plus servir à plus de 3 dossiers ; le tirage
+  de contrôle passe à 2 % (5 par jour au plus). Sur les scores réels depuis 3.15,
+  les dossiers à 60 ou plus passent de 12 à 6 — pas à 0 : cette règle seule ne
+  suffit pas. **Température 0 : refusée par l'API pour Sonnet 5** — décision à
+  prendre (voir §9).
+- Fichiers créés / modifiés :
+  - Créés : `app/enqueteur/qualite_page.py`, `tests/test_enqueteur_qualite_page.py`,
+    `tests/test_sous_etape_3_17.py`
+  - Modifiés : `app/scoring/engine.py` (sources distinctes, `InfoSource`,
+    `domaine_de_base`), `SCORING.md`, `config/poids_scoring.yaml` (version
+    `2026.09.1` → `2026.09.2`), `app/pipeline/orchestrator.py` (infos de sources
+    au calcul du score, `_nombre_de_tirages`, plafond journalier de tirages),
+    `app/storage/repo.py` (`dossiers_rattaches_a_url`, `infos_sources_du_dossier`,
+    `nombre_tirages_controle_jour_utc`), `app/enqueteur/fetch.py` (contrôle de
+    qualité, étiquette prix, plafond de rattachement),
+    `config/quotas.yaml` (seuil 0,21, `max_dossiers_par_source: 3`,
+    `enqueteur_page_longueur_min_caracteres: 300`, tirage 0,02,
+    `max_tirages_controle_par_jour: 5`), `config/domaines_exclus_concurrents.yaml`
+    (catégorie `presse`, 44 domaines), `tests/conftest.py`,
+    `tests/test_scoring.py`, `tests/test_enqueteur_enqueteur.py`,
+    `tests/test_enqueteur_fetch.py`. Aucune migration de schéma.
+- Tests : 71 ajoutés — suite par défaut : 495 verts / 0 rouge (424 avant) —
+  dépense : 0 € (suite). Test de fumée payant lancé une fois pendant le
+  développement pour vérifier le point 3 (0,0945 €) : il a **échoué**, voir Écart.
+  Le code de `model_client` étant revenu à l'identique, le test de fumée §5 4bis
+  ne s'applique pas à l'état final.
+- Chiffres produits :
+  - **Recalcul à sec des scores depuis 3.15** (373 lignes, moteur réel, 0 appel
+    modèle ; le recalcul avec l'ancienne règle redonne exactement les 373 scores
+    stockés, 0 écart) :
+
+    | | avant (2026.09.1) | après (2026.09.2) |
+    |---|---:|---:|
+    | Toutes les lignes : médiane / p90 / max | 25,0 / 50,0 / 100 | 22,5 / 45,0 / 95,0 |
+    | Toutes les lignes : > 50 / ≥ 60 | 32 / 15 | 20 / 8 |
+    | Dernier score par dossier (207) : médiane / p90 / max | 27,5 / 52,5 / 100 | 22,5 / 47,5 / 95,0 |
+    | Dernier score par dossier : > 50 / ≥ 60 | 24 / 11 | 13 / 5 |
+    | Dossiers ayant au moins une analyse ≥ 60 | 12 | 6 |
+    | Critères « forts » sur 2 611 | 345 | 200 |
+    | Lignes ≥ 60 rejetées par le Critic | 5 sur 15 | 4 sur 8 |
+
+    112 lignes baissent (−10,4 points en moyenne, −22,5 au maximum), 261 ne
+    bougent pas, aucune ne monte. Par critère « fort » : problème 147 → 70,
+    faisabilité 81 → 60, concurrence 60 → 39, gain IA 39 → 23, accès clients
+    7 → 4, acheteur 6 → 4, économie 5 → 0.
+    Dossiers du rapport 3.16 qui tombent sous 60 : `0611da7a` (60 → 45),
+    `77777820` (70 → 50, « à confirmer »), `ab7635c1` (65 → 45), `b2af456f`
+    (62,5 → 52,5), `cd593e3b` (60 → 50), `db5b77a3` (62,5 → 40). Restent ≥ 60 :
+    `2cea8873` (95), `229b5546` (82,5), `fce213d9` (82,5), `496cc49a` (72,5),
+    `1128b479` (62,5), `47992c8c` (62,5) — **cinq d'entre eux étaient des
+    artefacts** au rapport : leurs sources viennent de domaines différents
+    (TechCrunch, github.blog, lasso.security, Hacker News…), donc la règle des
+    sources distinctes ne les touche pas ; c'est la pertinence des sources
+    (point 2) qui doit les faire tomber, et elle ne se mesure qu'en réanalysant.
+  - **Calibrage du seuil du magasin interne** (0,15 → 0,21) : sur les 139 couples
+    (source, requête) magasin interne de la fenêtre, 100 % passaient à 0,15 et
+    11 % (15) passent à 0,21. Article Nvidia : similarité 0,150–0,262 selon le
+    dossier ; 4 dossiers sur 26 restent au-dessus de 0,21 (les deux vraiment sur
+    le sujet, à 0,216, plus deux hors sujet à 0,225 et 0,262) ; article Le Monde
+    (44 rattachements, max 0,207) : 0 ; article SiMa.ai : 1 sur 11.
+- Écart par rapport au plan (et pourquoi) :
+  1. **Point 3 (température 0) : NON FAIT, impossible.** Le test de fumée payant
+     a échoué : le SDK `anthropic==1.8.0` n'accepte pas `temperature`
+     (`Messages.create() got an unexpected keyword argument 'temperature'`), et
+     la documentation de l'API indique que les paramètres d'échantillonnage
+     (`temperature`, `top_p`, `top_k`) sont **retirés sur Sonnet 5 et Sonnet 5.5**
+     (une valeur non par défaut renvoie une 400). Contourner par `extra_body`
+     aurait provoqué une 400 sur chaque appel de l'Analyst et du Critic, donc la
+     panne du 26/09 en pire (le disjoncteur aurait coupé le pipeline). Tout le code
+     écrit pour ce point (paramètre, colonne `usage_events.temperature`, constante
+     par rôle, contrôle dans le test de fumée, tests) a été retiré : `model_client`,
+     `schema.py`, `db.py`, `budget.py`, les rôles et `fumee_api.py` sont revenus à
+     l'identique. Le test de fumée a coûté 0,0945 €. **Décision de Mathéo
+     (29/09) : option (a), on accepte et on re-mesure après déploiement** (§9).
+  2. **Point 1** : « c'est ce que `SCORING.md` dit déjà » — non : `SCORING.md`
+     et le code disaient tous deux « deux affirmations observées/calculées
+     sourcées » sans exiger de sources distinctes. Les deux sont mis d'accord dans
+     ce commit, sur la règle demandée. « Inférence » : il n'existe pas de type
+     `inference` (seulement `observe`, `calcule`, `hypothese`, `non_verifie`) ; une
+     inférence étiquetée `hypothese` ne compte jamais. Celles que l'Analyst
+     étiquette `observe` (53 % des affirmations « fortes » des 12 dossiers, par
+     mots-clés) ne sont pas détectables par le code sans deviner à partir des
+     mots : c'est un défaut de consigne de l'Analyst (§9), hors périmètre.
+     Une source dont le domaine est inconnu n'est jamais « distincte ».
+  3. **Point 2, étiquette prix** : « étiquette refusée » lu comme : la page perd
+     l'étiquette `prix` et reste stockée comme preuve d'enquête ordinaire (elle
+     est réelle, seulement pas une preuve de prix). `€`/`$` ne comptent que
+     collés à un chiffre, `plan` et `tarif` que comme mots entiers (« planning »
+     ne compte pas). Les marqueurs d'erreur ne sont cherchés que dans le titre et
+     les 500 premiers caractères (un long article qui parle de « 404 » plus loin
+     n'est pas rejeté) ; « trop courte » = moins de 300 caractères (même seuil que
+     les « pages courtes » du rapport 3.16).
+  4. **Point 2, plafond de rattachement** : appliqué par URL (toutes versions de
+     la page), avant la sélection : une source saturée n'est ni refetchée ni ne
+     prend une des 8 places. Les rattachements déjà en base ne sont ni retirés ni
+     modifiés (§0.2.7) : les vieux dossiers gardent leurs mauvaises sources.
+  5. **Point 2, seuil** : 0,21 est calé sur deux dossiers réellement sur le sujet
+     (0,216 contre 0,200–0,202 pour les deux autres extraits stockés du même
+     article) — marge étroite, et aucun seuil ne sépare tout à fait le pertinent du
+     hors-sujet parce que la similarité est dominée par les mots génériques
+     (« AI », « software »). Le plafond de 3 dossiers borne le reste.
+  6. **Point 4** : à 2 % de 15 analyses, l'attendu est 0,3 tirage par passage ;
+     arrondi au plus proche, cela ferait toujours 0. Le nombre est donc tiré au
+     hasard (0,3 → 1 fois sur 3), puis borné par ce qu'il reste des 5 du jour UTC
+     (compté en base, tous runs confondus).
+  7. `tests/conftest.py` ramène le seuil « page trop courte » à 1 pour toute la
+     suite (les anciennes fixtures fabriquent des pages de quelques mots) ; les
+     tests de ce contrôle remettent la vraie valeur.
+  8. **« Lis AMELIORATIONS.md en entier »** : lu en entier §0 à §3, les sous-étapes
+     0.1 à 0.7, 3.13 à 3.17, les étapes 4 à 6 (titres), §5 à §9 ; les Journaux
+     des sous-étapes 1.1 à 3.12 n'ont été lus que par leurs lignes du §8 et du §9.
+- Question pour Mathéo / Fable (sinon « aucune ») : **oui, §9** — température 0
+  impossible sur Sonnet 5 ; que faire pour la variance ?
+- Point 5 (modifié, voir plus haut) : `app.reprise.reprise_au_demarrage`
+  (appelée au début d'`executer_continu`) + `app.reprise.marquer_a_reprendre`
+  (partagée avec la commande) ; `runs.erreurs_json` : le résumé est ajouté
+  APRÈS le message d'incident du disjoncteur (Jarvis relit le premier) et
+  survit à sa réécriture en fin de passage (`messages_permanents`). Valeur
+  invalide ou erreur de marquage : journalisée, jamais une exception. 7 tests
+  ajoutés (`tests/test_reprise_au_demarrage.py`), suite : 495 verts. La
+  simulation demandée au plan n'existe plus pour ce chemin : `app.reprise
+  --simulation` reste utilisable depuis un poste qui a la base.
+- Déploiement : voir la fin de ce Journal (mise à jour au moment du déploiement).
 
 ---
 
@@ -3290,9 +3619,11 @@ Baseline du 25/09/2026 (à confirmer par 0.3). Les cibles sont des ordres de gra
 | 3.10 | FAIT | 2026-09-26 | `[3.10]` | Mesure réelle : Critic ratait sa sortie 78,33 % du temps aujourd'hui (5,78 €/7,76 € perdus), Analyst 18,81 % — 0 échec réseau, 100 % rejets de schéma. Corrigé : `"strict": True` côté API + une seule relance avec erreur jointe ; `usage_events.issue`/`sortie_tronquee` (migration additive) ; `app.metriques.fiabilite_sorties` par rôle ; Reddit (Scout) : espacement 12 s, 8 combinaisons/passage, disjoncteur après 2×429 consécutifs — 18 tests ajoutés, 330 verts ; déployé (OK de Mathéo, commit public `ebafdc6`, 2026-09-26 ~12:52 UTC), worker redémarré et base vérifiés indirectement via `app.metriques` ; mesure 48h reste à faire, voir Journal |
 | 3.11 | FAIT | 2026-09-26 | `[3.11]` | Scout : `mots_cles_en`/`mots_cles_fr` (3 à 6 mots, validés par le code) remplacent la phrase entière dans les requêtes de l'Enquêteur (`HypotheseEnqueteur.mots_cles`, gabarits `<mots_cles>`) ; repli dérivé par code pour les opportunités sans mots-clés ; requêtes vides jamais envoyées (compteur `requetes_evitees_jour`) ; disjoncteur Reddit de l'Enquêteur (3 échecs 429 → pause 60 min, persisté en base, visible dans `app.metriques`) ; Reddit (Enquêteur) désactivé par défaut — 41 tests ajoutés, 375 verts ; déployé avec 3.13 (OK de Mathéo, commit public `37b67463`, 2026-09-28 ~12:53 UTC) ; colonnes vérifiées en base, `app.metriques` répond ; mesure 48h reste à faire, voir Journal |
 | 3.12 | PARTIEL | 2026-09-27 | `[3.12]` | Point d'étape demandé « depuis 3.11 » impossible tel quel (3.11 jamais déployée, vérifié) : mesuré depuis le dernier déploiement réel (3.10, 26/09 ~12:52 UTC). Découverte majeure, non prévue : depuis ~13:41 UTC ce jour-là, ~100 % des appels Scout/Analyst/Critic échouent (exception à l'appel API, jamais un rejet de schéma) — 494 dossiers créés depuis dans ce mode « sans modèle », 878/878 scores Analyst+Critic à 0,0/`a_verifier`, coût réel ≈ 0,07 € sur toute la fenêtre ; le run s'arrête désormais sur le plafond d'APPELS (1300/j), plus jamais sur le budget en euros (qui ne peut plus jamais se remplir). Cause probable non confirmée : versions non figées dans `requirements.txt` (`anthropic>=0.40`, sans plafond) — voir §9, urgent |
-| 3.13 | FAIT | 2026-09-27 | `[3.13]` | Cause confirmée dans les logs Render (API Render, lecture seule) : 400 `additionalProperties must be explicitly set to false` -- corrigé par `app.adapters.schema_strict.rendre_schema_strict` (récursif, sur les `$defs`), mode strict conservé ; **prouvé par un test de fumée payant réel (0,0392 €) : Scout/Analyst/Critic répondent tous les trois via un vrai modèle**. Disjoncteur API (5 échecs consécutifs -> pause 15 min, état persisté `etats_disjoncteur_api`, mirroré sur `runs.statut`/`erreurs_json` pour Jarvis) ; aucun repli créé pendant l'incident (`DisjoncteurAPIOuvert`, jamais attrapée par les rôles). `app.reprise --depuis ... [--simulation]` marque `a_reprendre` les dossiers créés uniquement par repli ; `_phase_reprise` les retraite en priorité via un vrai Scout. Coût compté même en échec réseau (jamais 0€) ; `app.metriques` : appels en erreur/heure + état du disjoncteur ; `a_reprendre` exclu des métriques. Versions figées dans `requirements.txt`. 36 tests ajoutés, 411 verts, 0 € (suite par défaut) + test de fumée payant vert (0,0392 €, hors suite). Point 5 (Jarvis) PARTIEL, pas fait -- voir Journal et §9. Radar déployé avec 3.11 (OK de Mathéo, commit public `37b67463`, 2026-09-28 ~12:53 UTC) ; table `etats_disjoncteur_api` vérifiée en base, `app.metriques` répond ; aucun appel réussi encore observé au moment de la vérification (worker pas encore repassé), mesure 48h à faire ; Jarvis toujours pas déployé |
+| 3.13 | FAIT | 2026-09-27 | `[3.13]` | Cause confirmée dans les logs Render (API Render, lecture seule) : 400 `additionalProperties must be explicitly set to false` -- corrigé par `app.adapters.schema_strict.rendre_schema_strict` (récursif, sur les `$defs`), mode strict conservé ; **prouvé par un test de fumée payant réel (0,0392 €) : Scout/Analyst/Critic répondent tous les trois via un vrai modèle**. Disjoncteur API (5 échecs consécutifs -> pause 15 min, état persisté `etats_disjoncteur_api`, mirroré sur `runs.statut`/`erreurs_json` pour Jarvis) ; aucun repli créé pendant l'incident (`DisjoncteurAPIOuvert`, jamais attrapée par les rôles). `app.reprise --depuis ... [--simulation]` marque `a_reprendre` les dossiers créés uniquement par repli ; `_phase_reprise` les retraite en priorité via un vrai Scout. Coût compté même en échec réseau (jamais 0€) ; `app.metriques` : appels en erreur/heure + état du disjoncteur ; `a_reprendre` exclu des métriques. Versions figées dans `requirements.txt`. 36 tests ajoutés, 411 verts, 0 € (suite par défaut) + test de fumée payant vert (0,0392 €, hors suite). Point 5 (Jarvis) **FAIT le 2026-09-28** (session dédiée, voir addendum du Journal) -- bandeau rouge `api_en_erreur` (heure + message) et alerte orange silence modèle >30 min ajoutés à l'onglet Radar, déployés build 83 (`jarvis-app`, commit `a9651e5`), protocole complet vert. Radar déployé avec 3.11 (OK de Mathéo, commit public `37b67463`, 2026-09-28 ~12:53 UTC) ; table `etats_disjoncteur_api` vérifiée en base, `app.metriques` répond ; aucun appel réussi encore observé au moment de la vérification (worker pas encore repassé), mesure 48h à faire |
 | 3.14 | PARTIEL | 2026-09-28 | `[3.14]` | Fenêtre demandée (« depuis le déploiement de 3.13 ») inexistante -- 3.13 toujours pas déployée (même preuve qu'en 3.12 : pas de commit de sync, colonnes absentes). La panne du 26/09 n'a donc jamais été corrigée : **46 h 23 d'arrêt total ininterrompu** au moment de la mesure, 0,00 % de sorties valides Scout/Analyst/Critic, 0,00 € dépensé, 653 dossiers vides créés (+159 depuis le 27/09), 0 retraité, 0 hypothèse Scout exploitable. Sur les 997 scores réels d'avant la panne : plafond toujours à 55/max (jamais 60) ; analyse critère par critère (nouvelle) -- `acheteur_disposition_payer` (53 % inconnu dans le top 30, jamais « fort » sauf 1/30) et `economie_cout_lancement` (47 % inconnu, jamais « fort », 0/30) plafonnent tout le monde, presque toujours par absence de source `prix` (15/16 et 13/14 cas), un seul cas par faux positif du mécanisme de concurrents (3.4b). Critic : jamais « éligible » (0/997) ; même les 3 meilleurs dossiers de tout le projet n'ont reçu qu'un Critic en repli, dès le 25/09 -- avant la panne officielle. `rapports/POINT_ETAPE_2026-09-28.md` créé |
-| 3.15 | FAIT | 2026-09-28 | `[3.15]` | Reddit (flux RSS ET connecteur de recherche sub × expression) mis en pause : `actif: false` dans `app/sources.yaml` + bug réel corrigé (`subreddits_douleur` ignorait `actif`, seule la collecte RSS en tenait compte) -- zéro quota/temps consommé, vérifié sur le vrai fichier. `max_tokens` Analyst 2500→6000, Critic 1800→4000 (ordre de grandeur du plan, pas encore recalibré sur des tailles réelles -- pas d'accès base) ; `app.metriques.fiabilite_sorties[role].taux_troncature` ajouté. Concurrents (3.4b) : marqueur d'offre désormais exigé pour les DEUX sources (magasin interne ET famille `concurrence`, avant seule la seconde l'exigeait) + liste d'exclusion de domaines (`config/domaines_exclus_concurrents.yaml`) -- corrige les 2 faux positifs réels documentés en 3.14 (articles TechCrunch), 3ᵉ cas de test reconstitué (même échec, domaine différent, logs réels non accessibles pour un 3ᵉ titre exact). 16 tests ajoutés, 424 verts, 0 € -- pas encore déployé, OK de Mathéo demandé en fin de session |
+| 3.15 | FAIT | 2026-09-28 | `[3.15]` | Reddit (flux RSS ET connecteur de recherche sub × expression) mis en pause : `actif: false` dans `app/sources.yaml` + bug réel corrigé (`subreddits_douleur` ignorait `actif`, seule la collecte RSS en tenait compte) -- zéro quota/temps consommé, vérifié sur le vrai fichier. `max_tokens` Analyst 2500→6000, Critic 1800→4000 (ordre de grandeur du plan, pas encore recalibré sur des tailles réelles -- pas d'accès base) ; `app.metriques.fiabilite_sorties[role].taux_troncature` ajouté. Concurrents (3.4b) : marqueur d'offre désormais exigé pour les DEUX sources (magasin interne ET famille `concurrence`, avant seule la seconde l'exigeait) + liste d'exclusion de domaines (`config/domaines_exclus_concurrents.yaml`) -- corrige les 2 faux positifs réels documentés en 3.14 (articles TechCrunch), 3ᵉ cas de test reconstitué (même échec, domaine différent, logs réels non accessibles pour un 3ᵉ titre exact). 16 tests ajoutés, 424 verts, 0 € -- **déployé** (OK de Mathéo, commit public `8ac96048`, 2026-09-28 ~16:09 CEST, « build terminé » confirmé par Mathéo) ; vérification indépendante base/logs Render NON faite dans cette session (accès à `.secrets/render-key.txt` bloqué par le mode automatique), à faire par Mathéo ; mesure 48h reste à faire, voir Journal |
+| 3.16 | FAIT | 2026-09-29 | `[3.16]` | Point d'étape lecture seule (fenêtre 28/09 14:09:53 → 29/09 ~10:07 UTC). Radar sain : 933 appels modèle, 100 % valides, 0 tronqué (3.15 : 8 sorties coupées sur 83 juste avant, 0 sur 746 après), 16,38 €, aucun arrêt sur budget, disjoncteur API jamais déclenché ; **reprise : 0/662, `app.reprise` jamais lancée**. **12 dossiers ≥ 60 (max 100) contre 0 (max 55) — 0 crédible, 2 à confirmer, 10 artefacts, 0 éligible.** Causes : « fort » = 2 affirmations avec un id de source (pas de sources distinctes exigées, 53 % d'inférences), articles d'actualité pris pour des douleurs, mêmes pages rattachées à 26 dossiers (article Nvidia), 1 seule vraie page de prix sur 207 dossiers (faux concurrent « CEO of Mistral: AI is software » qui alimente 45 dossiers), scores non reproductibles (mêmes preuves : écart médian 5 points, jusqu'à 40). Sans sources transversales, 2/12 restent ≥ 60. Critic : 80 % de rejets, 0 éligible, instable (20/185 basculent). 100 % des dossiers viennent de la recherche HN, 0 Reddit. `rapports/POINT_ETAPE_2026-09-29.md` créé |
+| 3.17 | PARTIEL | 2026-09-29 | `[3.17]` | Reprise : marquage fait par le worker au démarrage si `RADAR_REPRISE_DEPUIS` est définie (pas de `DATABASE_URL` en local). Score : « fort » exige deux affirmations sur deux sources distinctes (domaines différents, ou signal d'origine + une autre), poids `2026.09.2` ; recalcul à sec depuis 3.15 (373 lignes, ancienne règle reproduit les scores stockés) : dossiers ≥ 60 : 12 → 6, critères « forts » 345 → 200, médiane des dossiers 27,5 → 22,5. Preuves : page d'erreur/trop courte (< 300 car.) jamais stockée, étiquette `prix` refusée sans marqueur de prix, une source ≤ 3 dossiers (origine exclue), seuil magasin interne 0,15 → 0,21, 44 domaines de presse exclus des concurrents. Tirage de contrôle 10 % → 2 %, ≤ 5/jour. **Température 0 impossible : l'API la retire sur Sonnet 5** (vu au test de fumée, 0,09 €) — code retiré, §9. 495 tests verts. Ni déployé ni reprise (`app.reprise`) : en attente de l'OK de Mathéo |
 | 4.1 | À FAIRE | | | |
 | 4.2 | À FAIRE | | | |
 | 4.3 | À FAIRE | | | |
@@ -3317,6 +3648,80 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
 
 À remplir par Claude Code, une ligne par question, datée, avec la sous-étape concernée. Mathéo transmet cette section à Fable telle quelle. Une question résolue est barrée, jamais effacée.
 
+- **2026-09-29 (sous-étape 3.17, À TRANCHER)** :
+  0. **Tranché par Mathéo (29/09) : option (a) ci-dessous — on accepte, on
+     re-mesure la variance après déploiement. À l'étape 5, une seconde analyse
+     ne sera déclenchée qu'au seuil d'éligibilité** (un dossier qui atteindrait
+     l'éligibilité est réanalysé une fois pour confirmer ; les autres ne le
+     sont jamais), à la place du tirage de contrôle actuel des rejetés.
+  1. **Température 0 impossible sur Sonnet 5** (point 3). L'API a retiré
+     `temperature`/`top_p`/`top_k` pour Sonnet 5 et 5.5 ; le SDK installé
+     (`anthropic==1.8.0`) ne les propose plus. Le score reste donc non
+     reproductible d'une analyse à l'autre (écart médian 5 points sur mêmes
+     preuves, rapport 3.16). Options : (a) accepter, et compter sur les autres
+     leviers de 3.17 (règle des sources distinctes, moins de tirages de contrôle)
+     puis sur la décision codée de l'étape 5 ; (b) baisser `output_config.effort`
+     de l'Analyst/Critic (à mesurer, aucune garantie de moins de variance) ;
+     (c) passer l'Analyst/Critic sur un modèle qui accepte encore
+     `temperature` (`claude-sonnet-4-6`, 3 $/15 $ au lieu de 2 $/10 $, soit
+     ~1,5× le coût de ces deux rôles : ≈ 15,5 € → ≈ 23 € sur la fenêtre de 20 h
+     mesurée en 3.16) — changement de modèle, donc nouvelle qualité à vérifier, et
+     `tests_payants/fumee_api.py` obligatoire ; (d) analyser deux fois et ne
+     garder que ce qui est stable (double coût). Recommandation : (a) pour
+     l'instant, puis refaire la mesure de variance après déploiement.
+  2. **Ce que 3.17 ne règle pas** : 6 dossiers restent ≥ 60 au recalcul à sec
+     (`2cea8873`, `229b5546`, `fce213d9`, `496cc49a`, `1128b479`, `47992c8c`), dont
+     cinq étaient des artefacts au rapport 3.16 ; leurs sources viennent de
+     domaines différents mais sont hors sujet. Vérifier après déploiement et
+     reprise avec un nouveau point d'étape.
+  3. **Affirmations « observées » qui sont des inférences** (53 % des « fortes »
+     dans le rapport 3.16) : le moteur ne peut pas les deviner ; à traiter dans la
+     consigne de l'Analyst (par exemple : « observé » seulement si la source le dit
+     littéralement, sinon « hypothèse ») — changement de prompt, hors périmètre de
+     3.17, à décider.
+  4. **Similarité du magasin interne** : le cosinus en sac de mots est dominé par
+     « AI » et « software » (mots des gabarits) ; 0,21 est un pansement calé sur
+     deux cas. Piste : comparer sur les seuls mots-clés du Scout, sans les mots
+     du gabarit, et exiger deux mots informatifs communs.
+  5. **Scores historiques** gardent la version de poids `2026.09.1` ; ceux
+     calculés après déploiement portent `2026.09.2` : ne pas comparer les deux
+     sans le dire.
+- **2026-09-29 (sous-étape 3.16, À TRANCHER avant d'aller plus loin)** :
+  cinq constats mesurés (détail chiffré dans
+  `rapports/POINT_ETAPE_2026-09-29.md`), aucun corrigé (lecture seule) :
+  1. **Règle de score.** `app.scoring.engine.evaluer_critere` accorde 100 %
+     dès que deux affirmations observées/calculées portent un `source_id`,
+     sans exiger que les deux sources soient distinctes ni que la source
+     prouve le critère. Résultat : 12 dossiers ≥ 60 dont 0 crédible ; 53 %
+     des affirmations « fortes » sont des inférences (« suggère »), l'offre
+     d'un concurrent est comptée comme disposition à payer, des pages d'erreur
+     comptées comme faits. Recalcul à sec « sans recouvrement de sources » :
+     9 des 12 restent ≥ 60 — cette seule règle ne suffit donc pas. À décider :
+     exiger sources propres/distinctes et pertinentes, ou revoir la règle
+     avant l'étape 5/6 (rappel : « ne pas changer le score avant 6.1 », §7).
+  2. **Scores non reproductibles.** Sur les mêmes preuves (0 source ajoutée
+     entre les deux analyses de 165 paires), écart médian 5 points, max 40 ;
+     3 des 12 dossiers ≥ 60 ne le sont qu'à une analyse sur deux.
+  3. **Sources transversales et pages d'erreur.** L'article Nvidia est
+     rattaché à 26 dossiers ; `lemonde.fr/pricing` (page d'erreur de 209
+     caractères) à 45. 3.15 a corrigé deux faux positifs précis, pas la
+     classe : le titre « CEO of Mistral: AI is software » (marqueur *software*,
+     domaine `lemonde.fr` non exclu) alimente 45 dossiers en « pages de prix ».
+     Une page rendue avec un message d'erreur (HTTP 200) est stockée comme
+     source, contre l'esprit de 3.3 (« page vide ou injoignable jamais
+     stockée »).
+  4. **`app.reprise` n'a jamais été lancée** : 662 dossiers vides (26/09
+     13:41 → 28/09 12:53) toujours à reprendre, 0 repris. Commande manuelle
+     (`DATABASE_URL`, écriture) ; rien d'automatique ne la déclenche.
+  5. **Tirage de contrôle des rejetés** : 185 tirages depuis 3.15 (~47 % de
+     la dépense Analyst+Critic de la fenêtre, ~7,7 €) pour 20 basculements en
+     « à vérifier » ; le taux de rejet de 80 % épuise vite le stock.
+  Constats annexes sans décision urgente : `runs.resume_json` du run terminé
+  du 28/09 affiche 0 dossier créé (faux, 298) ; `usage_events` sans
+  `opportunity_id` pour l'Enquêteur (82 dossiers sans source d'enquête, cause
+  non mesurable) ; 2 dossiers restent au statut `en_analyse` (limitation
+  3.13) ; 100 % du flux vient de la recherche Hacker News (16 combinaisons sur
+  50), aucun flux d'acheteurs payants.
 - ~~2026-09-27 (sous-étape 3.12, point 7 de la conclusion, URGENT) : cause de
   la panne du 26/09/2026 non confirmée depuis cette session (aucun accès aux
   logs Render).~~ **Résolue en sous-étape 3.13** : confirmée via l'API
@@ -3335,7 +3740,7 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
   intervention manuelle. Pas corrigé (hors périmètre écrit de 3.13, qui
   porte sur le disjoncteur lui-même) -- à considérer comme un chantier de
   résilience séparé si la fréquence observée en production le justifie.
-- 2026-09-27 (sous-étape 3.13, point 5, PARTIEL) : le texte demandait aussi
+- ~~2026-09-27 (sous-étape 3.13, point 5, PARTIEL) : le texte demandait aussi
   l'exposition Jarvis (workflow `jarvis-radar-recap` + bandeau rouge dans
   `produits/jarvis/telecommande-pages/index.html`) -- pas fait dans cette
   session : ça touche un système distinct (n8n) et un fichier HTML partagé
@@ -3345,7 +3750,11 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
   l'incident, `runs.erreurs_json` porte le message) -- rien à ajouter côté
   radar. À faire : lire le workflow existant, ajouter la lecture de ces deux
   champs, ajouter le bandeau rouge côté page, tester, puis déployer Jarvis
-  séparément (protocole habituel, verrou pris/libéré).
+  séparément (protocole habituel, verrou pris/libéré).~~ **Résolue
+  (2026-09-28)** : session dédiée, OK explicite de Mathéo, protocole
+  habituel suivi (verrou n8n + verrou applicatif LABO pris/libérés). Voir
+  l'addendum du Journal 3.13 pour le détail complet -- déployé build 83
+  (`jarvis-app`, commit `a9651e5`).
 - **2026-09-27 (sous-étape 3.12, URGENT)** : deux constats distincts, tous
   les deux vérifiés (pas des hypothèses), à traiter par Mathéo/Fable avant
   toute nouvelle sous-étape :
@@ -3441,7 +3850,8 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
   mesure à 48h prévue par §5 (point 9) pour les Journaux de 1.6/2.3/3.6 —
   logiquement la même mesure devrait aussi couvrir 3.11/3.13. Jarvis
   (bandeau rouge, point 5 de 3.13) reste séparément non déployé, non
-  demandé dans cette session.
+  demandé dans cette session. **Résolu (2026-09-28)** : point 5 fait et
+  déployé (build 83) dans une session dédiée, voir addendum du Journal 3.13.
 - ~~2026-09-26 (sous-étape 3.8, BLOQUÉ) : impossible de faire l'audit demandé
   — aucune session Claude Code (celle-ci comme les précédentes : 0.5, 0.7,
   3.6, toutes le même jour et le lendemain) ne parvient à se connecter à la
@@ -3835,3 +4245,26 @@ Note sur l'étape 0 : si une commande de métriques ou un fichier BASELINE exist
   Scout), c'est cette lecture qui a été retenue. Si Mathéo/Fable veulent le
   même disjoncteur côté Enquêteur, ce serait une sous-étape à part (l'Enquêteur
   n'a pas de notion de « passage » au sens où le Scout l'entend).
+- **2026-09-28 (sous-étape 3.15, déploiement)** : cette session n'a pas pu
+  faire le point 7 de la procédure §5 (vérifier sur Render que le Background
+  Worker a redémarré, que le premier passage s'est terminé sans erreur, que
+  la base répond) -- lecture de `.secrets/render-key.txt` refusée par le
+  mode automatique de Claude Code (« Credential Materialization »), et
+  aucun identifiant `radar_lecture` local pour une vérification directe en
+  base non plus. Les sessions de déploiement précédentes (3.10/3.11/3.13)
+  avaient pu lire cette clé sans problème -- la restriction semble donc
+  propre à cette session-ci (ou à un changement de configuration du mode
+  automatique), pas une limite structurelle nouvelle de l'environnement
+  (même prudence qu'en 3.8, où une hypothèse de limite structurelle s'était
+  révélée être autre chose). Le déploiement lui-même a bien eu lieu (commit
+  public `8ac96048`, 2026-09-28 ~16:09 CEST, voir Journal 3.15) -- seule la
+  vérification post-déploiement manque. **Mis à jour, même jour** : Mathéo a
+  confirmé « build terminé » dans la session -- le service Render a donc
+  fini de construire et déployer ce commit. Ça ne remplace pas la
+  vérification indépendante habituelle (base ou logs Render) que cette
+  session ne peut toujours pas faire (même blocage) : rien ne prouve encore
+  que le premier passage du worker s'est terminé sans erreur avec le
+  nouveau code. **À faire par Mathéo** : lire les logs Render ou `python -m
+  app.metriques --jour 2026-09-28` pour confirmer que le worker tourne
+  normalement, ou lancer une session qui a accès à cette clé pour le
+  vérifier via l'API Render comme en 3.13.

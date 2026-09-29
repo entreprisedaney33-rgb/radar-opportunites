@@ -53,7 +53,8 @@ from app.roles import analyst as role_analyst
 from app.roles import critic as role_critic
 from app.roles import scout as role_scout
 from app.roles.critic import STATUT_PAR_DECISION
-from app.scoring.engine import calculer_score
+from app.reprise import reprise_au_demarrage
+from app.scoring.engine import InfoSource, calculer_score
 from app.sources import SourceConfig
 from app.storage import repo
 
@@ -323,7 +324,22 @@ def _selectionner_pour_enquete(engine: Engine, max_enquetes: int) -> list[dict]:
     return sorted((o for o in toutes if o["statut"] == "nouveau"), key=lambda o: o["date_creation"])[:max_enquetes]
 
 
-def _selectionner_pour_analyse(engine: Engine, max_analyses: int, fraction_echantillon_rejetes: float) -> list[dict]:
+def _nombre_de_tirages(attendu: float, restant_aujourdhui: int, *, aleatoire=random.random) -> int:
+    """Sous-étape 3.17. Nombre de dossiers rejetés à retirer pour le contrôle
+    ce passage-ci : `attendu` (max_analyses x fraction, ex. 15 x 0,02 = 0,3) est
+    arrondi AU HASARD (0,3 -> 1 fois sur 3, sinon 0) plutôt qu'au plus proche --
+    un arrondi classique ferait passer toute fraction sous 1/(2 x max_analyses)
+    à zéro tirage, à jamais. Jamais plus que ce qu'il reste du plafond
+    journalier (`max_tirages_controle_par_jour`)."""
+    entier = int(attendu)
+    n = entier + (1 if aleatoire() < attendu - entier else 0)
+    return max(0, min(n, restant_aujourdhui))
+
+
+def _selectionner_pour_analyse(
+    engine: Engine, max_analyses: int, fraction_echantillon_rejetes: float,
+    max_tirages_par_jour: int | None = None,
+) -> list[dict]:
     """Filtre de preuves : priorité au retard en attente (tout ce qui est
     encore `enquete_terminee` -- trouvé par le Scout ET déjà passé par
     l'Enquêteur, sous-étape 3.4 -- quel que soit le passage qui l'a créé —
@@ -334,7 +350,12 @@ def _selectionner_pour_analyse(engine: Engine, max_analyses: int, fraction_echan
 
     Depuis la sous-étape 0.7 : une opportunité déjà retirée une fois par cet
     échantillon (table `tirages_controle_rejetes`) n'est plus jamais
-    re-proposée — voir `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`, §4."""
+    re-proposée — voir `rapports/DIAGNOSTIC_BUDGET_2026-09-25.md`, §4.
+
+    Depuis la sous-étape 3.17 : `max_tirages_par_jour` (config
+    `max_tirages_controle_par_jour`, `None` = pas de plafond) borne le nombre
+    de tirages par journée UTC, tous passages et tous runs confondus -- voir
+    `_nombre_de_tirages`."""
     toutes = repo.lister_opportunites_ouvertes(engine)
     backlog_nouveau = sorted(
         (o for o in toutes if o["statut"] == "enquete_terminee"), key=lambda o: o["date_creation"]
@@ -342,7 +363,13 @@ def _selectionner_pour_analyse(engine: Engine, max_analyses: int, fraction_echan
     deja_tirees = repo.opportunites_deja_tirees_controle(engine)
     deja_rejetees = [o for o in toutes if o["statut"] == "rejete" and o["id"] not in deja_tirees]
 
-    n_echantillon = max(0, round(max_analyses * fraction_echantillon_rejetes)) if deja_rejetees else 0
+    if not deja_rejetees:
+        n_echantillon = 0
+    elif max_tirages_par_jour is None:
+        n_echantillon = max(0, round(max_analyses * fraction_echantillon_rejetes))
+    else:
+        restant = max_tirages_par_jour - repo.nombre_tirages_controle_jour_utc(engine, datetime.now(timezone.utc).date())
+        n_echantillon = _nombre_de_tirages(max_analyses * fraction_echantillon_rejetes, restant)
     n_principal = max(0, max_analyses - n_echantillon)
 
     principal = backlog_nouveau[:n_principal]
@@ -647,7 +674,10 @@ def _phase_analyse_et_critique(
     model_client: ModelClient | None, resume: ResumeRun, debut: float, duree_max: float,
 ) -> None:
     max_analyses = min(options.max_analyses or quotas["max_analyses_par_passage"], quotas["max_analyses_par_passage"])
-    a_analyser = _selectionner_pour_analyse(engine, max_analyses, quotas["echantillon_rejetes_pour_controle"])
+    a_analyser = _selectionner_pour_analyse(
+        engine, max_analyses, quotas["echantillon_rejetes_pour_controle"],
+        max_tirages_par_jour=quotas["max_tirages_controle_par_jour"],
+    )
 
     modele_approfondi = settings.model_approfondi
     for candidat in a_analyser:
@@ -726,7 +756,11 @@ def _phase_analyse_et_critique(
         )
         resume.critiques_terminees += 1
 
-        resultat_score = calculer_score(analyst_sortie.criteres, poids_config)
+        infos_sources = {
+            source_id: InfoSource(domaine=info["domaine"], origine=info["origine"])
+            for source_id, info in repo.infos_sources_du_dossier(engine, opportunity_id).items()
+        }
+        resultat_score = calculer_score(analyst_sortie.criteres, poids_config, infos_sources)
         statut_final = STATUT_PAR_DECISION[critic_sortie.decision]
         if analyst_sortie.contradictions and critic_sortie.decision != DecisionCritic.REJETER:
             statut_final = "incertain"
@@ -860,6 +894,12 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
 
     run_id: str | None = None
 
+    # Sous-étape 3.17, point 5 : marquage `a_reprendre` au démarrage si
+    # RADAR_REPRISE_DEPUIS est posée (voir app.reprise.reprise_au_demarrage) ;
+    # le retraitement lui-même est fait par `_phase_reprise` ci-dessous, en
+    # priorité à chaque passage. Le résumé est recopié dans `runs.erreurs_json`.
+    resume_reprise = reprise_au_demarrage(engine)
+
     while True:
         if _pause_demandee(engine):
             logger.info("PAUSE_ALL actif : en attente, aucun passage tant que ce n'est pas levé.")
@@ -921,6 +961,8 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
             logger.info("Nouveau run journalier %s (%s UTC).", run_id, aujourdhui.isoformat())
 
         resume = ResumeRun()
+        if resume_reprise:
+            resume.erreurs.append(resume_reprise)
         debut = time.monotonic()
         budget = BudgetTracker(
             engine, run_id,
@@ -975,6 +1017,7 @@ def executer_continu(engine: Engine, *, forcer_demo: bool = False) -> None:
             en_erreur=bool(etat_disjoncteur_api and etat_disjoncteur_api["en_erreur"]),
             depuis=etat_disjoncteur_api["depuis"] if etat_disjoncteur_api else None,
             message=etat_disjoncteur_api["dernier_message"] if etat_disjoncteur_api else None,
+            messages_permanents=[resume_reprise] if resume_reprise else None,
         )
 
         if resume.budget_atteint:

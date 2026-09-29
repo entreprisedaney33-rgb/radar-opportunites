@@ -14,6 +14,16 @@ credentials.json
 secrets.yaml
 secrets.yml
 
+# Défense en profondeur : le dossier de secrets locaux du dépôt (racine de
+# labo-ia, `.secrets/` — clés Anthropic, n8n, Vapi, Render...) vit hors de
+# `produits/radar-opportunites/` aujourd'hui, donc `rsync` (qui ne copie que
+# CE dossier-ci vers le dépôt de déploiement) ne peut structurellement pas
+# l'atteindre. Exclu ici quand même, au cas où un `.secrets/` apparaîtrait un
+# jour DANS ce dossier, ou si `RADAR_SOURCE_DEPLOIEMENT` est un jour pointé
+# ailleurs (tests, usage manuel) — jamais un remplacement du fait que
+# `.secrets/` est déjà hors de portée par construction.
+.secrets
+
 # Script d'administration à usage unique (sous-étape 0.5) : manipule l'URL
 # d'admin Postgres en clair en mémoire le temps de son exécution ; Render n'en
 # a de toute façon aucun besoin (le Background Worker n'exécute jamais ce

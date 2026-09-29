@@ -2,7 +2,7 @@
 # concurrents, même si un résultat de recherche les mentionne avec un
 # marqueur d'offre dans son titre (app/enqueteur/concurrents.py). Chargé et
 # combiné en un seul ensemble par app/config.py::domaines_exclus_concurrents
-# -- les deux catégories ci-dessous ne sont qu'une aide à la lecture, le
+# -- les catégories ci-dessous (sources du radar, plateformes, presse) ne sont qu'une aide à la lecture, le
 # code ne les distingue pas.
 #
 # Faux positif réel qui a motivé cette liste (rapports/POINT_ETAPE_2026-09-28.md,
@@ -38,3 +38,61 @@ plateformes:
   - substack.com
   - youtube.com
   - wikipedia.org
+
+# Sous-étape 3.17 : la presse (généraliste, économique, tech) ne vend pas de
+# solution -- un titre d'article qui contient « software » ou « platform »
+# n'en fait pas un concurrent. Faux positif réel qui a motivé cette entrée
+# (rapports/POINT_ETAPE_2026-09-29.md, §3) : « CEO of Mistral: AI is
+# software. It can be controlled » (lemonde.fr, marqueur *software*), pris
+# pour un concurrent, a rattaché la même page d'erreur `lemonde.fr/pricing`
+# à 45 dossiers. Liste de départ, à compléter au fil des faux positifs
+# observés (un domaine exclu couvre aussi ses sous-domaines).
+presse:
+  # presse généraliste et économique francophone
+  - lemonde.fr
+  - lesechos.fr
+  - lefigaro.fr
+  - liberation.fr
+  - lexpress.fr
+  - lepoint.fr
+  - latribune.fr
+  - leparisien.fr
+  - ouest-france.fr
+  - francetvinfo.fr
+  - franceinfo.fr
+  - bfmtv.com
+  - 20minutes.fr
+  - courrierinternational.com
+  # presse tech francophone
+  - journaldunet.com
+  - lemondeinformatique.fr
+  - usine-digitale.fr
+  - numerama.com
+  - 01net.com
+  # presse anglophone généraliste et économique
+  - nytimes.com
+  - wsj.com
+  - ft.com
+  - bloomberg.com
+  - reuters.com
+  - economist.com
+  - forbes.com
+  - fortune.com
+  - businessinsider.com
+  - washingtonpost.com
+  - theguardian.com
+  - bbc.com
+  - bbc.co.uk
+  - cnn.com
+  - axios.com
+  # presse tech anglophone
+  - theverge.com
+  - wired.com
+  - arstechnica.com
+  - engadget.com
+  - zdnet.com
+  - cnet.com
+  - venturebeat.com
+  - theinformation.com
+  - technologyreview.com
+  - siliconangle.com

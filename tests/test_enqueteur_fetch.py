@@ -316,7 +316,7 @@ def test_collecter_preuves_etiquette_prix_transmise_a_chaque_page(engine_test, m
     monkeypatch.setattr(fetch_module, "get_with_retry", lambda url, **kw: _FauxReponseTexte("", status_code=404))
     monkeypatch.setattr(
         fetch_module, "get_avec_limite_taille",
-        lambda url, **kw: b"<html><body><p>Page de tarification suffisante.</p></body></html>",
+        lambda url, **kw: b"<html><body><p>Tarifs : offre Pro a 49 $ par mois.</p></body></html>",
     )
     monkeypatch.setattr(fetch_module.time, "sleep", lambda *_a, **_kw: None)
 

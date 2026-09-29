@@ -1,4 +1,4 @@
-# SCORING.md — ancres du score, version 2026.09.1
+# SCORING.md — ancres du score, version 2026.09.2
 
 Ce fichier doit rester identique à ce que fait réellement
 [`app/scoring/engine.py`](app/scoring/engine.py). Si vous changez l'un, changez l'autre
@@ -33,11 +33,30 @@ moins un `source_id` réel, une source effectivement collectée) :
   source (par exemple parce qu'une source citée n'était pas dans le
   périmètre autorisé — voir plus bas).
 - **0,5 — indices partiels** : soit exactement une affirmation
-  `observé`/`calculé` sourcée, soit uniquement des affirmations
-  `hypothèse` (aucune observée/calculée). Un seul fait dur, ou seulement
-  des pistes non confirmées : ni absent, ni solide.
+  `observé`/`calculé` sourcée, soit plusieurs mais qui reposent sur la même
+  source (voir « sources distinctes » ci-dessous), soit uniquement des
+  affirmations `hypothèse` (aucune observée/calculée). Un seul fait dur, ou
+  seulement des pistes non confirmées : ni absent, ni solide.
 - **1,0 — preuves solides** : au moins deux affirmations `observé`/`calculé`
-  sourcées.
+  sourcées qui citent **deux sources distinctes** (règle de la sous-étape
+  3.17, version des poids `2026.09.2` ; avant, deux affirmations sourcées
+  suffisaient, même sur une seule source).
+
+**Sources distinctes** (`app.scoring.engine.sources_distinctes`) : deux
+sources sont distinctes si ce sont deux sources différentes **et** que leurs
+domaines de base diffèrent (`www.lemonde.fr` et `abonne.lemonde.fr` sont le
+même domaine de base, `lemonde.fr`), **ou** que l'une est le signal d'origine
+du dossier (celui que le Scout a lu, preuve « Scout: … ») et pas l'autre. Deux
+fils Hacker News qui ne sont pas le signal d'origine ne sont donc pas deux
+sources ; un commentaire Hacker News d'origine et un autre fil Hacker News le
+sont. Une source dont on ne connaît pas le domaine n'est jamais distincte.
+
+**Une hypothèse, et donc une inférence, ne compte jamais comme fait fort** :
+seuls les types `observé` et `calculé` comptent pour le palier 1,0, quel que
+soit leur nombre. (Ce que le modèle étiquette `observé` alors que sa phrase
+n'est qu'une interprétation — « suggère », « indique »… — reste un défaut de
+l'étiquetage par l'Analyst, pas un cas que ce moteur peut deviner : voir
+AMELIORATIONS.md, §9.)
 
 Il n'y a volontairement pas de palier intermédiaire supplémentaire : trois
 ancres reproductibles valent mieux qu'un barème fin mais arbitraire.

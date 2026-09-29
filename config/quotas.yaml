@@ -84,7 +84,13 @@ pause_apres_passage_actif_secondes: 30
 
 # Part des candidats REJETÉS par le filtre de preuves qu'on envoie quand même
 # à l'Analyst/Critic, pour détecter un filtre trop sévère (§2, pipeline).
-echantillon_rejetes_pour_controle: 0.10
+# Sous-étape 3.17 : 0.10 -> 0.02, et plafonné à `max_tirages_controle_par_jour`
+# par journée UTC. Mesure de 3.16 : 185 tirages en 20 h (~47 % de la dépense
+# Analyst+Critic, ~7,7 €) pour 20 basculements en « à vérifier » ; à 0.02 le
+# nombre attendu par passage (max_analyses_par_passage x 0.02 = 0,3) est
+# tiré au sort (`app.pipeline.orchestrator._nombre_de_tirages`), pas arrondi.
+echantillon_rejetes_pour_controle: 0.02
+max_tirages_controle_par_jour: 5
 
 # Réessais réseau : plafonnés, avec délai croissant, sur 429/5xx.
 retry_max_tentatives: 3
@@ -161,7 +167,38 @@ enqueteur_fetch_delai_secondes: 1.0  # entre deux fetchs consécutifs d'un même
 # le cosinus sur sacs de mots baisse mécaniquement avec l'asymétrie de
 # longueur. Point de départ prudent, non mesuré en conditions réelles — à
 # confirmer/ajuster à la sous-étape 3.6.
-seuil_similarite_magasin_interne: 0.15
+#
+# Sous-étape 3.17 : 0.15 -> 0.21. Calibré sur le rapport du 29/09
+# (rapports/POINT_ETAPE_2026-09-29.md, §2) : l'article Nvidia était rattaché à
+# 26 dossiers dont la plupart sans rapport (code, pétrole, jeux rétro...).
+# Similarité (requête, extrait de l'article) mesurée pour ces 26 dossiers :
+# 0,150 à 0,262 ; les deux dossiers réellement sur le sujet (surveillance et
+# confinement d'agents IA) sont à 0,216. À 0,21 il ne reste que 4 des 26
+# dossiers (dont ces deux-là) ; l'article Le Monde (44 rattachements, max
+# 0,207) et l'article SiMa.ai (11, max 0,218, un seul reste) tombent presque
+# entièrement. Sur les 139 (source, requête) magasin_interne de la fenêtre
+# 3.15->3.16, ce seuil en garde 15 (11 %). Limite connue : la similarité en sac
+# de mots est dominée par les mots génériques (« AI », « software ») des
+# gabarits -- aucun seuil ne sépare tout à fait le pertinent du hors-sujet
+# (deux dossiers hors sujet montent à 0,225 et 0,262) ; c'est le plafond de
+# rattachement ci-dessous qui borne le reste. Marge étroite : pour les deux
+# dossiers sur le sujet, seul le plus court des trois extraits stockés de
+# l'article Nvidia passe (0,216) ; les deux autres restent à 0,200-0,202.
+seuil_similarite_magasin_interne: 0.21
+
+# Sous-étape 3.17 : une même source (même URL) ne peut être rattachée qu'à
+# ce nombre de dossiers au plus, signal d'origine exclu (le signal d'origine
+# d'un dossier est par nature propre à ce dossier). Au-delà, la page n'est
+# plus proposée aux nouveaux dossiers (ni même refetchée : voir
+# app.enqueteur.fetch.collecter_preuves). Mesure de 3.16 : l'article Nvidia
+# était rattaché à 26 dossiers, `lemonde.fr/pricing` à 45.
+max_dossiers_par_source: 3
+
+# Sous-étape 3.17 : une page fetchée de moins de ce nombre de caractères une
+# fois le texte extrait n'est jamais stockée (page d'erreur, de connexion, de
+# cookies...) -- la page d'erreur de lemonde.fr/pricing faisait 209
+# caractères. Même seuil que la lecture « pages courtes » du rapport 3.16.
+enqueteur_page_longueur_min_caracteres: 300
 
 # Branchement de l'Enquêteur dans le pipeline (sous-étape 3.4) : nombre de
 # résultats demandés à CHAQUE fournisseur actif pour CHAQUE requête générée
