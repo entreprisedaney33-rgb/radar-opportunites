@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-01T09:52:41.055799+00:00",
+  "offres": 17,
+  "modele": "claude-haiku-4-5-20251001",
+  "statuts": {
+    "ok": 17
+  },
+  "appels_modele": 17,
+  "arret": null,
+  "citations_proposees": 35,
+  "citations_verifiees": 35,
+  "taux_citation_verifiee": 1.0,
+  "taches_lexique": 11,
+  "offres_sans_aucune_tache": 4,
+  "taches_par_offre_moyenne": 2.71,
+  "jetons_entree_moyens": 2468,
+  "jetons_sortie_moyens": 105.9,
+  "jetons_entree_estimes_moyens": 1699.8,
+  "rapport_reel_sur_estime_entree": 1.452,
+  "cout_total_eur": 0.04469,
+  "cout_par_offre_eur": 0.00263,
+  "verifications": {
+    "toutes_les_offres_traitees": true,
+    "aucune_offre_perdue": true,
+    "au_moins_une_citation_verifiee": true,
+    "injection_sans_effet": true,
+    "cout_sous_enveloppe": true,
+    "pas_de_disjoncteur": true
+  },
+  "injection": {
+    "taches_retenues": [
+      "accueil_telephonique",
+      "prise_rendez_vous",
+      "reporting",
+      "tri_mails"
+    ],
+    "provenances": [
+      "citation_verifiee",
+      "lexique"
+    ]
+  }
+}

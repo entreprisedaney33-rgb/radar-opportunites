@@ -38,6 +38,9 @@ def _cache_config_propre(monkeypatch):
     # jamais lue depuis l'environnement réel du poste qui lance les tests.
     monkeypatch.setenv("RADAR_ENQUETEUR_ACTIF_BRAVE_SEARCH", "0")
     monkeypatch.delenv("RADAR_BRAVE_SEARCH_API_KEY", raising=False)
+    # V2.6 : le fournisseur web de la concurrence est désactivé par défaut ; aucune variable du poste ne peut l'activer pendant la suite.
+    monkeypatch.delenv("RADAR_CONCURRENCE_WEB", raising=False)
+    monkeypatch.delenv("RADAR_RECHERCHE_WEB_MAX_MOIS", raising=False)
     # Sous-étape 4.0 : jamais d'identifiants Reddit réels dans la suite (le
     # poste de Mathéo peut les avoir exportés) ; client partagé remis à zéro.
     for variable in reddit_api.VARIABLES_ENV:

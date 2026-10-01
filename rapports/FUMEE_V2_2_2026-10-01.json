@@ -1,0 +1,1489 @@
+{
+  "date": "2026-10-01T08:41:39.287155+00:00",
+  "naf_version_referentiel": "2",
+  "requetes_volet_1": 5,
+  "requetes_volet_2": 168,
+  "volet_1": [
+    {
+      "verification": "comptage 69.20Z / Gironde",
+      "ok": true,
+      "detail": "1145 entreprises actives"
+    },
+    {
+      "verification": "comptage 69.20Z / France",
+      "ok": true,
+      "detail": "10000 (≥ Gironde : True)"
+    },
+    {
+      "verification": "échantillon page 1",
+      "ok": true,
+      "detail": "25 entreprises lues, 36 établissements actifs retenus, 36 avec coordonnées"
+    },
+    {
+      "verification": "échantillon page 2 (pagination)",
+      "ok": true,
+      "detail": "57 établissements retenus, 0 SIRET en commun avec la page 1"
+    },
+    {
+      "verification": "code inexistant 99.99Z",
+      "ok": true,
+      "detail": "refusé par l'API (erreur de collecte) : Échec après 3 tentatives pour https://recherche-entreprises.api.gouv.fr/search?activite_principale=99.99Z&etat_administr"
+    }
+  ],
+  "volet_2": {
+    "codes_testes": 168,
+    "codes_repondus": 168,
+    "suspects_zero_resultat": [],
+    "erreurs_api": {},
+    "par_code": {
+      "41.20A": {
+        "libelle": "Construction de maisons individuelles",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "41.00G": 5
+        }
+      },
+      "41.20B": {
+        "libelle": "Construction d'autres bâtiments",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "41.00H": 5
+        }
+      },
+      "43.12A": {
+        "libelle": "Travaux de terrassement courants et travaux préparatoires",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.12G": 5
+        }
+      },
+      "43.21A": {
+        "libelle": "Travaux d'installation électrique dans tous locaux",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.21G": 5
+        }
+      },
+      "43.22A": {
+        "libelle": "Travaux d'installation d'eau et de gaz en tous locaux",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.22G": 5
+        }
+      },
+      "43.22B": {
+        "libelle": "Travaux d'installation d'équipements thermiques et de climatisation",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.22H": 3,
+          "43.21G": 1,
+          "43.22G": 1
+        }
+      },
+      "43.29A": {
+        "libelle": "Travaux d'isolation",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.99H": 1,
+          "43.23Y": 4
+        }
+      },
+      "43.29B": {
+        "libelle": "Autres travaux d'installation n.c.a.",
+        "entreprises_actives_france": 6683,
+        "naf25_observes": {
+          "43.24Y": 5
+        }
+      },
+      "43.31Z": {
+        "libelle": "Travaux de plâtrerie",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.31Y": 5
+        }
+      },
+      "43.32A": {
+        "libelle": "Travaux de menuiserie bois et PVC",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.32G": 5
+        }
+      },
+      "43.32B": {
+        "libelle": "Travaux de menuiserie métallique et serrurerie",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.32H": 5
+        }
+      },
+      "43.32C": {
+        "libelle": "Agencement de lieux de vente",
+        "entreprises_actives_france": 4771,
+        "naf25_observes": {
+          "43.21G": 1,
+          "43.32H": 3,
+          "43.32G": 1
+        }
+      },
+      "43.33Z": {
+        "libelle": "Travaux de revêtement des sols et des murs",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "41.00H": 1,
+          "43.33Y": 4
+        }
+      },
+      "43.34Z": {
+        "libelle": "Travaux de peinture et vitrerie",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "41.00H": 1,
+          "43.34G": 4
+        }
+      },
+      "43.39Z": {
+        "libelle": "Autres travaux de finition",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.31Y": 1,
+          "43.35Y": 3,
+          "43.33Y": 1
+        }
+      },
+      "43.91A": {
+        "libelle": "Travaux de charpente",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.41G": 5
+        }
+      },
+      "43.91B": {
+        "libelle": "Travaux de couverture par éléments",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.41H": 4,
+          "43.23Y": 1
+        }
+      },
+      "43.99A": {
+        "libelle": "Travaux d'étanchéification",
+        "entreprises_actives_france": 8957,
+        "naf25_observes": {
+          "43.41J": 3,
+          "43.42J": 2
+        }
+      },
+      "43.99C": {
+        "libelle": "Travaux de maçonnerie générale et gros œuvre de bâtiment",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.91Y": 2,
+          "43.41H": 1,
+          "43.42G": 1,
+          "43.99H": 1
+        }
+      },
+      "43.99D": {
+        "libelle": "Autres travaux spécialisés de construction",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "43.50Y": 2,
+          "43.42J": 1,
+          "43.21G": 1,
+          "42.99Y": 1
+        }
+      },
+      "71.11Z": {
+        "libelle": "Activités d'architecture",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "71.11Y": 5
+        }
+      },
+      "71.12B": {
+        "libelle": "Ingénierie, études techniques",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "71.12Y": 5
+        }
+      },
+      "71.20B": {
+        "libelle": "Analyses, essais et inspections techniques (dont diagnostics immobiliers)",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "71.20H": 5
+        }
+      },
+      "81.30Z": {
+        "libelle": "Services d'aménagement paysager",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "81.30Y": 5
+        }
+      },
+      "86.21Z": {
+        "libelle": "Activité des médecins généralistes",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "86.21Y": 5
+        }
+      },
+      "86.22C": {
+        "libelle": "Autres activités des médecins spécialistes",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "86.22Y": 5
+        }
+      },
+      "86.23Z": {
+        "libelle": "Pratique dentaire",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "86.23Y": 5
+        }
+      },
+      "86.90A": {
+        "libelle": "Ambulances",
+        "entreprises_actives_france": 6213,
+        "naf25_observes": {
+          "86.92Y": 5
+        }
+      },
+      "86.90B": {
+        "libelle": "Laboratoires d'analyses médicales",
+        "entreprises_actives_france": 2913,
+        "naf25_observes": {
+          "86.91Y": 5
+        }
+      },
+      "86.90D": {
+        "libelle": "Activités des infirmiers et des sages-femmes",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "86.94G": 5
+        }
+      },
+      "86.90E": {
+        "libelle": "Activités des professionnels de la rééducation, de l'appareillage et des pédicures-podologues",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "86.95Y": 3,
+          "86.99Y": 2
+        }
+      },
+      "86.90F": {
+        "libelle": "Activités de santé humaine non classées ailleurs",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "86.93Y": 4,
+          "86.99Y": 1
+        }
+      },
+      "47.73Z": {
+        "libelle": "Commerce de détail de produits pharmaceutiques en magasin spécialisé",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.73Y": 5
+        }
+      },
+      "47.74Z": {
+        "libelle": "Commerce de détail d'articles médicaux et orthopédiques",
+        "entreprises_actives_france": 6589,
+        "naf25_observes": {
+          "47.74H": 5
+        }
+      },
+      "47.78A": {
+        "libelle": "Commerces de détail d'optique",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.74G": 4,
+          "32.50Y": 1
+        }
+      },
+      "75.00Z": {
+        "libelle": "Activités vétérinaires",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "75.00Y": 5
+        }
+      },
+      "69.10Z": {
+        "libelle": "Activités juridiques",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "69.10Y": 5
+        }
+      },
+      "69.20Z": {
+        "libelle": "Activités comptables",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "69.20Y": 5
+        }
+      },
+      "70.22Z": {
+        "libelle": "Conseil pour les affaires et autres conseils de gestion",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "70.20Y": 5
+        }
+      },
+      "66.22Z": {
+        "libelle": "Activités des agents et courtiers d'assurances",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "66.22Y": 5
+        }
+      },
+      "73.20Z": {
+        "libelle": "Études de marché et sondages",
+        "entreprises_actives_france": 5221,
+        "naf25_observes": {
+          "73.20Y": 5
+        }
+      },
+      "74.90B": {
+        "libelle": "Activités spécialisées, scientifiques et techniques diverses",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "74.91Y": 1,
+          "80.09Y": 1,
+          "74.99Y": 3
+        }
+      },
+      "68.10Z": {
+        "libelle": "Activités des marchands de biens immobiliers",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "68.11Y": 4,
+          "68.32G": 1
+        }
+      },
+      "68.20A": {
+        "libelle": "Location de logements",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "68.20G": 5
+        }
+      },
+      "68.20B": {
+        "libelle": "Location de terrains et d'autres biens immobiliers",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "68.20H": 4,
+          "68.32H": 1
+        }
+      },
+      "68.31Z": {
+        "libelle": "Agences immobilières",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "68.31Y": 5
+        }
+      },
+      "68.32A": {
+        "libelle": "Administration d'immeubles et autres biens immobiliers",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "68.32H": 4,
+          "55.90Y": 1
+        }
+      },
+      "68.32B": {
+        "libelle": "Supports juridiques de gestion de patrimoine immobilier",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "68.32G": 5
+        }
+      },
+      "47.11B": {
+        "libelle": "Commerce d'alimentation générale",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.12H": 1,
+          "47.11G": 3,
+          "56.11J": 1
+        }
+      },
+      "47.11C": {
+        "libelle": "Supérettes",
+        "entreprises_actives_france": 6701,
+        "naf25_observes": {
+          "47.11H": 5
+        }
+      },
+      "47.21Z": {
+        "libelle": "Commerce de détail de fruits et légumes en magasin spécialisé",
+        "entreprises_actives_france": 7954,
+        "naf25_observes": {
+          "47.21Y": 4,
+          "46.31Y": 1
+        }
+      },
+      "47.22Z": {
+        "libelle": "Commerce de détail de viandes et de produits à base de viande",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.22Y": 5
+        }
+      },
+      "47.23Z": {
+        "libelle": "Commerce de détail de poissons, crustacés et mollusques",
+        "entreprises_actives_france": 2779,
+        "naf25_observes": {
+          "47.23Y": 5
+        }
+      },
+      "47.24Z": {
+        "libelle": "Commerce de détail de pain, pâtisserie et confiserie",
+        "entreprises_actives_france": 5057,
+        "naf25_observes": {
+          "47.24Y": 5
+        }
+      },
+      "47.25Z": {
+        "libelle": "Commerce de détail de boissons en magasin spécialisé",
+        "entreprises_actives_france": 9120,
+        "naf25_observes": {
+          "47.25Y": 5
+        }
+      },
+      "47.29Z": {
+        "libelle": "Autres commerces de détail alimentaires en magasin spécialisé",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.27H": 4,
+          "10.83Y": 1
+        }
+      },
+      "47.51Z": {
+        "libelle": "Commerce de détail de textiles en magasin spécialisé",
+        "entreprises_actives_france": 4858,
+        "naf25_observes": {
+          "47.51Y": 5
+        }
+      },
+      "47.52A": {
+        "libelle": "Commerce de détail de quincaillerie, peintures et verres en petites surfaces",
+        "entreprises_actives_france": 7440,
+        "naf25_observes": {
+          "47.52G": 4,
+          "47.54Y": 1
+        }
+      },
+      "47.53Z": {
+        "libelle": "Commerce de détail de tapis, moquettes et revêtements de murs et de sols",
+        "entreprises_actives_france": 1093,
+        "naf25_observes": {
+          "47.53Y": 5
+        }
+      },
+      "47.54Z": {
+        "libelle": "Commerce de détail d'appareils électroménagers",
+        "entreprises_actives_france": 4325,
+        "naf25_observes": {
+          "47.54Y": 5
+        }
+      },
+      "47.59A": {
+        "libelle": "Commerce de détail de meubles",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.55G": 5
+        }
+      },
+      "47.61Z": {
+        "libelle": "Commerce de détail de livres en magasin spécialisé",
+        "entreprises_actives_france": 5848,
+        "naf25_observes": {
+          "47.61Y": 5
+        }
+      },
+      "47.62Z": {
+        "libelle": "Commerce de détail de journaux et papeterie en magasin spécialisé",
+        "entreprises_actives_france": 9899,
+        "naf25_observes": {
+          "47.11G": 1,
+          "47.62Y": 3,
+          "46.49Y": 1
+        }
+      },
+      "47.64Z": {
+        "libelle": "Commerce de détail d'articles de sport en magasin spécialisé",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.63Y": 5
+        }
+      },
+      "47.65Z": {
+        "libelle": "Commerce de détail de jeux et jouets en magasin spécialisé",
+        "entreprises_actives_france": 2890,
+        "naf25_observes": {
+          "47.64Y": 5
+        }
+      },
+      "47.71Z": {
+        "libelle": "Commerce de détail d'habillement en magasin spécialisé",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.71Y": 5
+        }
+      },
+      "47.72A": {
+        "libelle": "Commerce de détail de la chaussure",
+        "entreprises_actives_france": 5479,
+        "naf25_observes": {
+          "47.72G": 5
+        }
+      },
+      "47.75Z": {
+        "libelle": "Commerce de détail de parfumerie et de produits de beauté en magasin spécialisé",
+        "entreprises_actives_france": 9159,
+        "naf25_observes": {
+          "47.75Y": 5
+        }
+      },
+      "47.76Z": {
+        "libelle": "Commerce de détail de fleurs, plantes, graines, engrais, animaux de compagnie",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.76Y": 5
+        }
+      },
+      "47.77Z": {
+        "libelle": "Commerce de détail d'articles d'horlogerie et de bijouterie",
+        "entreprises_actives_france": 6120,
+        "naf25_observes": {
+          "47.77Y": 5
+        }
+      },
+      "47.78C": {
+        "libelle": "Autres commerces de détail spécialisés divers",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.78H": 2,
+          "47.26Y": 2,
+          "47.55H": 1
+        }
+      },
+      "47.79Z": {
+        "libelle": "Commerce de détail de biens d'occasion en magasin",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.79H": 4,
+          "47.79G": 1
+        }
+      },
+      "47.91B": {
+        "libelle": "Vente à distance sur catalogue spécialisé",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.40Y": 1,
+          "47.71Y": 2,
+          "47.51Y": 1,
+          "47.75Y": 1
+        }
+      },
+      "56.10A": {
+        "libelle": "Restauration traditionnelle",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "56.11G": 5
+        }
+      },
+      "56.10C": {
+        "libelle": "Restauration de type rapide",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "56.11J": 4,
+          "82.10Y": 1
+        }
+      },
+      "56.21Z": {
+        "libelle": "Services des traiteurs",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "56.11J": 2,
+          "56.21Y": 3
+        }
+      },
+      "56.30Z": {
+        "libelle": "Débits de boissons",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "56.30Y": 5
+        }
+      },
+      "55.10Z": {
+        "libelle": "Hôtels et hébergement similaire",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "55.10Y": 4,
+          "55.20Y": 1
+        }
+      },
+      "55.20Z": {
+        "libelle": "Hébergement touristique et autre hébergement de courte durée",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "55.20Y": 5
+        }
+      },
+      "55.30Z": {
+        "libelle": "Terrains de camping et parcs pour caravanes ou véhicules de loisirs",
+        "entreprises_actives_france": 6897,
+        "naf25_observes": {
+          "55.20Y": 1,
+          "55.30Y": 4
+        }
+      },
+      "78.10Z": {
+        "libelle": "Activités des agences de placement de main-d'œuvre",
+        "entreprises_actives_france": 3325,
+        "naf25_observes": {
+          "78.10Y": 4,
+          "78.20H": 1
+        }
+      },
+      "78.20Z": {
+        "libelle": "Activités des agences de travail temporaire",
+        "entreprises_actives_france": 6857,
+        "naf25_observes": {
+          "78.20G": 5
+        }
+      },
+      "78.30Z": {
+        "libelle": "Autre mise à disposition de ressources humaines",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "78.20H": 5
+        }
+      },
+      "82.11Z": {
+        "libelle": "Services administratifs combinés de bureau",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "82.10Y": 3,
+          "73.11Y": 1,
+          "70.10Y": 1
+        }
+      },
+      "82.19Z": {
+        "libelle": "Photocopie, préparation de documents et autres activités de soutien de bureau",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "18.12Y": 1,
+          "82.10Y": 3,
+          "70.20Y": 1
+        }
+      },
+      "82.20Z": {
+        "libelle": "Activités de centres d'appels",
+        "entreprises_actives_france": 3890,
+        "naf25_observes": {
+          "82.20Y": 5
+        }
+      },
+      "82.30Z": {
+        "libelle": "Organisation de foires, salons professionnels et congrès",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "82.30Y": 3,
+          "93.29Y": 1,
+          "78.10Y": 1
+        }
+      },
+      "82.99Z": {
+        "libelle": "Autres activités de soutien aux entreprises n.c.a.",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "82.10Y": 3,
+          "82.99Y": 1,
+          "71.20H": 1
+        }
+      },
+      "81.21Z": {
+        "libelle": "Nettoyage courant des bâtiments",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "81.21Y": 4,
+          "81.22Y": 1
+        }
+      },
+      "81.22Z": {
+        "libelle": "Autres activités de nettoyage des bâtiments et nettoyage industriel",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "81.22Y": 5
+        }
+      },
+      "80.10Z": {
+        "libelle": "Activités de sécurité privée",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "80.01Y": 5
+        }
+      },
+      "18.12Z": {
+        "libelle": "Autre imprimerie (labeur)",
+        "entreprises_actives_france": 8838,
+        "naf25_observes": {
+          "18.12Y": 5
+        }
+      },
+      "62.01Z": {
+        "libelle": "Programmation informatique",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "62.10Y": 4,
+          "62.20H": 1
+        }
+      },
+      "62.02A": {
+        "libelle": "Conseil en systèmes et logiciels informatiques",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "62.20G": 5
+        }
+      },
+      "62.09Z": {
+        "libelle": "Autres activités informatiques",
+        "entreprises_actives_france": 7274,
+        "naf25_observes": {
+          "78.10Y": 1,
+          "62.20G": 1,
+          "62.90Y": 3
+        }
+      },
+      "63.12Z": {
+        "libelle": "Portails Internet",
+        "entreprises_actives_france": 8849,
+        "naf25_observes": {
+          "63.91Y": 3,
+          "53.30Y": 1,
+          "53.20H": 1
+        }
+      },
+      "58.19Z": {
+        "libelle": "Autres activités d'édition",
+        "entreprises_actives_france": 2886,
+        "naf25_observes": {
+          "58.19Y": 5
+        }
+      },
+      "59.11A": {
+        "libelle": "Production de films et de programmes pour la télévision",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "59.11G": 5
+        }
+      },
+      "59.11C": {
+        "libelle": "Production de films institutionnels et publicitaires",
+        "entreprises_actives_france": 9923,
+        "naf25_observes": {
+          "59.13Y": 1,
+          "59.11J": 4
+        }
+      },
+      "59.12Z": {
+        "libelle": "Post-production de films cinématographiques, de vidéo et de programmes de télévision",
+        "entreprises_actives_france": 7694,
+        "naf25_observes": {
+          "59.12Y": 4,
+          "90.39H": 1
+        }
+      },
+      "73.11Z": {
+        "libelle": "Activités des agences de publicité",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "73.11Y": 5
+        }
+      },
+      "74.10Z": {
+        "libelle": "Activités spécialisées de design",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "74.13Y": 1,
+          "71.11Y": 1,
+          "74.12Y": 1,
+          "46.49Y": 1,
+          "74.11Y": 1
+        }
+      },
+      "74.20Z": {
+        "libelle": "Activités photographiques",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "74.20Y": 5
+        }
+      },
+      "74.30Z": {
+        "libelle": "Traduction et interprétation",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "74.30Y": 5
+        }
+      },
+      "90.03A": {
+        "libelle": "Création artistique relevant des arts plastiques",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "90.12Y": 5
+        }
+      },
+      "90.03B": {
+        "libelle": "Autre création artistique",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "90.13Y": 2,
+          "90.11Y": 3
+        }
+      },
+      "49.32Z": {
+        "libelle": "Transports de voyageurs par taxis",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "49.33G": 5
+        }
+      },
+      "49.41B": {
+        "libelle": "Transports routiers de fret de proximité",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "49.41H": 5
+        }
+      },
+      "49.42Z": {
+        "libelle": "Services de déménagement",
+        "entreprises_actives_france": 3509,
+        "naf25_observes": {
+          "49.42Y": 5
+        }
+      },
+      "52.29A": {
+        "libelle": "Messagerie, fret express",
+        "entreprises_actives_france": 1131,
+        "naf25_observes": {
+          "49.41G": 2,
+          "53.20G": 2,
+          "52.24H": 1
+        }
+      },
+      "53.20Z": {
+        "libelle": "Autres activités de poste et de courrier (coursiers)",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "53.20G": 3,
+          "53.20H": 2
+        }
+      },
+      "01.11Z": {
+        "libelle": "Culture de céréales (sauf riz), légumineuses et graines oléagineuses",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "01.11Y": 5
+        }
+      },
+      "01.13Z": {
+        "libelle": "Culture de légumes, de melons, de racines et de tubercules",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "01.13Y": 5
+        }
+      },
+      "01.21Z": {
+        "libelle": "Culture de la vigne",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "01.21Y": 5
+        }
+      },
+      "01.50Z": {
+        "libelle": "Culture et élevage associés",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "01.50Y": 5
+        }
+      },
+      "01.61Z": {
+        "libelle": "Activités de soutien aux cultures",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "38.11Y": 1,
+          "01.61Y": 4
+        }
+      },
+      "02.10Z": {
+        "libelle": "Sylviculture et autres activités forestières",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "02.10Y": 5
+        }
+      },
+      "03.11Z": {
+        "libelle": "Pêche en mer",
+        "entreprises_actives_france": 9717,
+        "naf25_observes": {
+          "03.11Y": 5
+        }
+      },
+      "03.21Z": {
+        "libelle": "Aquaculture en mer (dont ostréiculture)",
+        "entreprises_actives_france": 3864,
+        "naf25_observes": {
+          "03.21Y": 5
+        }
+      },
+      "11.02B": {
+        "libelle": "Vinification",
+        "entreprises_actives_france": 1313,
+        "naf25_observes": {
+          "11.02H": 4,
+          "11.01Y": 1
+        }
+      },
+      "46.34Z": {
+        "libelle": "Commerce de gros de boissons (négoce de vin)",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "46.34Y": 5
+        }
+      },
+      "79.11Z": {
+        "libelle": "Activités des agences de voyage",
+        "entreprises_actives_france": 7614,
+        "naf25_observes": {
+          "79.11Y": 5
+        }
+      },
+      "79.90Z": {
+        "libelle": "Autres services de réservation et activités connexes (guides, offices)",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "55.40Y": 1,
+          "79.90Y": 4
+        }
+      },
+      "93.11Z": {
+        "libelle": "Gestion d'installations sportives",
+        "entreprises_actives_france": 7054,
+        "naf25_observes": {
+          "93.11Y": 5
+        }
+      },
+      "93.13Z": {
+        "libelle": "Activités des centres de culture physique",
+        "entreprises_actives_france": 5875,
+        "naf25_observes": {
+          "93.13Y": 5
+        }
+      },
+      "93.19Z": {
+        "libelle": "Autres activités liées au sport",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "93.19Y": 5
+        }
+      },
+      "93.29Z": {
+        "libelle": "Autres activités récréatives et de loisirs",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "93.29Y": 5
+        }
+      },
+      "30.12Z": {
+        "libelle": "Construction de bateaux de plaisance",
+        "entreprises_actives_france": 668,
+        "naf25_observes": {
+          "30.12Y": 5
+        }
+      },
+      "33.15Z": {
+        "libelle": "Réparation et maintenance navale",
+        "entreprises_actives_france": 4391,
+        "naf25_observes": {
+          "77.21Y": 1,
+          "33.15Y": 4
+        }
+      },
+      "52.22Z": {
+        "libelle": "Services auxiliaires des transports par eau (dont ports de plaisance)",
+        "entreprises_actives_france": 728,
+        "naf25_observes": {
+          "52.22Y": 3,
+          "52.31Y": 1,
+          "68.20H": 1
+        }
+      },
+      "77.21Z": {
+        "libelle": "Location et location-bail d'articles de loisirs et de sport",
+        "entreprises_actives_france": 7319,
+        "naf25_observes": {
+          "77.21Y": 5
+        }
+      },
+      "96.02A": {
+        "libelle": "Coiffure",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "96.21G": 5
+        }
+      },
+      "96.02B": {
+        "libelle": "Soins de beauté",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "96.22Y": 5
+        }
+      },
+      "96.04Z": {
+        "libelle": "Entretien corporel",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "96.23Y": 5
+        }
+      },
+      "96.09Z": {
+        "libelle": "Autres services personnels n.c.a.",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "96.99H": 5
+        }
+      },
+      "96.03Z": {
+        "libelle": "Services funéraires",
+        "entreprises_actives_france": 6053,
+        "naf25_observes": {
+          "96.30Y": 5
+        }
+      },
+      "88.10A": {
+        "libelle": "Aide à domicile",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "88.10G": 5
+        }
+      },
+      "88.91A": {
+        "libelle": "Accueil de jeunes enfants",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "88.91G": 5
+        }
+      },
+      "95.11Z": {
+        "libelle": "Réparation d'ordinateurs et d'équipements périphériques",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "95.10Y": 5
+        }
+      },
+      "95.12Z": {
+        "libelle": "Réparation d'équipements de communication",
+        "entreprises_actives_france": 3214,
+        "naf25_observes": {
+          "95.10Y": 5
+        }
+      },
+      "95.21Z": {
+        "libelle": "Réparation de produits électroniques grand public",
+        "entreprises_actives_france": 2151,
+        "naf25_observes": {
+          "95.21Y": 3,
+          "46.50Y": 1,
+          "47.40Y": 1
+        }
+      },
+      "95.22Z": {
+        "libelle": "Réparation d'appareils électroménagers et d'équipements pour la maison et le jardin",
+        "entreprises_actives_france": 3651,
+        "naf25_observes": {
+          "95.21Y": 1,
+          "95.22Y": 4
+        }
+      },
+      "95.23Z": {
+        "libelle": "Réparation de chaussures et d'articles en cuir",
+        "entreprises_actives_france": 3072,
+        "naf25_observes": {
+          "95.23Y": 4,
+          "95.29H": 1
+        }
+      },
+      "95.24Z": {
+        "libelle": "Réparation de meubles et d'équipements du foyer",
+        "entreprises_actives_france": 4458,
+        "naf25_observes": {
+          "95.24Y": 5
+        }
+      },
+      "95.25Z": {
+        "libelle": "Réparation d'articles d'horlogerie et de bijouterie",
+        "entreprises_actives_france": 908,
+        "naf25_observes": {
+          "95.25Y": 5
+        }
+      },
+      "95.29Z": {
+        "libelle": "Réparation d'autres biens personnels et domestiques",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "95.29H": 4,
+          "95.23Y": 1
+        }
+      },
+      "85.51Z": {
+        "libelle": "Enseignement de disciplines sportives et d'activités de loisirs",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "85.51Y": 4,
+          "93.13Y": 1
+        }
+      },
+      "85.52Z": {
+        "libelle": "Enseignement culturel",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "85.52Y": 5
+        }
+      },
+      "85.53Z": {
+        "libelle": "Enseignement de la conduite (auto-écoles)",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "85.53Y": 5
+        }
+      },
+      "85.59A": {
+        "libelle": "Formation continue d'adultes",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "85.59G": 5
+        }
+      },
+      "85.59B": {
+        "libelle": "Autres enseignements",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "85.59H": 5
+        }
+      },
+      "85.60Z": {
+        "libelle": "Activités de soutien à l'enseignement",
+        "entreprises_actives_france": 6635,
+        "naf25_observes": {
+          "85.69Y": 5
+        }
+      },
+      "45.11Z": {
+        "libelle": "Commerce de voitures et de véhicules automobiles légers",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.81Y": 2,
+          "46.71G": 2,
+          "77.12Y": 1
+        }
+      },
+      "45.19Z": {
+        "libelle": "Commerce d'autres véhicules automobiles",
+        "entreprises_actives_france": 2030,
+        "naf25_observes": {
+          "46.71H": 4,
+          "47.81Y": 1
+        }
+      },
+      "45.20A": {
+        "libelle": "Entretien et réparation de véhicules automobiles légers",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "95.31G": 5
+        }
+      },
+      "45.20B": {
+        "libelle": "Entretien et réparation d'autres véhicules automobiles",
+        "entreprises_actives_france": 3290,
+        "naf25_observes": {
+          "52.25Y": 1,
+          "95.31H": 3,
+          "46.72Y": 1
+        }
+      },
+      "45.32Z": {
+        "libelle": "Commerce de détail d'équipements automobiles",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "47.82Y": 3,
+          "95.31H": 1,
+          "46.72Y": 1
+        }
+      },
+      "45.40Z": {
+        "libelle": "Commerce et réparation de motocycles",
+        "entreprises_actives_france": 8739,
+        "naf25_observes": {
+          "47.83Y": 3,
+          "47.63Y": 1,
+          "95.32Y": 1
+        }
+      },
+      "77.11A": {
+        "libelle": "Location de courte durée de voitures et de véhicules automobiles légers",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "77.11Y": 5
+        }
+      },
+      "10.13B": {
+        "libelle": "Charcuterie",
+        "entreprises_actives_france": 2972,
+        "naf25_observes": {
+          "10.13H": 5
+        }
+      },
+      "10.71C": {
+        "libelle": "Boulangerie et boulangerie-pâtisserie",
+        "entreprises_actives_france": 10000,
+        "naf25_observes": {
+          "10.71H": 5
+        }
+      },
+      "10.71D": {
+        "libelle": "Pâtisserie",
+        "entreprises_actives_france": 9250,
+        "naf25_observes": {
+          "10.71J": 4,
+          "10.82Y": 1
+        }
+      },
+      "10.82Z": {
+        "libelle": "Fabrication de cacao, chocolat et de produits de confiserie",
+        "entreprises_actives_france": 2221,
+        "naf25_observes": {
+          "10.82Y": 5
+        }
+      },
+      "10.85Z": {
+        "libelle": "Fabrication de plats préparés",
+        "entreprises_actives_france": 2830,
+        "naf25_observes": {
+          "10.85Y": 4,
+          "46.38Y": 1
+        }
+      },
+      "16.10A": {
+        "libelle": "Sciage et rabotage du bois, hors imprégnation",
+        "entreprises_actives_france": 3109,
+        "naf25_observes": {
+          "16.11Y": 4,
+          "16.12Y": 1
+        }
+      },
+      "16.23Z": {
+        "libelle": "Fabrication de charpentes et d'autres menuiseries",
+        "entreprises_actives_france": 4142,
+        "naf25_observes": {
+          "16.23Y": 3,
+          "16.25Y": 1,
+          "16.27Y": 1
+        }
+      },
+      "16.29Z": {
+        "libelle": "Fabrication d'objets divers en bois, liège, vannerie et sparterie",
+        "entreprises_actives_france": 9634,
+        "naf25_observes": {
+          "16.28Y": 5
+        }
+      },
+      "32.12Z": {
+        "libelle": "Fabrication d'articles de joaillerie et bijouterie",
+        "entreprises_actives_france": 4525,
+        "naf25_observes": {
+          "32.12Y": 4,
+          "46.82Y": 1
+        }
+      }
+    },
+    "codes_au_plafond_api_10000": [
+      "01.11Z",
+      "01.13Z",
+      "01.21Z",
+      "01.50Z",
+      "01.61Z",
+      "02.10Z",
+      "10.71C",
+      "41.20A",
+      "41.20B",
+      "43.12A",
+      "43.21A",
+      "43.22A",
+      "43.22B",
+      "43.29A",
+      "43.31Z",
+      "43.32A",
+      "43.32B",
+      "43.33Z",
+      "43.34Z",
+      "43.39Z",
+      "43.91A",
+      "43.91B",
+      "43.99C",
+      "43.99D",
+      "45.11Z",
+      "45.20A",
+      "45.32Z",
+      "46.34Z",
+      "47.11B",
+      "47.22Z",
+      "47.29Z",
+      "47.59A",
+      "47.64Z",
+      "47.71Z",
+      "47.73Z",
+      "47.76Z",
+      "47.78A",
+      "47.78C",
+      "47.79Z",
+      "47.91B",
+      "49.32Z",
+      "49.41B",
+      "53.20Z",
+      "55.10Z",
+      "55.20Z",
+      "56.10A",
+      "56.10C",
+      "56.21Z",
+      "56.30Z",
+      "59.11A",
+      "62.01Z",
+      "62.02A",
+      "66.22Z",
+      "68.10Z",
+      "68.20A",
+      "68.20B",
+      "68.31Z",
+      "68.32A",
+      "68.32B",
+      "69.10Z",
+      "69.20Z",
+      "70.22Z",
+      "71.11Z",
+      "71.12B",
+      "71.20B",
+      "73.11Z",
+      "74.10Z",
+      "74.20Z",
+      "74.30Z",
+      "74.90B",
+      "75.00Z",
+      "77.11A",
+      "78.30Z",
+      "79.90Z",
+      "80.10Z",
+      "81.21Z",
+      "81.22Z",
+      "81.30Z",
+      "82.11Z",
+      "82.19Z",
+      "82.30Z",
+      "82.99Z",
+      "85.51Z",
+      "85.52Z",
+      "85.53Z",
+      "85.59A",
+      "85.59B",
+      "86.21Z",
+      "86.22C",
+      "86.23Z",
+      "86.90D",
+      "86.90E",
+      "86.90F",
+      "88.10A",
+      "88.91A",
+      "90.03A",
+      "90.03B",
+      "93.19Z",
+      "93.29Z",
+      "95.11Z",
+      "95.29Z",
+      "96.02A",
+      "96.02B",
+      "96.04Z",
+      "96.09Z"
+    ],
+    "codes_avec_plusieurs_naf25_observes": [
+      "01.61Z",
+      "10.71D",
+      "10.85Z",
+      "11.02B",
+      "16.10A",
+      "16.23Z",
+      "32.12Z",
+      "33.15Z",
+      "43.22B",
+      "43.29A",
+      "43.32C",
+      "43.33Z",
+      "43.34Z",
+      "43.39Z",
+      "43.91B",
+      "43.99A",
+      "43.99C",
+      "43.99D",
+      "45.11Z",
+      "45.19Z",
+      "45.20B",
+      "45.32Z",
+      "45.40Z",
+      "47.11B",
+      "47.21Z",
+      "47.29Z",
+      "47.52A",
+      "47.62Z",
+      "47.78A",
+      "47.78C",
+      "47.79Z",
+      "47.91B",
+      "52.22Z",
+      "52.29A",
+      "53.20Z",
+      "55.10Z",
+      "55.30Z",
+      "56.10C",
+      "56.21Z",
+      "59.11C",
+      "59.12Z",
+      "62.01Z",
+      "62.09Z",
+      "63.12Z",
+      "68.10Z",
+      "68.20B",
+      "68.32A",
+      "74.10Z",
+      "74.90B",
+      "78.10Z",
+      "79.90Z",
+      "81.21Z",
+      "82.11Z",
+      "82.19Z",
+      "82.30Z",
+      "82.99Z",
+      "85.51Z",
+      "86.90E",
+      "86.90F",
+      "90.03B",
+      "95.21Z",
+      "95.22Z",
+      "95.23Z",
+      "95.29Z"
+    ]
+  },
+  "requetes_reelles_total": {
+    "volet_1_prevu": 5,
+    "volet_1_reel": 7,
+    "note": "le code 99.99Z (HTTP 400) a été retenté 3 fois par get_with_retry"
+  }
+}

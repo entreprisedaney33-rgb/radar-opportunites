@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-01T09:09:18.740267+00:00",
+  "verifications": [
+    {
+      "verification": "jeton OAuth2 client_credentials",
+      "ok": true,
+      "detail": "jeton obtenu (valeur jamais affichée)"
+    },
+    {
+      "verification": "recherche réelle 69.20Z (7 jours)",
+      "ok": true,
+      "detail": "total annoncé 363, 150 offres lues, 150 normalisables"
+    },
+    {
+      "verification": "recherche sans résultat attendu",
+      "ok": true,
+      "detail": "29353 offre(s) (204 ou liste vide attendu)"
+    },
+    {
+      "verification": "index de pagination 1000-1149",
+      "ok": true,
+      "detail": "range 1000-1149 -> HTTP 206, Content-Range offres 1000-1149/1461"
+    },
+    {
+      "verification": "index de pagination 3000-3149",
+      "ok": true,
+      "detail": "range 3000-3149 -> HTTP 204, Content-Range offres -1--1/1461"
+    }
+  ],
+  "constats": {
+    "recherche_69_20Z_7j": {
+      "total_annonce": 363,
+      "offres_page_1": 150,
+      "normalisables": 150,
+      "avec_salaire_lisible": 76,
+      "avec_code_naf": 150,
+      "avec_commune": 148
+    },
+    "range_1000_1149": {
+      "statut_http": 206,
+      "content_range": "offres 1000-1149/1461"
+    },
+    "range_3000_3149": {
+      "statut_http": 204,
+      "content_range": "offres -1--1/1461"
+    }
+  },
+  "constats_complementaires": {
+    "filtre_codeNAF": "exact pour un code valide (69.20Z : 150/150 offres du bon code ; 30.12Z : 55/55) ; IGNORE EN SILENCE pour un code inconnu (99.99Z : 29 353 offres renvoyées) -> garde-fou ajouté dans collecter_code",
+    "pagination": "range 1000-1149 -> 206 ; range 1150-1299 -> 206 (150 offres) : le plafond '1149' d'un article tiers est faux ; 3000-3149 -> 204 faute de résultats (total 1 461), plafond annoncé 3149 non testé jusqu'au bout",
+    "content_range": "format 'offres p-d/t' confirmé",
+    "chaine_complete_base_jetable_69_20Z_7j": {
+      "requetes": 3,
+      "offres_lues": 363,
+      "nouvelles_2e_passe": 0,
+      "avec_departement": 361,
+      "avec_description": 363,
+      "libelle_salaire": 191,
+      "salaire_converti": 190,
+      "tranche_effectif_etab": 229,
+      "offres_dans_les_departements_de_la_zone": 12,
+      "longueur_moyenne_description_caracteres": 2243
+    }
+  }
+}

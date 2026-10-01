@@ -538,7 +538,81 @@ def calculer_metriques(engine: Engine, jour: date) -> dict:
             round(sum(cout_par_opportunite.values()) / len(cout_par_opportunite), 4)
             if cout_par_opportunite else None
         ),
+        "etablissements_v2": _metriques_etablissements(engine),
+        "offres_v2": _metriques_offres(engine),
+        "etiquetage_v2": _metriques_etiquetage(engine, jour),
+        "fiches_v2": _metriques_fiches(engine),
+        "concurrence_v2": _metriques_concurrence(engine),
     }
+
+
+def _metriques_concurrence(engine: Engine) -> dict | None:
+    """V2.6 : concurrence des fiches (état du fournisseur web, requêtes du mois, couples évalués). `None` si les tables n'existent pas encore."""
+    from sqlalchemy import inspect as _inspecter
+
+    from app.concurrence import metriques_concurrence
+
+    if not {"concurrence_secteur_tache", "recherches_web"} <= set(_inspecter(engine).get_table_names()):
+        return None
+    return metriques_concurrence(engine)
+
+
+def _metriques_fiches(engine: Engine) -> dict | None:
+    """V2.5 : fiches secteur x tâche (états CUMULÉS : nombre, décisions, scores, coût Analyste/Critic). `None` si la table n'existe
+    pas encore dans cette base."""
+    from sqlalchemy import inspect as _inspecter
+
+    from app import referentiels
+    from app.fiches import ROLE_ANALYSTE, ROLE_CRITIC
+
+    if "fiches_secteur_tache" not in set(_inspecter(engine).get_table_names()):
+        return None
+    return repo.resume_fiches(engine, referentiels.secteurs_tpe().naf_version, role_analyste=ROLE_ANALYSTE, role_critic=ROLE_CRITIC)
+
+
+def _metriques_etiquetage(engine: Engine, jour: date) -> dict | None:
+    """V2.4 : taux de citation vérifiée, coût d'étiquetage (états CUMULÉS + coût du jour). `None` si les tables de la
+    v2 n'existent pas encore dans cette base."""
+    from sqlalchemy import inspect as _inspecter
+
+    from app import referentiels
+    from app.etiquetage import ROLE_ETIQUETEUR
+
+    if not {"offres_emploi", "offres_etiquetage", "offres_taches"} <= set(_inspecter(engine).get_table_names()):
+        return None
+    return repo.resume_etiquetage(engine, referentiels.secteurs_tpe().naf_version, role=ROLE_ETIQUETEUR, jour=jour)
+
+
+def _metriques_offres(engine: Engine) -> dict | None:
+    """V2.3 : offres d'emploi France Travail collectées (états CUMULÉS). `None` si les tables de la v2 n'existent
+    pas encore dans cette base -- cas normal avant le déploiement de la v2."""
+    from sqlalchemy import inspect as _inspecter
+
+    from app import referentiels
+
+    if not {"offres_emploi", "collectes_offres"} <= set(_inspecter(engine).get_table_names()):
+        return None
+    return repo.resume_offres(
+        engine, referentiels.secteurs_tpe().naf_version, departements_zone=referentiels.zone().departements_zone(),
+    )
+
+
+def _metriques_etablissements(engine: Engine) -> dict | None:
+    """V2.2 : secteurs couverts et établissements en zone (états CUMULÉS, pas ceux d'un jour).
+    `None` si les tables de la v2 n'existent pas encore dans cette base (v1 pas encore migrée) -- jamais
+    d'erreur, une base antérieure à la v2 est un cas normal."""
+    from sqlalchemy import inspect as _inspecter
+
+    from app import referentiels
+
+    tables = set(_inspecter(engine).get_table_names())
+    if not {"etablissements_secteur", "prospection"} <= tables:
+        return None
+    zone = referentiels.zone()
+    return repo.resume_etablissements(
+        engine, referentiels.secteurs_tpe().naf_version, rayon_km=zone.rayon_km,
+        departements_zone=zone.departements_zone(),
+    )
 
 
 def _parser_jour(texte: str) -> date:

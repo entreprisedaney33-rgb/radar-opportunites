@@ -1,0 +1,257 @@
+# V2.1 (RADAR-V2.md) : secteurs où dominent les TPE/PME de 1 à 20 salariés.
+# Lu et validé strictement par app/referentiels.py. Jamais un modèle ne modifie ce fichier.
+#
+# Nomenclature : NAF rév. 2 (2008), celle que renvoie aujourd'hui l'API Recherche
+# d'entreprises. ATTENTION : la NAF rév. 2.1 (nouveau code APE) s'applique à partir du
+# 1er janvier 2027 (voir config/declencheurs.yaml, « nouveau_code_ape_2027 ») : une table
+# de correspondance rév. 2 → 2.1 est planifiée en V2.10 (avant le 1er janvier 2027) ; la colonne
+# `naf_version` sera portée par les tables de V2.2 (décision du 2026-10-01).
+#
+# Une entrée : code (format 00.00A), libelle, famille, priorite (1, 2 ou 3 : ordre de couverture, voir ci-dessous), et éventuellement `exclusion`
+# {motif, source}. `source` est une clé de `sources_exclusion` ci-dessous. Une entrée
+# exclue reste dans le référentiel (jamais supprimée) : elle sort du radar avec son motif.
+nomenclature: "NAF rév. 2 (2008)"
+naf_version: "2"   # valeurs : "2" (rév. 2, 2008) ou "2.1" (nouveau code APE, 1er janvier 2027). Voir V2.2 et V2.10 de RADAR-V2.md.
+cree_le: "2026-10-01"
+
+familles:
+  - batiment
+  - sante_liberale
+  - droit_chiffre_conseil
+  - immobilier
+  - commerce_detail
+  - restauration_hebergement
+  - services_entreprises
+  - numerique_creatif
+  - transport_leger
+  - agriculture_viticulture
+  - tourisme_loisirs
+  - nautisme
+  - services_personne
+  - formation
+  - automobile
+  - artisanat_production
+
+motifs_exclusion:
+  - reglementaire_lourd
+  - materiel_industriel
+  - code_naf_agence
+
+sources_exclusion:
+  agence_interim: "Code NAF de l'agence, pas du métier proposé (décision de Mathéo du 2026-10-01) : une offre d'intérim ou de placement porte le code NAF de l'AGENCE qui la publie, pas celui du secteur où le poste sera réellement occupé ; ces offres (162 000 sur 256 000 mesurées le 2026-10-01 : 78.20Z 115 507, 78.10Z 46 300) ne disent donc rien de la demande d'un secteur. Les offres de ces deux codes ne sont ni collectées ni étiquetées."
+  pharmacie: "Code de la santé publique, art. L4211-1 : monopole pharmaceutique et données de santé (barrière réglementaire lourde)."
+  securite_privee: "Code de la sécurité intérieure, livre VI : autorisation d'exercer et agrément CNAPS obligatoires (barrière réglementaire lourde)."
+  funeraire: "Code général des collectivités territoriales, art. L2223-23 : habilitation préfectorale obligatoire (barrière réglementaire lourde)."
+  petite_enfance: "Code de l'action sociale et des familles : autorisation ou agrément PMI pour l'accueil de jeunes enfants (barrière réglementaire lourde)."
+  engins: "Matériel lourd (engins de terrassement) : investissement au-delà de 20 k€, seuil de config/faisabilite.yaml (4.1, décision du 29/09/2026)."
+  chantier_naval: "Construction navale : outillage et locaux industriels, investissement au-delà de 20 k€ (seuil de config/faisabilite.yaml, 4.1)."
+  industrie_lourde: "Imprimerie, scierie, transformation de viande : machines industrielles, investissement au-delà de 20 k€ (seuil de config/faisabilite.yaml, 4.1)."
+
+# PRIORITÉ DE COUVERTURE (V2.8, décision de Mathéo du 2026-10-01 : démarrage progressif).
+#   1 = une vingtaine de secteurs de l'univers de Mathéo (bâtiment et artisanat du bâtiment, immobilier, expertise comptable, restauration et
+#       hébergement, tourisme, nautisme et plaisance, viticulture, santé libérale hors tâches HDS, services aux entreprises) : traités par la
+#       cartographie initiale (RADAR_CARTOGRAPHIE_INITIALE=1, enveloppe RADAR_ENVELOPPE_INITIALE_EUR).
+#   2 = les autres secteurs de ces mêmes familles ; 3 = les autres familles. Couverts ensuite par le régime quotidien, dans l'ordre
+#       1 -> 2 -> 3, à 2 €/jour au plus (config/cycle_v2.yaml). Modifiable ici : jamais en dur dans le code.
+secteurs:
+  # --- Bâtiment et architecture --------------------------------------------------------
+  - {code: "41.20A", libelle: "Construction de maisons individuelles", famille: batiment, priorite: 2}
+  - {code: "41.20B", libelle: "Construction d'autres bâtiments", famille: batiment, priorite: 2}
+  - {code: "43.12A", libelle: "Travaux de terrassement courants et travaux préparatoires", famille: batiment, priorite: 2, exclusion: {motif: materiel_industriel, source: engins}}
+  - {code: "43.21A", libelle: "Travaux d'installation électrique dans tous locaux", famille: batiment, priorite: 1}
+  - {code: "43.22A", libelle: "Travaux d'installation d'eau et de gaz en tous locaux", famille: batiment, priorite: 1}
+  - {code: "43.22B", libelle: "Travaux d'installation d'équipements thermiques et de climatisation", famille: batiment, priorite: 1}
+  - {code: "43.29A", libelle: "Travaux d'isolation", famille: batiment, priorite: 2}
+  - {code: "43.29B", libelle: "Autres travaux d'installation n.c.a.", famille: batiment, priorite: 2}
+  - {code: "43.31Z", libelle: "Travaux de plâtrerie", famille: batiment, priorite: 2}
+  - {code: "43.32A", libelle: "Travaux de menuiserie bois et PVC", famille: batiment, priorite: 1}
+  - {code: "43.32B", libelle: "Travaux de menuiserie métallique et serrurerie", famille: batiment, priorite: 2}
+  - {code: "43.32C", libelle: "Agencement de lieux de vente", famille: batiment, priorite: 2}
+  - {code: "43.33Z", libelle: "Travaux de revêtement des sols et des murs", famille: batiment, priorite: 2}
+  - {code: "43.34Z", libelle: "Travaux de peinture et vitrerie", famille: batiment, priorite: 2}
+  - {code: "43.39Z", libelle: "Autres travaux de finition", famille: batiment, priorite: 2}
+  - {code: "43.91A", libelle: "Travaux de charpente", famille: batiment, priorite: 2}
+  - {code: "43.91B", libelle: "Travaux de couverture par éléments", famille: batiment, priorite: 2}
+  - {code: "43.99A", libelle: "Travaux d'étanchéification", famille: batiment, priorite: 2}
+  - {code: "43.99C", libelle: "Travaux de maçonnerie générale et gros œuvre de bâtiment", famille: batiment, priorite: 1}
+  - {code: "43.99D", libelle: "Autres travaux spécialisés de construction", famille: batiment, priorite: 2}
+  - {code: "71.11Z", libelle: "Activités d'architecture", famille: batiment, priorite: 2}
+  - {code: "71.12B", libelle: "Ingénierie, études techniques", famille: batiment, priorite: 2}
+  - {code: "71.20B", libelle: "Analyses, essais et inspections techniques (dont diagnostics immobiliers)", famille: batiment, priorite: 2}
+  - {code: "81.30Z", libelle: "Services d'aménagement paysager", famille: batiment, priorite: 2}
+
+  # --- Santé libérale : secteurs RETENUS (décision de Mathéo du 2026-10-01). L'exclusion HDS
+  #     ne porte pas sur le secteur mais sur certaines tâches : voir config/taches.yaml,
+  #     `regle_donnees_sensibles_patients`. Seule la pharmacie reste exclue (monopole).
+  - {code: "86.21Z", libelle: "Activité des médecins généralistes", famille: sante_liberale, priorite: 2}
+  - {code: "86.22C", libelle: "Autres activités des médecins spécialistes", famille: sante_liberale, priorite: 2}
+  - {code: "86.23Z", libelle: "Pratique dentaire", famille: sante_liberale, priorite: 1}
+  - {code: "86.90A", libelle: "Ambulances", famille: sante_liberale, priorite: 2}
+  - {code: "86.90B", libelle: "Laboratoires d'analyses médicales", famille: sante_liberale, priorite: 2}
+  - {code: "86.90D", libelle: "Activités des infirmiers et des sages-femmes", famille: sante_liberale, priorite: 1}
+  - {code: "86.90E", libelle: "Activités des professionnels de la rééducation, de l'appareillage et des pédicures-podologues", famille: sante_liberale, priorite: 1}
+  - {code: "86.90F", libelle: "Activités de santé humaine non classées ailleurs", famille: sante_liberale, priorite: 2}
+  - {code: "47.73Z", libelle: "Commerce de détail de produits pharmaceutiques en magasin spécialisé", famille: sante_liberale, priorite: 2, exclusion: {motif: reglementaire_lourd, source: pharmacie}}
+  - {code: "47.74Z", libelle: "Commerce de détail d'articles médicaux et orthopédiques", famille: sante_liberale, priorite: 2}
+  - {code: "47.78A", libelle: "Commerces de détail d'optique", famille: sante_liberale, priorite: 2}
+  - {code: "75.00Z", libelle: "Activités vétérinaires", famille: sante_liberale, priorite: 2}
+
+  # --- Droit, chiffre, conseil, assurance ---------------------------------------------
+  - {code: "69.10Z", libelle: "Activités juridiques", famille: droit_chiffre_conseil, priorite: 2}
+  - {code: "69.20Z", libelle: "Activités comptables", famille: droit_chiffre_conseil, priorite: 1}
+  - {code: "70.22Z", libelle: "Conseil pour les affaires et autres conseils de gestion", famille: droit_chiffre_conseil, priorite: 1}
+  - {code: "66.22Z", libelle: "Activités des agents et courtiers d'assurances", famille: droit_chiffre_conseil, priorite: 2}
+  - {code: "73.20Z", libelle: "Études de marché et sondages", famille: droit_chiffre_conseil, priorite: 2}
+  - {code: "74.90B", libelle: "Activités spécialisées, scientifiques et techniques diverses", famille: droit_chiffre_conseil, priorite: 2}
+
+  # --- Immobilier ----------------------------------------------------------------------
+  - {code: "68.10Z", libelle: "Activités des marchands de biens immobiliers", famille: immobilier, priorite: 2}
+  - {code: "68.20A", libelle: "Location de logements", famille: immobilier, priorite: 2}
+  - {code: "68.20B", libelle: "Location de terrains et d'autres biens immobiliers", famille: immobilier, priorite: 2}
+  - {code: "68.31Z", libelle: "Agences immobilières", famille: immobilier, priorite: 1}
+  - {code: "68.32A", libelle: "Administration d'immeubles et autres biens immobiliers", famille: immobilier, priorite: 1}
+  - {code: "68.32B", libelle: "Supports juridiques de gestion de patrimoine immobilier", famille: immobilier, priorite: 2}
+
+  # --- Commerce de détail --------------------------------------------------------------
+  - {code: "47.11B", libelle: "Commerce d'alimentation générale", famille: commerce_detail, priorite: 3}
+  - {code: "47.11C", libelle: "Supérettes", famille: commerce_detail, priorite: 3}
+  - {code: "47.21Z", libelle: "Commerce de détail de fruits et légumes en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.22Z", libelle: "Commerce de détail de viandes et de produits à base de viande", famille: commerce_detail, priorite: 3}
+  - {code: "47.23Z", libelle: "Commerce de détail de poissons, crustacés et mollusques", famille: commerce_detail, priorite: 3}
+  - {code: "47.24Z", libelle: "Commerce de détail de pain, pâtisserie et confiserie", famille: commerce_detail, priorite: 3}
+  - {code: "47.25Z", libelle: "Commerce de détail de boissons en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.29Z", libelle: "Autres commerces de détail alimentaires en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.51Z", libelle: "Commerce de détail de textiles en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.52A", libelle: "Commerce de détail de quincaillerie, peintures et verres en petites surfaces", famille: commerce_detail, priorite: 3}
+  - {code: "47.53Z", libelle: "Commerce de détail de tapis, moquettes et revêtements de murs et de sols", famille: commerce_detail, priorite: 3}
+  - {code: "47.54Z", libelle: "Commerce de détail d'appareils électroménagers", famille: commerce_detail, priorite: 3}
+  - {code: "47.59A", libelle: "Commerce de détail de meubles", famille: commerce_detail, priorite: 3}
+  - {code: "47.61Z", libelle: "Commerce de détail de livres en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.62Z", libelle: "Commerce de détail de journaux et papeterie en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.64Z", libelle: "Commerce de détail d'articles de sport en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.65Z", libelle: "Commerce de détail de jeux et jouets en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.71Z", libelle: "Commerce de détail d'habillement en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.72A", libelle: "Commerce de détail de la chaussure", famille: commerce_detail, priorite: 3}
+  - {code: "47.75Z", libelle: "Commerce de détail de parfumerie et de produits de beauté en magasin spécialisé", famille: commerce_detail, priorite: 3}
+  - {code: "47.76Z", libelle: "Commerce de détail de fleurs, plantes, graines, engrais, animaux de compagnie", famille: commerce_detail, priorite: 3}
+  - {code: "47.77Z", libelle: "Commerce de détail d'articles d'horlogerie et de bijouterie", famille: commerce_detail, priorite: 3}
+  - {code: "47.78C", libelle: "Autres commerces de détail spécialisés divers", famille: commerce_detail, priorite: 3}
+  - {code: "47.79Z", libelle: "Commerce de détail de biens d'occasion en magasin", famille: commerce_detail, priorite: 3}
+  - {code: "47.91B", libelle: "Vente à distance sur catalogue spécialisé", famille: commerce_detail, priorite: 3}
+
+  # --- Restauration et hébergement -----------------------------------------------------
+  - {code: "56.10A", libelle: "Restauration traditionnelle", famille: restauration_hebergement, priorite: 1}
+  - {code: "56.10C", libelle: "Restauration de type rapide", famille: restauration_hebergement, priorite: 2}
+  - {code: "56.21Z", libelle: "Services des traiteurs", famille: restauration_hebergement, priorite: 2}
+  - {code: "56.30Z", libelle: "Débits de boissons", famille: restauration_hebergement, priorite: 2}
+  - {code: "55.10Z", libelle: "Hôtels et hébergement similaire", famille: restauration_hebergement, priorite: 1}
+  - {code: "55.20Z", libelle: "Hébergement touristique et autre hébergement de courte durée", famille: restauration_hebergement, priorite: 1}
+  - {code: "55.30Z", libelle: "Terrains de camping et parcs pour caravanes ou véhicules de loisirs", famille: restauration_hebergement, priorite: 2}
+
+  # --- Services aux entreprises --------------------------------------------------------
+  - {code: "78.10Z", libelle: "Activités des agences de placement de main-d'œuvre", famille: services_entreprises, priorite: 2, exclusion: {motif: code_naf_agence, source: agence_interim}}
+  - {code: "78.20Z", libelle: "Activités des agences de travail temporaire", famille: services_entreprises, priorite: 2, exclusion: {motif: code_naf_agence, source: agence_interim}}
+  - {code: "78.30Z", libelle: "Autre mise à disposition de ressources humaines", famille: services_entreprises, priorite: 2}
+  - {code: "82.11Z", libelle: "Services administratifs combinés de bureau", famille: services_entreprises, priorite: 1}
+  - {code: "82.19Z", libelle: "Photocopie, préparation de documents et autres activités de soutien de bureau", famille: services_entreprises, priorite: 2}
+  - {code: "82.20Z", libelle: "Activités de centres d'appels", famille: services_entreprises, priorite: 2}
+  - {code: "82.30Z", libelle: "Organisation de foires, salons professionnels et congrès", famille: services_entreprises, priorite: 2}
+  - {code: "82.99Z", libelle: "Autres activités de soutien aux entreprises n.c.a.", famille: services_entreprises, priorite: 1}
+  - {code: "81.21Z", libelle: "Nettoyage courant des bâtiments", famille: services_entreprises, priorite: 2}
+  - {code: "81.22Z", libelle: "Autres activités de nettoyage des bâtiments et nettoyage industriel", famille: services_entreprises, priorite: 2}
+  - {code: "80.10Z", libelle: "Activités de sécurité privée", famille: services_entreprises, priorite: 2, exclusion: {motif: reglementaire_lourd, source: securite_privee}}
+  - {code: "18.12Z", libelle: "Autre imprimerie (labeur)", famille: services_entreprises, priorite: 2, exclusion: {motif: materiel_industriel, source: industrie_lourde}}
+
+  # --- Numérique et création -----------------------------------------------------------
+  - {code: "62.01Z", libelle: "Programmation informatique", famille: numerique_creatif, priorite: 3}
+  - {code: "62.02A", libelle: "Conseil en systèmes et logiciels informatiques", famille: numerique_creatif, priorite: 3}
+  - {code: "62.09Z", libelle: "Autres activités informatiques", famille: numerique_creatif, priorite: 3}
+  - {code: "63.12Z", libelle: "Portails Internet", famille: numerique_creatif, priorite: 3}
+  - {code: "58.19Z", libelle: "Autres activités d'édition", famille: numerique_creatif, priorite: 3}
+  - {code: "59.11A", libelle: "Production de films et de programmes pour la télévision", famille: numerique_creatif, priorite: 3}
+  - {code: "59.11C", libelle: "Production de films institutionnels et publicitaires", famille: numerique_creatif, priorite: 3}
+  - {code: "59.12Z", libelle: "Post-production de films cinématographiques, de vidéo et de programmes de télévision", famille: numerique_creatif, priorite: 3}
+  - {code: "73.11Z", libelle: "Activités des agences de publicité", famille: numerique_creatif, priorite: 3}
+  - {code: "74.10Z", libelle: "Activités spécialisées de design", famille: numerique_creatif, priorite: 3}
+  - {code: "74.20Z", libelle: "Activités photographiques", famille: numerique_creatif, priorite: 3}
+  - {code: "74.30Z", libelle: "Traduction et interprétation", famille: numerique_creatif, priorite: 3}
+  - {code: "90.03A", libelle: "Création artistique relevant des arts plastiques", famille: numerique_creatif, priorite: 3}
+  - {code: "90.03B", libelle: "Autre création artistique", famille: numerique_creatif, priorite: 3}
+
+  # --- Transport léger -----------------------------------------------------------------
+  - {code: "49.32Z", libelle: "Transports de voyageurs par taxis", famille: transport_leger, priorite: 3}
+  - {code: "49.41B", libelle: "Transports routiers de fret de proximité", famille: transport_leger, priorite: 3}
+  - {code: "49.42Z", libelle: "Services de déménagement", famille: transport_leger, priorite: 3}
+  - {code: "52.29A", libelle: "Messagerie, fret express", famille: transport_leger, priorite: 3}
+  - {code: "53.20Z", libelle: "Autres activités de poste et de courrier (coursiers)", famille: transport_leger, priorite: 3}
+
+  # --- Agriculture, viticulture, pêche -------------------------------------------------
+  - {code: "01.11Z", libelle: "Culture de céréales (sauf riz), légumineuses et graines oléagineuses", famille: agriculture_viticulture, priorite: 2}
+  - {code: "01.13Z", libelle: "Culture de légumes, de melons, de racines et de tubercules", famille: agriculture_viticulture, priorite: 2}
+  - {code: "01.21Z", libelle: "Culture de la vigne", famille: agriculture_viticulture, priorite: 1}
+  - {code: "01.50Z", libelle: "Culture et élevage associés", famille: agriculture_viticulture, priorite: 2}
+  - {code: "01.61Z", libelle: "Activités de soutien aux cultures", famille: agriculture_viticulture, priorite: 2}
+  - {code: "02.10Z", libelle: "Sylviculture et autres activités forestières", famille: agriculture_viticulture, priorite: 2}
+  - {code: "03.11Z", libelle: "Pêche en mer", famille: agriculture_viticulture, priorite: 2}
+  - {code: "03.21Z", libelle: "Aquaculture en mer (dont ostréiculture)", famille: agriculture_viticulture, priorite: 2}
+  - {code: "11.02B", libelle: "Vinification", famille: agriculture_viticulture, priorite: 1}
+  - {code: "46.34Z", libelle: "Commerce de gros de boissons (négoce de vin)", famille: agriculture_viticulture, priorite: 2}
+
+  # --- Tourisme et loisirs -------------------------------------------------------------
+  - {code: "79.11Z", libelle: "Activités des agences de voyage", famille: tourisme_loisirs, priorite: 1}
+  - {code: "79.90Z", libelle: "Autres services de réservation et activités connexes (guides, offices)", famille: tourisme_loisirs, priorite: 2}
+  - {code: "93.11Z", libelle: "Gestion d'installations sportives", famille: tourisme_loisirs, priorite: 2}
+  - {code: "93.13Z", libelle: "Activités des centres de culture physique", famille: tourisme_loisirs, priorite: 2}
+  - {code: "93.19Z", libelle: "Autres activités liées au sport", famille: tourisme_loisirs, priorite: 2}
+  - {code: "93.29Z", libelle: "Autres activités récréatives et de loisirs", famille: tourisme_loisirs, priorite: 2}
+
+  # --- Nautisme ------------------------------------------------------------------------
+  - {code: "30.12Z", libelle: "Construction de bateaux de plaisance", famille: nautisme, priorite: 2, exclusion: {motif: materiel_industriel, source: chantier_naval}}
+  - {code: "33.15Z", libelle: "Réparation et maintenance navale", famille: nautisme, priorite: 1}
+  - {code: "52.22Z", libelle: "Services auxiliaires des transports par eau (dont ports de plaisance)", famille: nautisme, priorite: 1}
+  - {code: "77.21Z", libelle: "Location et location-bail d'articles de loisirs et de sport", famille: nautisme, priorite: 2}
+
+  # --- Services à la personne ----------------------------------------------------------
+  - {code: "96.02A", libelle: "Coiffure", famille: services_personne, priorite: 3}
+  - {code: "96.02B", libelle: "Soins de beauté", famille: services_personne, priorite: 3}
+  - {code: "96.04Z", libelle: "Entretien corporel", famille: services_personne, priorite: 3}
+  - {code: "96.09Z", libelle: "Autres services personnels n.c.a.", famille: services_personne, priorite: 3}
+  - {code: "96.03Z", libelle: "Services funéraires", famille: services_personne, priorite: 3, exclusion: {motif: reglementaire_lourd, source: funeraire}}
+  - {code: "88.10A", libelle: "Aide à domicile", famille: services_personne, priorite: 3}
+  - {code: "88.91A", libelle: "Accueil de jeunes enfants", famille: services_personne, priorite: 3, exclusion: {motif: reglementaire_lourd, source: petite_enfance}}
+  - {code: "95.11Z", libelle: "Réparation d'ordinateurs et d'équipements périphériques", famille: services_personne, priorite: 3}
+  - {code: "95.12Z", libelle: "Réparation d'équipements de communication", famille: services_personne, priorite: 3}
+  - {code: "95.21Z", libelle: "Réparation de produits électroniques grand public", famille: services_personne, priorite: 3}
+  - {code: "95.22Z", libelle: "Réparation d'appareils électroménagers et d'équipements pour la maison et le jardin", famille: services_personne, priorite: 3}
+  - {code: "95.23Z", libelle: "Réparation de chaussures et d'articles en cuir", famille: services_personne, priorite: 3}
+  - {code: "95.24Z", libelle: "Réparation de meubles et d'équipements du foyer", famille: services_personne, priorite: 3}
+  - {code: "95.25Z", libelle: "Réparation d'articles d'horlogerie et de bijouterie", famille: services_personne, priorite: 3}
+  - {code: "95.29Z", libelle: "Réparation d'autres biens personnels et domestiques", famille: services_personne, priorite: 3}
+
+  # --- Formation -----------------------------------------------------------------------
+  - {code: "85.51Z", libelle: "Enseignement de disciplines sportives et d'activités de loisirs", famille: formation, priorite: 3}
+  - {code: "85.52Z", libelle: "Enseignement culturel", famille: formation, priorite: 3}
+  - {code: "85.53Z", libelle: "Enseignement de la conduite (auto-écoles)", famille: formation, priorite: 3}
+  - {code: "85.59A", libelle: "Formation continue d'adultes", famille: formation, priorite: 3}
+  - {code: "85.59B", libelle: "Autres enseignements", famille: formation, priorite: 3}
+  - {code: "85.60Z", libelle: "Activités de soutien à l'enseignement", famille: formation, priorite: 3}
+
+  # --- Automobile ----------------------------------------------------------------------
+  - {code: "45.11Z", libelle: "Commerce de voitures et de véhicules automobiles légers", famille: automobile, priorite: 3}
+  - {code: "45.19Z", libelle: "Commerce d'autres véhicules automobiles", famille: automobile, priorite: 3}
+  - {code: "45.20A", libelle: "Entretien et réparation de véhicules automobiles légers", famille: automobile, priorite: 3}
+  - {code: "45.20B", libelle: "Entretien et réparation d'autres véhicules automobiles", famille: automobile, priorite: 3}
+  - {code: "45.32Z", libelle: "Commerce de détail d'équipements automobiles", famille: automobile, priorite: 3}
+  - {code: "45.40Z", libelle: "Commerce et réparation de motocycles", famille: automobile, priorite: 3}
+  - {code: "77.11A", libelle: "Location de courte durée de voitures et de véhicules automobiles légers", famille: automobile, priorite: 3}
+
+  # --- Artisanat de production ---------------------------------------------------------
+  - {code: "10.13B", libelle: "Charcuterie", famille: artisanat_production, priorite: 3}
+  - {code: "10.71C", libelle: "Boulangerie et boulangerie-pâtisserie", famille: artisanat_production, priorite: 3}
+  - {code: "10.71D", libelle: "Pâtisserie", famille: artisanat_production, priorite: 3}
+  - {code: "10.82Z", libelle: "Fabrication de cacao, chocolat et de produits de confiserie", famille: artisanat_production, priorite: 3}
+  - {code: "10.85Z", libelle: "Fabrication de plats préparés", famille: artisanat_production, priorite: 3}
+  - {code: "16.10A", libelle: "Sciage et rabotage du bois, hors imprégnation", famille: artisanat_production, priorite: 3, exclusion: {motif: materiel_industriel, source: industrie_lourde}}
+  - {code: "16.23Z", libelle: "Fabrication de charpentes et d'autres menuiseries", famille: artisanat_production, priorite: 3}
+  - {code: "16.29Z", libelle: "Fabrication d'objets divers en bois, liège, vannerie et sparterie", famille: artisanat_production, priorite: 3}
+  - {code: "32.12Z", libelle: "Fabrication d'articles de joaillerie et bijouterie", famille: artisanat_production, priorite: 3}

@@ -321,3 +321,231 @@ faisabilites = Table(
 # Sous-étape 4.1 : faisabilité pour Mathéo, append-only (la dernière ligne par
 # dossier fait foi). Table neuve : aucune migration de colonne nécessaire.
 # Ne sert JAMAIS au score de preuve. Lue par le workflow Jarvis (onglet Radar).
+
+
+etablissements_secteur = Table(
+    "etablissements_secteur",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("code_naf", String, nullable=False),
+    Column("naf_version", String, nullable=False),  # "2" (rév. 2) ; "2.1" après le 1er janvier 2027 (décision du 2026-10-01)
+    Column("departement", String, nullable=False),  # code de département, ou "FR" = France métropolitaine (comptage seul)
+    # Compte d'ENTREPRISES (unités légales actives) dont l'activité principale est `code_naf` et qui ont au moins
+    # un établissement dans le département : c'est ce que l'API renvoie (`total_results`), pas un compte d'établissements.
+    Column("nb_entreprises_actives", Integer, nullable=False),
+    # Vrai si l'API a plafonné le total à 10 000 : `nb_entreprises_actives` est alors une borne basse, pas un compte.
+    Column("comptage_plafonne", Boolean, nullable=False),
+    # Établissements réellement listés dans l'échantillon (actifs, même code NAF, dans le département) ; NULL si comptage seul.
+    Column("nb_etablissements_listes", Integer, nullable=True),
+    Column("echantillon_complet", Boolean, nullable=True),  # vrai si toutes les entreprises du filtre ont été lues
+    Column("plafond_echantillon", Integer, nullable=True),
+    Column("requetes", Integer, nullable=False),  # nombre d'appels HTTP de CETTE mesure
+    Column("source_url", Text, nullable=False),  # URL de l'API + paramètres de la première requête (preuve interrogeable)
+    Column("horodatage", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape V2.2 (RADAR-V2.md) : append-only, une ligne par mesure (code NAF × département) ; la plus récente fait foi,
+# les précédentes servent aux tendances. Table neuve : aucune migration de colonne nécessaire.
+
+prospection = Table(
+    "prospection",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("siret", String, nullable=False),
+    Column("naf_version", String, nullable=False),
+    Column("code_naf", String, nullable=False),
+    Column("departement", String, nullable=False),
+    Column("siren", String, nullable=True),
+    Column("raison_sociale", String, nullable=False),
+    Column("adresse", String, nullable=True),
+    Column("code_postal", String, nullable=True),
+    Column("code_commune", String, nullable=True),
+    Column("commune", String, nullable=True),
+    Column("latitude", Float, nullable=True),
+    Column("longitude", Float, nullable=True),
+    Column("distance_centre_km", Float, nullable=True),  # à vol d'oiseau, du centre de config/zone.yaml
+    Column("tranche_effectif_salarie", String, nullable=True),  # code INSEE, tel quel
+    Column("categorie_entreprise", String, nullable=True),  # PME | ETI | GE, tel quel
+    Column("est_siege", Boolean, nullable=True),
+    Column("premiere_collecte", DateTime(timezone=True), nullable=False),
+    Column("derniere_vue", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("siret", "naf_version", name="uq_prospection_siret_naf_version"),
+)
+# Sous-étape V2.2 : échantillon de prospection (jusqu'à 500 établissements par code NAF × département). Jamais
+# supprimée : un établissement qui disparaît d'un rafraîchissement garde sa `derniere_vue` d'origine.
+
+
+offres_emploi = Table(
+    "offres_emploi",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("id_offre", String, nullable=False, unique=True),  # identifiant France Travail : dédoublonnage
+    Column("naf_version", String, nullable=False),  # nomenclature du `code_naf` ci-dessous ("2" aujourd'hui)
+    Column("code_naf", String, nullable=True),
+    Column("intitule", String, nullable=False),
+    Column("description", Text, nullable=True),
+    Column("rome_code", String, nullable=True),
+    Column("type_contrat", String, nullable=True),
+    Column("commune", String, nullable=True),  # code INSEE
+    Column("code_postal", String, nullable=True),
+    Column("departement", String, nullable=True),
+    Column("latitude", Float, nullable=True),
+    Column("longitude", Float, nullable=True),
+    Column("salaire_libelle", String, nullable=True),  # libellé brut de France Travail, tel quel
+    # Conversions annuelles BRUTES APPROXIMATIVES du libellé (mensuel x nombre de mois, horaire x 1 820 h) ; NULL si illisible.
+    Column("salaire_annuel_min_eur", Float, nullable=True),
+    Column("salaire_annuel_max_eur", Float, nullable=True),
+    Column("entreprise_nom", String, nullable=True),
+    Column("tranche_effectif_etab", String, nullable=True),
+    Column("date_creation", DateTime(timezone=True), nullable=False),
+    Column("date_actualisation", DateTime(timezone=True), nullable=True),
+    Column("premiere_collecte", DateTime(timezone=True), nullable=False),
+    Column("derniere_vue", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape V2.3 (RADAR-V2.md) : une ligne par offre d'emploi active de France Travail, dédoublonnée par
+# `id_offre`. Jamais supprimée : une offre qui disparaît de l'API (pourvue, retirée) garde sa `derniere_vue`.
+# Le texte de l'offre sert aux comptes et à l'étiquetage (V2.4), jamais à un affichage tel quel (conditions d'utilisation).
+
+collectes_offres = Table(
+    "collectes_offres",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("code_naf", String, nullable=False),
+    Column("naf_version", String, nullable=False),
+    Column("debut", DateTime(timezone=True), nullable=False),  # plage de dates de CRÉATION interrogée
+    Column("fin", DateTime(timezone=True), nullable=False),
+    Column("nb_offres", Integer, nullable=False),
+    Column("nb_nouvelles", Integer, nullable=False),
+    Column("requetes", Integer, nullable=False),
+    Column("fenetres_tronquees", Integer, nullable=False),  # > 0 : des offres ont pu manquer (fenêtre d'une heure trop pleine)
+    Column("horodatage", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape V2.3 : journal append-only des collectes, par code NAF. La `fin` de la dernière collecte d'un code
+# fixe le début de la suivante (avec un jour de chevauchement) ; les `requetes` servent aux métriques.
+
+
+offres_etiquetage = Table(
+    "offres_etiquetage",
+    metadata,
+    Column("id_offre", String, primary_key=True),  # identifiant France Travail (offres_emploi.id_offre) : une ligne par offre
+    # ok = lexique + modèle faits ; lexique_seul = modèle pas encore passé (option, accès ou budget) ; echec_modele = appel perdu
+    Column("statut", String, nullable=False),
+    Column("version", String, nullable=False),  # config/etiquetage.yaml::version au moment de l'étiquetage
+    Column("modele", String, nullable=True),
+    Column("nb_lexique", Integer, nullable=False),  # tâches trouvées par le lexique
+    Column("nb_citations_proposees", Integer, nullable=False),  # tâches proposées par le modèle (avant vérification)
+    Column("nb_citations_verifiees", Integer, nullable=False),  # dont la citation est textuellement dans l'offre
+    Column("etiquetee_le", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape V2.4 : état d'étiquetage par offre. Sert à ne JAMAIS repayer une offre déjà étiquetée et à mesurer le
+# taux de citation vérifiée (somme des vérifiées / somme des proposées).
+
+offres_taches = Table(
+    "offres_taches",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("id_offre", String, nullable=False),
+    Column("tache_id", String, nullable=False),  # config/taches.yaml::id
+    Column("provenance", String, nullable=False),  # lexique | citation_verifiee
+    Column("citation", Text, nullable=False),  # lexique : le mot-clé trouvé ; citation_verifiee : l'extrait copié de l'offre
+    Column("modele", String, nullable=True),  # renseigné pour citation_verifiee
+    Column("version", String, nullable=False),
+    Column("date_creation", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("id_offre", "tache_id", "provenance", name="uq_offres_taches"),
+)
+# Sous-étape V2.4 : append-only. Une offre « mentionne » une tâche si elle a au moins une ligne ici, quelle que soit la
+# provenance ; une citation que le modèle n'a pas pu prouver textuellement n'est JAMAIS écrite.
+
+demande_secteur_tache = Table(
+    "demande_secteur_tache",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("code_naf", String, nullable=False),
+    Column("naf_version", String, nullable=False),
+    Column("tache_id", String, nullable=False),
+    Column("fenetre_jours", Integer, nullable=False),  # stock d'offres actives créées dans les N derniers jours
+    # Dénominateur : offres du secteur dans la fenêtre dont l'étiquetage est COMPLET (statut ok) ; `couverture_etiquetage`
+    # = ce nombre / toutes les offres du secteur dans la fenêtre. Une couverture basse rend la part trompeuse.
+    Column("nb_offres_secteur", Integer, nullable=False),
+    Column("nb_offres_secteur_total", Integer, nullable=False),
+    Column("couverture_etiquetage", Float, nullable=False),
+    Column("nb_offres_tache", Integer, nullable=False),  # France
+    Column("nb_offres_tache_zone", Integer, nullable=False),  # départements de la zone (config/zone.yaml)
+    Column("nb_citation_verifiee", Integer, nullable=False),  # parmi nb_offres_tache : au moins une citation vérifiée
+    Column("nb_lexique_seul", Integer, nullable=False),  # parmi nb_offres_tache : trouvées par le lexique uniquement
+    Column("part_offres_tache", Float, nullable=False),  # nb_offres_tache / nb_offres_secteur
+    # Extrapolation (échantillon par code, config/etiquetage.yaml::echantillon_max_par_code) : part x toutes les offres
+    # collectées du secteur dans la fenêtre. Égal à l'observé quand la couverture est de 100 % (aucune incertitude).
+    Column("nb_offres_tache_estime", Integer, nullable=False),
+    Column("nb_offres_tache_zone_estime", Integer, nullable=False),
+    Column("part_ic95_bas", Float, nullable=False),   # intervalle de confiance de Wilson à 95 % sur la part
+    Column("part_ic95_haut", Float, nullable=False),
+    Column("salaire_median_annuel_eur", Float, nullable=True),  # médiane des milieux de fourchette ; NULL si aucun salaire lisible
+    Column("nb_salaires", Integer, nullable=False),
+    # Durée réelle d'accumulation de la collecte (jours depuis la première collecte du code) : chaque chiffre de demande
+    # doit dire sur quelle durée il est construit (décision de Mathéo du 2026-10-01).
+    Column("accumulation_jours", Integer, nullable=False),
+    Column("tendance_3_mois_pct", Float, nullable=True),  # NULL tant que l'accumulation est insuffisante
+    Column("tendance_statut", String, nullable=False),  # calculee | accumulation_insuffisante | sans_reference
+    Column("motif_exclusion", String, nullable=True),  # secteur ou règle HDS (referentiels.motif_exclusion_couple) ; NULL si retenu
+    Column("calcule_le", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape V2.4 : instantanés append-only ; la ligne la plus récente d'un (code, tâche) fait foi, une nouvelle ligne
+# n'est écrite que si un chiffre a changé (V2.5 recalcule une fiche quand ses agrégats bougent de plus de 20 %).
+
+
+fiches_secteur_tache = Table(
+    "fiches_secteur_tache",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("code_naf", String, nullable=False),
+    Column("tache_id", String, nullable=False),
+    Column("naf_version", String, nullable=False),
+    Column("version_score", String, nullable=False),  # config/fiches.yaml::version au moment du calcul
+    Column("version_prompt", String, nullable=False),
+    Column("decision", String, nullable=False),  # eligible_prospection | a_verifier | exclue (décidée par le CODE)
+    Column("motifs_json", JSON, nullable=False),  # motif d'exclusion, ou preuves manquantes
+    Column("score_brut", Float, nullable=False),
+    Column("score_prudent", Float, nullable=False),
+    Column("score_json", JSON, nullable=False),  # détail critère par critère, brut et prudent, avec les preuves
+    Column("agregats_json", JSON, nullable=False),  # chiffres d'entrée figés à la date de la fiche (comparés au rafraîchissement)
+    Column("fiche_json", JSON, nullable=True),  # sortie de l'Analyste (affirmations vérifiées seulement) ; NULL si l'Analyste n'a pas tourné
+    Column("critique_json", JSON, nullable=True),  # sortie du Critic ; NULL s'il n'a pas tourné (porte d'accessibilité fermée)
+    Column("modele_analyste", String, nullable=True),
+    Column("modele_critic", String, nullable=True),
+    Column("calcule_le", DateTime(timezone=True), nullable=False),
+)
+# Sous-étape V2.5 : append-only. La ligne la plus récente d'un (code, tâche) fait foi ; les précédentes montrent l'évolution
+# (score, décision) d'un mois à l'autre. Aucune fiche n'est jamais produite par repli : sans Analyste valide, pas de ligne.
+
+
+# Sous-étape V2.6 : concurrence d'un couple secteur x tâche. Append-only : la ligne ÉVALUÉE la plus récente d'un (code, tâche) fait foi
+# pour le score ; une ligne `non_evalue` (pas de clé, plafond atteint, aucun résultat) n'efface jamais une évaluation antérieure.
+concurrence_secteur_tache = Table(
+    "concurrence_secteur_tache",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("code_naf", String, nullable=False),
+    Column("tache_id", String, nullable=False),
+    Column("naf_version", String, nullable=False),
+    Column("source", String, nullable=False),  # web_brave | session_claude
+    Column("statut", String, nullable=False),  # evalue | non_evalue
+    Column("motif", String, nullable=True),  # pourquoi non évalué (ou remarque sur l'évaluation)
+    Column("outils_json", JSON, nullable=False),  # [{nom, url, prix: {texte, source_url}|None, prix_non_trouve}]
+    Column("service_local_json", JSON, nullable=True),  # {present, nom, url, preuve} ; NULL si non évalué
+    Column("requetes_json", JSON, nullable=False),  # requêtes réellement posées (traçabilité)
+    Column("evalue_le", DateTime(timezone=True), nullable=False),
+)
+
+# Sous-étape V2.6 : une ligne PAR requête de recherche web, écrite AVANT l'appel (plafond mensuel strict RADAR_RECHERCHE_WEB_MAX_MOIS).
+recherches_web = Table(
+    "recherches_web",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("fournisseur", String, nullable=False),
+    Column("mois", String, nullable=False),  # AAAA-MM (UTC)
+    Column("requete", Text, nullable=False),
+    Column("code_naf", String, nullable=True),
+    Column("tache_id", String, nullable=True),
+    Column("nb_resultats", Integer, nullable=True),  # NULL tant que l'appel n'est pas revenu
+    Column("date_creation", DateTime(timezone=True), nullable=False),
+)

@@ -86,10 +86,10 @@ Chaque signal passe intégralement par Analyst + Critic. Pour brasser dix fois p
 | 1 | Signaux de douleur, sources en config | 0 | 4 à 5 | 0 € | fusionnée avec 2 et 3 — voir note ci-dessous |
 | 2 | Secteur par citation vérifiée | 1 | 2 à 3 | 0 € | fusionnée avec 1 et 3 — voir note ci-dessous |
 | 3 | L'Enquêteur : plusieurs sources par dossier | 1, 2 | 5 à 6 | 0 € (sources gratuites) | 48 h après le déploiement fusionné (1.6+2.3+3.6), après 3.5 — voir note ci-dessous |
-| 4 | L'entonnoir : volume sans coût | 3 | 3 à 4 | quelques centimes/jour | 48 h après 4.4 |
-| 5 | Étalonner le Critic | 3, 4 | 5 à 6 | centimes par banc | après 5.3, puis 48 h après 5.6 |
-| 6 | Réviser le score si le mur persiste | 7 jours après 5 | 1 à 2 | 0 € | après 6.1 |
-| 7 | Onglet Radar (Jarvis) : nouveaux champs | 3 (avancée avant 5, voir note ci-dessous) | 3 | 0 € | après 7.3 |
+| 4 *(hors 4.1, faite — remplacée par RADAR-V2.md depuis le 2026-10-01)* | L'entonnoir : volume sans coût | 3 | 3 à 4 | quelques centimes/jour | 48 h après 4.4 |
+| 5 *(remplacée par RADAR-V2.md)* | Étalonner le Critic | 3, 4 | 5 à 6 | centimes par banc | après 5.3, puis 48 h après 5.6 |
+| 6 *(remplacée par RADAR-V2.md)* | Réviser le score si le mur persiste | 7 jours après 5 | 1 à 2 | 0 € | après 6.1 |
+| 7 *(7.1 à 7.3 FAITES ; suite remplacée par V2.7 de RADAR-V2.md)* | Onglet Radar (Jarvis) : nouveaux champs | 3 (avancée avant 5, voir note ci-dessous) | 3 | 0 € | après 7.3 |
 | 4.1 (insérée) | Mode économe, tri de faisabilité, Jarvis léger | 3.17, 4.0 | 1 (+ 1 pour Jarvis) | −80 % (5 €/jour au lieu de 25) | — |
 
 **Décision de Mathéo (2026-09-29, soir) — sous-étape 4.1 :** le plan est
@@ -106,6 +106,9 @@ recadré pour un radar **économe** et lisible par une personne seule.
   le code, scores recalculés à la règle actuelle, dossiers < 50 archivés
   (jamais supprimés), onglet Radar léger. L'ancienne 4.1 « Preuves de prix »
   devient **4.1b** ; 4.2 à 4.6 gardent leur numéro.
+
+**Bascule du 2026-10-01 (sous-étape V2.0) :** les étapes 4 (hors 4.1, faite), 5, 6 et 7 de ce plan sont **remplacées par `RADAR-V2.md`** (cartographie de la demande française : offres d'emploi, SIRENE, déclencheurs réglementaires). Rien n'est supprimé : ce fichier reste l'historique de la version 1 et la source des règles communes (§0.2, §3, §5). Les sous-étapes 7.1 à 7.3, déjà FAITES, restent FAITES ; leur suite (fiches, liste de prospection) devient V2.7.
+
 
 Les étapes se font dans cet ordre. Une étape n'est pas entamée tant que la précédente n'est pas marquée FAIT dans le Journal global (§8), sauf mention explicite.
 
@@ -3224,15 +3227,30 @@ Ordre : Radar (commit `[4.1]`, test de fumée API, OK de Mathéo, déploiement, 
 Journal — sous-étape 4.1 : voir ci-dessous.
 
 ### Journal — sous-étape 4.1
-- Statut : PARTIEL (partie **Radar** — points 1 à 4 — codée, testée, commitée, **pas encore déployée** ; test de fumée API vert ; **partie Jarvis (point 5) non faite**, elle vient après le déploiement du Radar, avec son propre OK)
+- Statut : FAIT (Radar déployé le 29/09 — interrupteurs Render posés, recalcul fait : 1 427 dossiers en `archive_faible` ; Jarvis déployé, build 91). **Reste à constater** : la reprise de faisabilité (`RADAR_FAISABILITE_REPRISE`) ne peut tourner qu'après minuit UTC (plafond de 5 € déjà dépassé le 29/09) — d'ici là l'onglet Radar reste vide en mode « seulement accessibles » (« tout voir » montre les 26 dossiers ≥ 50).
 - Date : 2026-09-29
-- Commit(s) : `[4.1] Mode économe, tri de faisabilité, recalcul des scores, archive_faible` (pas encore déployé)
+- Commit(s) : Radar `acb7a765`/`46df4638` (labo-ia), déployé en commit public `e2006bd` ; Jarvis `ed5a0548` (labo-ia) → `jarvis-app` build 91 (commits `7b4dbdd7ce`, `1228ea9bb2`)
 - Résumé pour Mathéo (3 lignes max, français simple, sans jargon) :
   Le radar dépense au plus 5 € par jour et ne fait plus de tirage de contrôle. Chaque nouvelle analyse dit aussi si le sujet est réalisable seul depuis la France (le code décide, pas le modèle, et ça ne change jamais la note). Sur les 1 451 dossiers analysés, seuls 26 tiennent à 50 ou plus avec la règle actuelle : les 1 425 autres seront rangés « archive_faible » (gardés, jamais supprimés) dès que tu allumeras l'interrupteur dans Render.
 - Fichiers créés / modifiés :
   - Créés : `app/faisabilite.py`, `app/recalcul.py`, `app/roles/faisabilite.py`, `config/faisabilite.yaml`, `tests/test_sous_etape_4_1.py`
   - Modifiés : `config/quotas.yaml` (5 €, 260 appels, tirage 0), `app/config.py`, `app/models_schemas.py` (enums, `FaisabiliteSortie`, `AnalystSortie.faisabilite`, statut `archive_faible`), `app/roles/analyst.py` (prompt `analyst-v2`), `app/pipeline/orchestrator.py` (bloc rangé, archivage sous 50, `_phase_faisabilite`, recalcul au démarrage), `app/pipeline/budget.py` + `app/storage/repo.py` (rôle `faisabilite` compté dans le plafond d'appels approfondis ; fonctions de lecture/écriture 4.1), `app/storage/schema.py` (table `faisabilites`, colonne `scores.origine`), `app/storage/db.py` (migration additive), `env.example`, `tests_payants/fumee_api.py` (vérifie aussi le bloc de faisabilité), `tests/test_enqueteur_qualite_page.py` et `tests/test_sous_etape_3_17.py` (valeurs de config 3.17 devenues 4.1), `AMELIORATIONS.md`.
 - Tests : 39 ajoutés — suite par défaut : **563 verts / 0 rouge** (524 avant) — dépense : 0 € (suite). Test de fumée payant `tests_payants/fumee_api.py` **VERT, 0,0543 €** : Scout, Analyst, Critic via un vrai modèle, **le bloc de faisabilité est bien rempli par l'Analyst** (schéma strict accepté par l'API) et par le rôle de reprise.
+- Jarvis (point 5, 29/09 ~18 h, OK de Mathéo « ok pour jarvis » ; verrous LABO (app) et `Jarvis Web · Radar` (n8n) pris) :
+  - **n8n** (`Qm6yJZBqjbHeBR0j`, 14 nœuds inchangés, sauvegarde avant : `produits/jarvis/backups/jarvis-web-radar_avant-4.1_2026-09-29.json`) : `Controle radar recap` valide `offset` (entier borné, 0–50 000) et `filtre` (liste blanche `accessibles`/`tout`) AVANT toute interpolation SQL (injection testée en Node : `1; DROP TABLE x` → `1`) ; `Lire dossiers radar (liste)` réécrite : dernier score ≥ 50, statuts `archive_faible`/`a_reprendre` exclus, faisabilité jointe, 30 par appel, comptes (pool / accessibles / non évalués), tendance 7 j seulement avec la première page ; `Lire/Assembler detail` ajoutent le bloc de faisabilité (valeurs + justifications) ; `Assembler etat radar` : plafonds 25 → 5 € et 1300 → 260 appels (miroir de `quotas.yaml`), rôle `faisabilite` compté dans les appels approfondis. Déployé par PUT via `n8n-verrou-modifier.py`, actif, 14 nœuds, confirmé par appels réels.
+  - **Page** (`index.html`, `APPV_LABO` 1.04 → 1.05, nouvelles classes CSS uniquement) : bascule « Seulement accessibles » (défaut) / « Tout voir », compteur, badge « Accessible » (bleu plein) ou « Exclu » + motif lisible, « Faisabilité non évaluée », bouton « Voir plus » (30 par 30), détail à l'ouverture (avec la faisabilité), rafraîchissement inchangé (état 60 s, liste 5 min — recharge toutes les pages déjà affichées). Testée en réel dans le navigateur (compte de test `labo-audit-fumee`) : liste réelle (0 accessible / 26 non évalués → message explicite, « Tout voir » = 26 cartes) ; pagination, badges, motifs, détail et rafraîchissement sur réponses simulées (75 dossiers, 40 accessibles).
+  - **Mesure avant / après** (webhook réel, compte de test, 3 essais chacun) :
+
+    | Vue | Avant (7.2 bis) | Après (4.1) |
+    |---|---|---|
+    | Liste, poids | 57 480 o (139 dossiers) | **838 o** (défaut, 0 accessible) / **13 025 o** (« tout voir », 26 dossiers) |
+    | Liste, temps | **25,0 – 31,5 s** | **0,30 – 0,41 s** (défaut) / 0,61 – 0,66 s (tout voir) |
+    | État (60 s) | 3 196 o, 0,49 – 1,22 s | 3 193 o, 0,48 – 0,61 s (inchangé) |
+    | Détail (1 dossier) | 41 416 o, 0,29 s | 27 673 o, 0,41 s (autre dossier ; + bloc faisabilité une fois évalué) |
+    | Cartes dans la page | 139 | ≤ 30 par page |
+  - **Déploiement Jarvis** (OK de Mathéo, 29/09) : `push-jarvis-app-protege.py --tenant LABO` — pixel-identique LABO (28 variables), non-régression MCS (232 lignes, 153 007,18 € HT ; septembre : 30 contrats, 22 141,75 € HT), fumée 10/10 onglets MCS + LABO (125 éléments, 0 erreur console), TVA VMC, aperçu = PDF : tous verts. Premier essai REFUSÉ par le script (le clone `jarvis-app` était 7 commits derrière : builds 84 à 90 de Dorian) ; clone mis à jour en fast-forward, diff clone/source vérifié (uniquement mes modifications), second essai réussi. **Build 91.** Verrous LABO et n8n libérés et relus.
+  - **Effet immédiat à savoir** (avant ce déploiement) : le workflow n8n est en ligne depuis 18 h ; l'app déjà en production (build 90) appelle la même vue sans paramètres, elle reçoit donc désormais la liste « accessibles » (VIDE tant que la faisabilité n'est pas évaluée) jusqu'au déploiement de la page. La reprise de faisabilité ne peut pas tourner avant minuit UTC (plafond de 5 € déjà dépassé aujourd'hui).
+  - Non modifié, noté ici : dans `Assembler etat radar` les plafonds du panneau Enquêteur (1500 requêtes, 1000 pages) sont ceux de 3.5 ; `quotas.yaml` dit 3000 et 1500 depuis 3.9 (écart antérieur à 4.1, hors périmètre).
 - Chiffres produits :
   - **Simulation en lecture seule sur la base réelle** (`python -m app.recalcul --simulation`, 0 écriture, 29/09 ~18 h) : 1 451 dossiers avec analyse. Score prudent des dossiers : anciens médiane 15,0 / p90 37,5 / max 100 → recalculés médiane 15,0 / p90 35,0 / **max 95,0**. 235 baissent, 1 monte, 1 215 inchangés. **Sous 50 → `archive_faible` : 1 425** (dont 533 dont l'analyse est le repli sans modèle de la panne du 26/09) ; **≥ 50 : 26** (dont 95 : `9c0eafe3`, `2cea8873` ; 82,5 : `fce213d9`, `229b5546`). Statuts d'avant des dossiers analysés : 1 206 `incertain`, 229 `rejete`, 11 `nouveau`, 3 `en_analyse`.
   - **Estimation de la reprise de faisabilité (à valider AVANT de la lancer)** : 26 dossiers ≥ 50, ≈ 36 600 tokens d'entrée + 18 200 de sortie, **≈ 0,22 €** au tarif Sonnet 5 de `config/tarifs.yaml` (estimation par longueur des vrais prompts, pas d'appel modèle ; le test de fumée a coûté 0,054 € pour 4 appels dont 2 de faisabilité). Bien sous le plafond du jour (5 €).
@@ -3247,7 +3265,8 @@ Journal — sous-étape 4.1 : voir ci-dessous.
   7. `app.metriques` **n'exclut pas** `archive_faible` : les métriques du jour comptent tous les dossiers créés ce jour-là ; les exclure ne garderait que les ≥ 50 et fausserait toute la distribution des scores. (`app.metriques` lancé depuis un poste sur la base de production, AVANT la migration, échouera sur la colonne `scores.origine` tant que le worker n'a pas migré — même situation qu'aux sous-étapes 0.7 et 3.10.)
   8. **Lu** : §0 à §3, §5 à §9, journaux 3.17 et 4.0 en entier, étape 4 ; les journaux 0.1 à 3.16 n'ont été lus que par leurs lignes du §8/§9 (comme en 3.17).
 - Question pour Mathéo / Fable : aucune bloquante. À noter : 533 dossiers archivés (sur 1 425) le seraient parce que leur analyse est un repli de la panne du 26/09 (score 0, jamais réellement évalués) — ils sont « faibles » au sens de la règle, mais pas jugés faibles par un modèle. Ils restent récupérables (statut d'avant tracé dans `decisions`).
-- Déploiement : **en attente de l'OK de Mathéo** (procédure §5 : suite verte 563/0, 0 € ; 4bis vert, 0,0543 € ; migration additive uniquement : table `faisabilites` + colonne `scores.origine`).
+- Vérification après « build terminé » (Mathéo, 29/09 ~18 h CEST ; lecture seule) : migration appliquée (colonne `scores.origine` et table `faisabilites` présentes) donc le worker a redémarré sur le nouveau code. **Pas encore de passage observé avec `analyst-v2`** : la dépense du jour UTC est déjà de 11,83 € (> plafond 5 €), le worker attend donc minuit UTC (comportement voulu). Interrupteurs `RADAR_RECALCUL_4_1` / `RADAR_FAISABILITE_REPRISE` : pas encore posés (statuts en base inchangés : 1 206 incertain, 617 a_reprendre, 235 rejete). Le budget de 5 € s'appliquera à la journée UTC du 30/09.
+- Déploiement : **poussé, build confirmé par Mathéo** (OK reçu le 2026-09-29). Suite 563/0, secrets : contrôles du script passés, commit public `e2006bd` (2026-09-29 17:58 CEST), reclonné et vérifié : il suit directement `0def4af` (3.17). Il embarque aussi le code 4.0 (Reddit, inactif sans identifiants) jamais déployé jusque-là. (Procédure §5 : suite verte 563/0, 0 € ; 4bis vert, 0,0543 € ; migration additive uniquement : table `faisabilites` + colonne `scores.origine`).
 
 **4.2a — Palier code (0 €)** (ex-4.1)
 
@@ -3726,22 +3745,22 @@ Baseline du 25/09/2026 (à confirmer par 0.3). Les cibles sont des ordres de gra
 | 3.16 | FAIT | 2026-09-29 | `[3.16]` | Point d'étape lecture seule (fenêtre 28/09 14:09:53 → 29/09 ~10:07 UTC). Radar sain : 933 appels modèle, 100 % valides, 0 tronqué (3.15 : 8 sorties coupées sur 83 juste avant, 0 sur 746 après), 16,38 €, aucun arrêt sur budget, disjoncteur API jamais déclenché ; **reprise : 0/662, `app.reprise` jamais lancée**. **12 dossiers ≥ 60 (max 100) contre 0 (max 55) — 0 crédible, 2 à confirmer, 10 artefacts, 0 éligible.** Causes : « fort » = 2 affirmations avec un id de source (pas de sources distinctes exigées, 53 % d'inférences), articles d'actualité pris pour des douleurs, mêmes pages rattachées à 26 dossiers (article Nvidia), 1 seule vraie page de prix sur 207 dossiers (faux concurrent « CEO of Mistral: AI is software » qui alimente 45 dossiers), scores non reproductibles (mêmes preuves : écart médian 5 points, jusqu'à 40). Sans sources transversales, 2/12 restent ≥ 60. Critic : 80 % de rejets, 0 éligible, instable (20/185 basculent). 100 % des dossiers viennent de la recherche HN, 0 Reddit. `rapports/POINT_ETAPE_2026-09-29.md` créé |
 | 3.17 | PARTIEL | 2026-09-29 | `[3.17]` | Reprise : marquage fait par le worker au démarrage si `RADAR_REPRISE_DEPUIS` est définie (pas de `DATABASE_URL` en local). Score : « fort » exige deux affirmations sur deux sources distinctes (domaines différents, ou signal d'origine + une autre), poids `2026.09.2` ; recalcul à sec depuis 3.15 (373 lignes, ancienne règle reproduit les scores stockés) : dossiers ≥ 60 : 12 → 6, critères « forts » 345 → 200, médiane des dossiers 27,5 → 22,5. Preuves : page d'erreur/trop courte (< 300 car.) jamais stockée, étiquette `prix` refusée sans marqueur de prix, une source ≤ 3 dossiers (origine exclue), seuil magasin interne 0,15 → 0,21, 44 domaines de presse exclus des concurrents. Tirage de contrôle 10 % → 2 %, ≤ 5/jour. **Température 0 impossible : l'API la retire sur Sonnet 5** (vu au test de fumée, 0,09 €) — code retiré, §9. 495 tests verts. Ni déployé ni reprise (`app.reprise`) : en attente de l'OK de Mathéo |
 | 4.0 | PARTIEL — en attente d'identifiants, optionnelle | 2026-09-29 | `[4.0]` | Code API officielle Reddit (OAuth application, 30 req/min, X-Ratelimit, inactif sans identifiants, jamais de repli RSS) + tests sans réseau, 524 verts ; **application Reddit non créée (Chrome refuse reddit.com), test de fumée réel non fait, non déployé** ; conditions Reddit à trancher, voir §9 |
-| 4.1 | EN COURS | 2026-09-29 | `[4.1]` | Mode économe (5 €/jour, 260 appels, tirage de contrôle 0), faisabilité `accessible_solo` déduite par le code, recalcul des scores + `archive_faible`, Jarvis léger — voir Journal |
-| 4.1b | À FAIRE | | | Preuves de prix (ex-4.1) |
-| 4.2 | À FAIRE | | | Entonnoir (paliers code / triage modèle / complet conditionnel) |
-| 4.3 | À FAIRE | | | Cache de prompt et API par lots |
-| 4.4 | À FAIRE | | | Axe industrie (dont créateurs de contenu) |
-| 4.5 | À FAIRE | | | Audit quotidien par le worker, lu dans Jarvis |
-| 4.6 🚦 | À FAIRE | | | Pilote automatique |
-| 5.1 | À FAIRE | | | |
-| 5.2 | À FAIRE | | | |
-| 5.3 🚦 STOP | À FAIRE | | | |
-| 5.4 | À FAIRE | | | |
-| 5.5 | À FAIRE | | | |
-| 5.6 🚦 | À FAIRE | | | |
-| 6.1 🚦 STOP | À FAIRE | | | |
-| 6.2 | À FAIRE | | | |
-| 7.1 | FAIT | 2026-09-25 | (n8n, hors dépôt) | Workflow `jarvis-radar-recap` étendu puis redécoupé le même soir en 3 vues (`etat`/`dossiers`/`detail`, demande Mathéo) ; vrai bug de perf n8n trouvé et corrigé (chaînage de nœuds Postgres multiplié par le nombre de lignes -> requête bloquée 4 min) ; poids mesuré : etat 990o/0,4s, dossiers ~220Ko/1,4s, detail ~10Ko/0,3s ; étape avancée avant 5 (décision Mathéo, voir §2) |
+| 4.1 | FAIT | 2026-09-29 | `[4.1]` `e2006bd` (Radar) / build 91 (Jarvis) | Mode économe (5 €/jour, 260 appels, tirage de contrôle 0), faisabilité `accessible_solo` déduite par le code, recalcul des scores + `archive_faible`, Jarvis léger — voir Journal |
+| 4.1b | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | Preuves de prix (ex-4.1) |
+| 4.2 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | Entonnoir (paliers code / triage modèle / complet conditionnel) |
+| 4.3 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | Cache de prompt et API par lots |
+| 4.4 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | Axe industrie (dont créateurs de contenu) |
+| 4.5 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | Audit quotidien par le worker, lu dans Jarvis |
+| 4.6 🚦 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | Pilote automatique |
+| 5.1 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | |
+| 5.2 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | |
+| 5.3 🚦 STOP | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | |
+| 5.4 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | |
+| 5.5 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | |
+| 5.6 🚦 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | |
+| 6.1 🚦 STOP | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | |
+| 6.2 | REMPLACÉE par RADAR-V2.md | 2026-10-01 | — | |
+| 7.1 | FAIT (suite remplacée par V2.7) | 2026-09-25 | (n8n, hors dépôt) | Workflow `jarvis-radar-recap` étendu puis redécoupé le même soir en 3 vues (`etat`/`dossiers`/`detail`, demande Mathéo) ; vrai bug de perf n8n trouvé et corrigé (chaînage de nœuds Postgres multiplié par le nombre de lignes -> requête bloquée 4 min) ; poids mesuré : etat 990o/0,4s, dossiers ~220Ko/1,4s, detail ~10Ko/0,3s ; étape avancée avant 5 (décision Mathéo, voir §2) |
 | 7.2 | FAIT | 2026-09-25 | `produits/jarvis/telecommande-pages/index.html` | Refonte complète de l'onglet Radar (LABO) : bandeau d'état + 3 jauges, entonnoir visuel, cartes filtrables secteur/statut, détail chargé à la demande (mis en cache), tendance 7j, infobulles tap-to-reveal ; rafraîchissement découpé 60s (léger) / 5min (liste) ; testé en réel dans le navigateur avec le code de test dédié |
 | 7.3 🚦 | FAIT | 2026-09-25 | `e1239090` `be86d104` (labo-ia) / `7b6ffb7` (jarvis-app) | Déployé, **build 82** — protocole complet vert (pixel-identique LABO, non-régression MCS, fumée 10/10 + LABO, TVA VMC, aperçu=PDF) ; étape 7 complète |
 

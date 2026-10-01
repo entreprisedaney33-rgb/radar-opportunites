@@ -1,0 +1,29 @@
+# V2.8 (RADAR-V2.md) : cycle du worker (`python -m app.cli run-forever`). Lu par app/config.py::cycle_v2(). Aucun secret ici.
+#
+# Décision de Mathéo du 2026-10-01 : le worker exécute DÉSORMAIS le cycle v2 et plus jamais le pipeline v1. Le pipeline v1 n'est pas
+# supprimé : il est désactivé par ce fichier (`pipeline_v1_actif: false`). Le remettre à `true` rétablit l'ancien comportement du worker.
+pipeline_v1_actif: false
+
+# --- Régime quotidien (après la cartographie initiale, ou si elle n'est pas demandée) -------------------------------------
+# Plafond de dépense modèle par jour UTC (étiquetage + fiches, tous runs confondus) : celui de config/etiquetage.yaml::budget_eur_par_jour
+# (2 €), appliqué par BudgetTracker. Les fiches (déjà calculables à partir des agrégats existants) passent AVANT l'étiquetage du jour, dans
+# une part du plafond : sinon l'étiquetage des secteurs de priorité 1 puis 2 absorberait tout le budget et aucune fiche ne serait recalculée.
+part_fiches_du_plafond_jour: 0.4
+# Si une passe quotidienne laisse du travail (plafond de requêtes d'une API atteint, API en erreur) sans avoir atteint le plafond de
+# dépense : nouvelle passe après ce délai. Quand tout est fait ou que le plafond du jour est atteint : attente de minuit UTC.
+attente_si_reste_minutes: 30
+attente_apres_erreur_minutes: 60
+attente_pause_secondes: 60
+
+# --- Cartographie initiale (RADAR_CARTOGRAPHIE_INITIALE=1) ---------------------------------------------------------------
+# Traite UNIQUEMENT les secteurs de cette priorité (config/secteurs_tpe.yaml::priorite), dans l'enveloppe unique
+# RADAR_ENVELOPPE_INITIALE_EUR (10 € décidés ; étiquetage + fiches). Reprenable et idempotente : chaque étape saute ce qui est fait.
+# Terminée quand tout est fait pour cette priorité OU que l'enveloppe est épuisée ; le régime quotidien couvre ensuite le reste.
+initiale:
+  priorite: 1
+  # Part de l'enveloppe que l'étiquetage ne dépasse pas : le reste est gardé pour les fiches (mesure du 2026-10-01 : une fiche ~0,06 €).
+  part_etiquetage_de_l_enveloppe: 0.75
+  # Garde-fou : nombre maximal de passes d'une même cartographie initiale (une passe = collecte, établissements, étiquetage, agrégation,
+  # fiches) avant de la déclarer terminée avec un avertissement.
+  passes_max: 40
+  attente_entre_passes_minutes: 5

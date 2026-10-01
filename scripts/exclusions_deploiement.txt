@@ -40,3 +40,11 @@ creer_acces_lecture.py
 # sont d'aucune utilité.
 test_creer_acces_lecture.py
 test_deploiement.py
+
+# V2.8 : administration du service Render (clé de l'API Render lue localement dans .secrets/ de labo-ia, identifiants France Travail lus
+# dans ~/.config/) -- Render n'en a aucun besoin et le dépôt de déploiement est public.
+render_env.py
+# Leurs tests contiennent de FAUSSES valeurs secrètes (fausse clé Render, faux mot de passe Postgres) pour vérifier que rien de sensible
+# n'est jamais affiché : elles déclencheraient les contrôles anti-secret du dépôt public. Render n'exécute jamais la suite de tests.
+test_render_env.py
+test_suivre_cartographie.py

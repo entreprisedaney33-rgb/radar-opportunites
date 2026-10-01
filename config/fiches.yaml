@@ -1,0 +1,77 @@
+# V2.5 (RADAR-V2.md) : sélection des couples secteur x tâche, score v2 (règle écrite dans SCORING-V2.md) et fiches.
+# Lu par app/config.py::fiches(). Aucun secret ici. La règle de score vit ICI et dans SCORING-V2.md : un changement de
+# poids change `version`, et les fiches déjà calculées gardent la version avec laquelle elles l'ont été.
+version: "2026.10.1"
+
+# --- Sélection des couples candidats -----------------------------------------------------------------------------
+# Travaille sur les PARTS EXTRAPOLÉES et leur intervalle de confiance (échantillon de 60 offres étiquetées par code,
+# config/etiquetage.yaml), JAMAIS sur le compte brut de l'échantillon : avec 60 offres, « 4 offres sur 60 » ne dit pas
+# grand-chose seul, la borne basse de l'intervalle de Wilson à 95 % dit ce qu'on peut affirmer au minimum.
+selection:
+  offres_etiquetees_min: 30        # en deçà, l'échantillon du secteur est trop petit (sauf recensement complet : couverture 100 %)
+  part_ic95_bas_min: 0.03          # la part de la tâche, au pire (borne basse), doit rester >= 3 % des offres du secteur
+  offres_estimees_min: 50          # offres du secteur mentionnant la tâche, estimées sur le stock de 90 jours (part x stock collecté)
+  offres_estimees_bas_min: 20      # idem, au pire (borne basse de la part x stock collecté)
+  etablissements_rayon_min: 20     # établissements listés à moins de config/zone.yaml::rayon_km du centre
+  # Pré-criblage (gratuit) : un couple dont le score prudent MAXIMAL atteignable (accessibilité parfaite, concurrence non évaluée = 0)
+  # est sous le seuil de la décision n'aura jamais de fiche éligible : on n'appelle pas le modèle pour lui. Mesure du 2026-10-01 : une
+  # fiche coûte ~0,044 € (Analyste 0,027 + Critic 0,016) et 11 couples sur 28 passaient les seuils pour un seul secteur.
+  precriblage_score_maximal: true
+  # Plafond de fiches PAR secteur (les couples de plus forte demande d'abord) : borne le coût de la première cartographie. Mesure du
+  # 2026-10-01 : une fiche coûte ~0,055 € (Analyste ~0,029 + Critic ~0,023, modèle approfondi). Décision de Mathéo du 2026-10-01 :
+  # 2 fiches par secteur au plus, soit <= 316 fiches ~ 17 € ; avec 60 offres étiquetées par secteur (~27 €) la première cartographie tient
+  # sous l'enveloppe de 50 €. `null` = aucun plafond.
+  max_fiches_par_code: 2
+
+# --- Score v2 : 5 critères, 100 points (SCORING-V2.md) ----------------------------------------------------------
+score:
+  demande:
+    max: 30
+    points_volume_max: 18          # échelle logarithmique sur le nombre d'offres estimé
+    offres_min: 10                 # en dessous : 0 point de volume
+    offres_plein: 1000             # à partir de là : points de volume maximum
+    salaire_seuil_eur: 25000       # bonus si le salaire annuel médian des offres de la tâche atteint ce seuil...
+    salaire_n_min: 5               # ...et qu'au moins ce nombre d'offres portent un salaire lisible
+    points_salaire: 6
+    points_tendance: 6             # tendance 3 mois positive ET calculée (accumulation suffisante)
+  proximite:
+    max: 20
+    paliers_etablissements: [[500, 16], [200, 12], [50, 8], [20, 4]]   # [seuil, points] : le premier seuil atteint
+    paliers_offres_locales: [[10, 4], [3, 2]]                           # offres de la tâche estimées dans la zone
+  declencheur:
+    max: 15
+    horizon_mois: 18               # obligation dont la date tombe dans les 18 prochains mois...
+    retro_mois: 6                  # ...ou entrée en vigueur depuis moins de 6 mois (encore « chaude » pour les clients)
+    points_date_ferme: 15
+    points_date_a_confirmer: 9     # compté dans le score brut seulement ; le prudent ne retient que les dates fermes
+    tendance_seuil_pct: 20
+    points_tendance: 8             # tendance calculée > seuil, à défaut d'obligation datée
+  concurrence:
+    max: 20
+    points_outils_sans_service_local: 20
+    points_aucun_outil: 10
+    points_service_local_etabli: 0
+    # Non évaluée tant que la recherche web de V2.6 n'a pas tourné : 0 point, listé dans les preuves manquantes.
+  accessibilite:
+    max: 15
+    points_par_delai: {moins_de_3_mois: 15, 3_a_12_mois: 9}   # un délai plus long ferme déjà la porte (config/faisabilite.yaml)
+
+# --- Décision finale (par le code, jamais par un modèle) ----------------------------------------------------------
+decision:
+  score_prudent_min: 60
+  prospection_min: 30              # établissements listés dans le rayon : la liste de prospection doit être utilisable
+  objections_fermes: [tache_non_automatisable, reglementaire, cible_injoignable]   # une objection STRUCTURELLE de ces types exclut
+
+# --- Rafraîchissement ------------------------------------------------------------------------------------------------
+rafraichissement:
+  jours: 30
+  variation_agregats_pct: 20       # un agrégat qui bouge de plus de 20 % depuis le calcul de la fiche la fait recalculer
+
+# --- Modèles (approfondi : `model_approfondi`, voir app/config.py) et budget ----------------------------------------
+modeles:
+  # Mesuré au test de fumée du 2026-10-01 : à 2 500 jetons la sortie de l'Analyste était COUPÉE (« Sortie tronquée ») dans environ la
+  # moitié des appels, et l'API complétait alors les champs manquants par « placeholder » (sortie valide pour le schéma, vide de sens).
+  max_tokens_analyste: 5000
+  max_tokens_critic: 4000          # une sortie du Critic a été coupée à 2 500 au test de fumée final (moyenne mesurée ~2 000)
+  max_fiches_par_passe: 50
+  budget_eur_par_jour: 2.0

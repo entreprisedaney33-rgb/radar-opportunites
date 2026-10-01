@@ -1,0 +1,42 @@
+{
+ "date": "2026-10-01T21:08:13.694966+00:00",
+ "secteur": "69.20Z",
+ "duree_s": 56.0,
+ "offres_en_base": 1324,
+ "etiquetees_ok": 5,
+ "prospects": 1465,
+ "fiches": 1,
+ "cout_par_role": {
+  "analyste_fiche": {
+   "appels": 1,
+   "cout_eur": 0.03048
+  },
+  "etiqueteur": {
+   "appels": 5,
+   "cout_eur": 0.0158
+  }
+ },
+ "cout_total_eur": 0.04628,
+ "passes": 1,
+ "journal": [
+  "21:08:13 [demarrage] cartographie initiale : priorité 1 (1 secteurs), enveloppe 0.40 €",
+  "21:08:13 [passe] passe 1/40",
+  "21:08:30 [etablissements] paires_prevues=7, paires_mesurees=7, requetes=58, prospects_nouveaux=1465",
+  "21:08:35 [offres] codes_prevus=1, codes_collectes=1, requetes=11, offres_lues=1324, offres_nouvelles=1324",
+  "21:08:46 [etiquetage] offres_prevues=5, offres_traitees=5, statuts={'ok': 5}, taches_lexique=9, citations_proposees=19, citations_verifiees=19, appels_modele=5, cout_eur=0.015798278000000002",
+  "21:08:46 [agregation] secteurs_avec_offres=1, couples_calcules=12, lignes_ajoutees=12",
+  "21:09:09 [fiches] couples_evalues=12, candidats=1, rejets=11, a_produire=1, fiches_ecrites=1, par_decision={'a_verifier': 1}, affirmations_proposees=5, affirmations_retenues=5, cout_eur=0.03048452",
+  "21:09:09 [fin] cartographie initiale TERMINÉE"
+ ],
+ "verifications": {
+  "cartographie_terminee": true,
+  "offres_en_base": true,
+  "cinq_offres_etiquetees": true,
+  "etablissements_mesures": true,
+  "au_moins_une_fiche": true,
+  "au_plus_une_fiche": true,
+  "cout_sous_enveloppe": true,
+  "resume_ecrit_dans_runs": true,
+  "idempotent": true
+ }
+}

@@ -1,0 +1,248 @@
+{
+  "date": "2026-10-01T15:55:32.988192+00:00",
+  "code_naf": "69.20Z",
+  "offres_collectees": 1352,
+  "requetes_offres": 13,
+  "requetes_etablissements": 17,
+  "etiquetage": {
+    "statuts": {
+      "ok": 60
+    },
+    "citations_proposees": 228,
+    "citations_verifiees": 218
+  },
+  "analyste_degrade_apres_relance": 0,
+  "couples_evalues": 30,
+  "candidats": 2,
+  "rejets": 28,
+  "raisons_de_rejet": {
+    "part trop incertaine": 18,
+    "23 offres estimées": 5,
+    "3 offres estimées au pire": 5,
+    "45 offres estimées": 5,
+    "12 offres estimées au pire": 5,
+    "score prudent maximal atteignable 54.7": 1,
+    "score prudent maximal atteignable 54.8": 1,
+    "score prudent maximal atteignable 45.4": 1,
+    "score prudent maximal atteignable 52.0": 1,
+    "score prudent maximal atteignable 37.0": 1,
+    "score prudent maximal atteignable 39.2": 1,
+    "score prudent maximal atteignable 48.2": 1,
+    "au-delà des 2 meilleurs couples du secteur (p": 3
+  },
+  "candidats_par_demande": [
+    [
+      "declarations_administratives",
+      563,
+      0.417
+    ],
+    [
+      "saisie_factures",
+      563,
+      0.417
+    ]
+  ],
+  "fiches": [
+    {
+      "tache": "declarations_administratives",
+      "decision": "a_verifier",
+      "score_brut": 61.8,
+      "score_prudent": 60.5,
+      "criteres": {
+        "demande": [
+          21.8,
+          20.5,
+          "prouve"
+        ],
+        "proximite": [
+          16.0,
+          16.0,
+          "prouve"
+        ],
+        "declencheur": [
+          15,
+          15,
+          "prouve"
+        ],
+        "concurrence": [
+          0.0,
+          0.0,
+          "non_evalue"
+        ],
+        "accessibilite": [
+          9.0,
+          9.0,
+          "prouve"
+        ]
+      },
+      "motifs": [
+        "concurrence : concurrence non évaluée (recherche web de V2.6)",
+        "déjà équipés (à vérifier auprès du client) : Les cabinets comptables sont historiquement l'un des secteurs les plus équipés en logiciels métier (production comptable, télé-déclaration TVA, liasses fiscales) qui intègrent déjà le pré-remplissage et le suivi d'échéances. Il faut vérifier si ces outils (type Cegid, Isacompta, ACD, My Unisoft) couvrent déjà la tâche avant de vendre un service redondant.",
+        "prochain test, une question à poser : Qui s'occupe aujourd'hui de « Déclarations et formalités administratives » dans votre établissement, avec quel outil, et combien de temps par semaine cela représente-t-il ?"
+      ],
+      "service_ia_propose": "Un assistant IA qui pré-remplit les déclarations et formalités administratives (TVA, formalités Sirene, échéances) pour les cabinets comptables à partir des pièces clients. Il surveille aussi les échéances réglementaires (facturation électronique, e-reporting) et alerte le cabinet avant chaque date limite.",
+      "ce_quil_remplace": "La saisie manuelle et le suivi des échéances par un collaborateur comptable junior ou un assistant administratif.",
+      "hypothese_prix": {
+        "type": "hypothese",
+        "montant_min_eur": 150.0,
+        "montant_max_eur": 400.0,
+        "periodicite": "par_mois",
+        "justification": "Abonnement mensuel par cabinet, aligné sur le coût d'un outil métier comptable courant."
+      },
+      "personnes_necessaires": "deux",
+      "prochain_test": "Qui s'occupe aujourd'hui des déclarations et formalités administratives dans votre cabinet, avec quel outil, et combien de temps cela représente-t-il par semaine ?",
+      "affirmations_retenues": [
+        "41,7 % des offres du secteur mentionnent la tâche (IC 95 % : 30,1 %–54,3 %)",
+        "563 offres estimées sur le stock entier mentionnent la tâche, dont 27 dans les départements de la zone",
+        "Salaire médian de 28605 € par an, mesuré sur 10 offres avec salaire lisible",
+        "498 établissements actifs du secteur à moins de 100 km de Bordeaux, 1145 entreprises actives dans la zone",
+        "Obligation de recevoir des factures électroniques pour toutes les entreprises assujetties à la TVA au 2026-09-01",
+        "Obligation d'émettre des factures électroniques pour les PME, TPE et micro-entreprises au 2027-09-01"
+      ],
+      "affirmations_rejetees": [],
+      "preuves_manquantes_analyste": [
+        "Quels outils ou prestataires sont déjà utilisés par les cabinets pour cette tâche",
+        "Fiabilité de l'estimation vu la faible couverture d'échantillon (4,4 %)",
+        "Tendance d'évolution de la demande, non calculée faute de collecte suffisante",
+        "Budget réel que les cabinets sont prêts à allouer à un tel outil",
+        "Impact concret des échéances réglementaires sur la charge de travail actuelle"
+      ],
+      "objections_critic": [
+        [
+          "deja_equipe",
+          "a_verifier"
+        ],
+        [
+          "chiffres_fragiles",
+          "a_verifier"
+        ],
+        [
+          "chiffres_fragiles",
+          "a_verifier"
+        ],
+        [
+          "reglementaire",
+          "a_verifier"
+        ]
+      ],
+      "decision_critic": "a_verifier"
+    },
+    {
+      "tache": "saisie_factures",
+      "decision": "a_verifier",
+      "score_brut": 61.8,
+      "score_prudent": 60.5,
+      "criteres": {
+        "demande": [
+          21.8,
+          20.5,
+          "prouve"
+        ],
+        "proximite": [
+          16.0,
+          16.0,
+          "prouve"
+        ],
+        "declencheur": [
+          15,
+          15,
+          "prouve"
+        ],
+        "concurrence": [
+          0.0,
+          0.0,
+          "non_evalue"
+        ],
+        "accessibilite": [
+          9.0,
+          9.0,
+          "prouve"
+        ]
+      },
+      "motifs": [
+        "concurrence : concurrence non évaluée (recherche web de V2.6)",
+        "déjà équipés (à vérifier auprès du client) : Le secteur comptable est précisément celui qui a le plus investi dans la capture automatique de factures (Dext, Pennylane, Libeo, Tiime, modules natifs de Sage/Cegid) : beaucoup de cabinets et de TPE utilisent déjà une brique OCR intégrée à leur logiciel. Le prochain test doit vérifier si un outil équivalent est déjà en place avant de vendre une nouveauté.",
+        "prochain test, une question à poser : Qui s'occupe aujourd'hui de « Saisie des factures fournisseurs et clients » dans votre établissement, avec quel outil, et combien de temps par semaine cela représente-t-il ?"
+      ],
+      "service_ia_propose": "Un service d'extraction automatique des données de factures fournisseurs et clients (OCR + IA) qui pré-remplit l'écriture comptable avant validation humaine. Livré en abonnement mensuel aux cabinets comptables et TPE/PME, avec export vers leur logiciel de comptabilité existant.",
+      "ce_quil_remplace": "La saisie manuelle des factures fournisseurs et clients actuellement réalisée par un collaborateur ou une assistante comptable.",
+      "hypothese_prix": {
+        "type": "hypothese",
+        "montant_min_eur": 150.0,
+        "montant_max_eur": 490.0,
+        "periodicite": "par_mois",
+        "justification": "Abonnement mensuel modulé selon le volume de factures traitées par le cabinet ou la TPE cliente."
+      },
+      "personnes_necessaires": "deux",
+      "prochain_test": "Qui saisit aujourd'hui vos factures fournisseurs et clients, avec quel logiciel, et combien d'heures par semaine cela représente-t-il ?",
+      "affirmations_retenues": [
+        "41,7 % des offres du secteur mentionnent la saisie de factures (IC 95 % : 30,1 % à 54,3 %), sur 60 offres échantillonnées parmi 1352.",
+        "Sur le stock entier, 563 offres mentionneraient la tâche (au pire 406), dont 27 dans les départements de la zone.",
+        "Salaire médian de 34500 € par an, calculé sur 13 offres avec salaire lisible.",
+        "498 établissements du secteur actifs à moins de 100 km de Bordeaux, et 1145 entreprises actives dans les départements de la zone.",
+        "Obligation de réception des factures électroniques pour toutes les entreprises assujetties à la TVA établies en France, dont TPE et micro-entreprises, dès le 2026-09-01.",
+        "Obligation pour les PME, TPE et micro-entreprises d'émettre leurs factures au format électronique dès le 2027-09-01."
+      ],
+      "affirmations_rejetees": [],
+      "preuves_manquantes_analyste": [
+        "Quels outils ou prestataires sont déjà utilisés pour la saisie des factures dans ces établissements.",
+        "Volume réel de factures traitées par mois dans les TPE/PME de la zone.",
+        "Budget que les cabinets comptables et TPE sont prêts à allouer à un tel service.",
+        "Impact réel des échéances de facturation électronique 2026/2027 sur la demande pour ce service.",
+        "Fiabilité de la part estimée, l'échantillon ne couvrant que 4,4 % du stock d'offres."
+      ],
+      "objections_critic": [
+        [
+          "deja_equipe",
+          "a_verifier"
+        ],
+        [
+          "chiffres_fragiles",
+          "a_verifier"
+        ],
+        [
+          "chiffres_fragiles",
+          "a_verifier"
+        ]
+      ],
+      "decision_critic": "a_verifier"
+    }
+  ],
+  "cout_par_role": {
+    "analyste_fiche": {
+      "appels": 2,
+      "tokens_in": 9495,
+      "tokens_out": 6126,
+      "cout_eur": 0.07038
+    },
+    "critic_fiche": {
+      "appels": 2,
+      "tokens_in": 7353,
+      "tokens_out": 5150,
+      "cout_eur": 0.05806
+    },
+    "etiqueteur": {
+      "appels": 60,
+      "tokens_in": 172266,
+      "tokens_out": 10158,
+      "cout_eur": 0.19562
+    }
+  },
+  "cout_total_eur": 0.32406,
+  "cout_par_fiche_eur": 0.06422,
+  "modeles": {
+    "etiqueteur": "claude-haiku-4-5-20251001",
+    "analyste_critic": "claude-sonnet-5"
+  },
+  "verifications": {
+    "offres_collectees": true,
+    "etiquetage_complet_sans_perte": true,
+    "au_moins_un_couple_candidat": true,
+    "au_moins_une_fiche_ecrite": true,
+    "aucun_analyste_ni_critic_perdu": true,
+    "pas_d_arret": true,
+    "cout_sous_enveloppe": true,
+    "le_critic_n_a_recu_aucun_score": true,
+    "l_analyste_n_a_recu_aucun_texte_d_offre": true
+  }
+}

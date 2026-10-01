@@ -1,0 +1,290 @@
+# V2.1 (RADAR-V2.md) : obligations et échéances touchant les TPE/PME, autour de la
+# fenêtre « 18 prochains mois » (construit le 2026-10-01 ; fenêtre : octobre 2026 → avril 2028).
+# Lu et validé strictement par app/referentiels.py. JAMAIS inventé : une ligne sans URL
+# officielle n'entre pas (le chargeur la refuse). Domaines acceptés : *.gouv.fr, *.europa.eu,
+# urssaf.fr.
+#
+# Champs :
+#   date            : date d'entrée en vigueur ou d'échéance (AAAA-MM-JJ).
+#   precision_date  : `ferme` (date publiée par la source) ou `a_confirmer` (date à recontrôler :
+#                     report possible, date de transposition nationale non publiée…).
+#   secteurs        : codes NAF de config/secteurs_tpe.yaml, ou ["*"] pour « tous secteurs ».
+#   taches          : identifiants de config/taches.yaml que l'obligation touche DIRECTEMENT (V2.5). Sans ce rattachement, une
+#                     obligation générale (la facturation électronique vise tous les secteurs) donnerait les mêmes points à tous
+#                     les couples secteur x tâche. Vide ou absent = toutes les tâches. RATTACHEMENT ÉDITORIAL du 2026-10-01
+#                     (jugement de Claude, à relire par Mathéo / Fable) : il décide de ce que le critère « déclencheur » récompense.
+#   source_url      : page officielle.
+#   verifie_le      : date du contrôle.
+#   verification    : `page_lue` (la page officielle a été lue en entier le jour du contrôle) ou
+#                     `extrait_de_recherche` (date lue dans l'extrait d'un résultat de recherche
+#                     provenant du site officiel ; la lecture directe de la page a échoué ce jour-là,
+#                     le site coupant la connexion). Les lignes `extrait_de_recherche` doivent être
+#                     relues en session avant d'être citées à un client (rafraîchissement V2.10).
+rafraichi_le: "2026-10-01"
+
+# Statut du rattachement `taches` ci-dessous : ACCEPTÉ PROVISOIREMENT par Mathéo le 2026-10-01 (jugement éditorial de Claude), « à relire à V2.9
+# sur fiches réelles ». Tant que le statut est `provisoire`, toute fiche dont le critère « déclencheur » rapporte des points porte un
+# avertissement en base et le dit.
+rattachement_taches:
+  statut: provisoire
+  decide_le: "2026-10-01"
+  a_relire_a: "V2.9"
+  note: "Rattachement des 21 obligations aux tâches qu'elles touchent : accepté provisoirement, à relire sur fiches réelles."
+
+declencheurs:
+  # ---- Facturation électronique (France) -------------------------------------------------
+  - id: facture_electronique_reception_2026
+    libelle: "Facturation électronique : toutes les entreprises doivent pouvoir RECEVOIR des factures électroniques"
+    date: "2026-09-01"
+    precision_date: ferme
+    secteurs: ["*"]
+    taches: [saisie_factures, collecte_pieces, gestion_documentaire, rapprochement_bancaire, declarations_administratives]
+    entreprises_concernees: "Toutes les entreprises assujetties à la TVA établies en France (dont TPE et micro-entreprises)"
+    source_url: "https://entreprendre.service-public.gouv.fr/actualites/A18953"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Déjà en vigueur depuis le 1er septembre 2026 : réception obligatoire pour toutes les entreprises, via une plateforme agréée."
+  - id: facture_electronique_emission_pme_2027
+    libelle: "Facturation électronique : les PME, TPE et micro-entreprises doivent ÉMETTRE leurs factures au format électronique"
+    date: "2027-09-01"
+    precision_date: ferme
+    secteurs: ["*"]
+    taches: [facturation_clients, relance_impayes, saisie_factures, rapprochement_bancaire, declarations_administratives, collecte_pieces]
+    entreprises_concernees: "PME, TPE et micro-entreprises assujetties à la TVA établies en France"
+    source_url: "https://www.economie.gouv.fr/tout-savoir-sur-la-facturation-electronique-pour-les-entreprises"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Obligation d'émission électronique via une plateforme agréée au 1er septembre 2027 pour les PME et micro-entreprises (le 1er septembre 2026 pour les grandes entreprises et ETI)."
+  - id: facture_electronique_mentions_2027
+    libelle: "Nouvelles mentions obligatoires sur les factures (liées à la facturation électronique)"
+    date: "2027-09-01"
+    precision_date: ferme
+    secteurs: ["*"]
+    taches: [facturation_clients, preparation_devis, onboarding_client]
+    entreprises_concernees: "PME, TPE et micro-entreprises assujetties à la TVA"
+    source_url: "https://www.economie.gouv.fr/tout-savoir-sur-la-facturation-electronique-pour-les-entreprises"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "De nouvelles mentions doivent figurer sur les factures émises à partir du 1er septembre 2027 pour les PME et micro-entreprises (1er septembre 2026 pour les grandes entreprises et ETI)."
+  - id: e_reporting_pme_2027
+    libelle: "E-reporting : transmission des données de transaction à l'administration fiscale"
+    date: "2027-09-01"
+    precision_date: ferme
+    secteurs: ["*"]
+    taches: [declarations_administratives, reporting, facturation_clients, saisie_factures]
+    entreprises_concernees: "PME, TPE et micro-entreprises (transactions hors factures électroniques : particuliers, export…)"
+    source_url: "https://www.economie.gouv.fr/tout-savoir-sur-la-facturation-electronique-pour-les-entreprises"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Les PME et micro-entreprises doivent transmettre leurs données de transaction (e-reporting) à partir du 1er septembre 2027."
+
+  # ---- Règlement européen sur l'IA (AI Act) ----------------------------------------------
+  - id: ai_act_transparence_2026
+    libelle: "Règlement IA : obligations de transparence (informer qu'on parle à une IA, signaler les contenus générés par IA)"
+    date: "2026-08-02"
+    precision_date: ferme
+    secteurs: ["*"]
+    taches: [service_client_faq, accueil_telephonique, redaction_contenus, gestion_reseaux_sociaux, reponse_avis, emailing_fidelisation, prise_rendez_vous]
+    entreprises_concernees: "Entreprises qui déploient des agents conversationnels ou publient des contenus générés par IA"
+    source_url: "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai"
+    verifie_le: "2026-10-01"
+    verification: page_lue
+    resume: "Phase d'application principale du 2 août 2026 : les autorités supervisent la conformité et les exigences de transparence sur les contenus générés par IA sont actives."
+  - id: ai_act_haut_risque_emploi_formation_2027
+    libelle: "Règlement IA : systèmes à haut risque (dont recrutement/emploi et éducation)"
+    date: "2027-12-02"
+    precision_date: ferme
+    secteurs: ["78.10Z", "78.20Z", "78.30Z", "85.59A", "85.59B", "85.60Z"]
+    taches: [recrutement_tri_cv, suivi_formations]
+    entreprises_concernees: "Utilisateurs et fournisseurs d'IA de tri de candidatures, d'évaluation de salariés ou d'élèves"
+    source_url: "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai"
+    verifie_le: "2026-10-01"
+    verification: page_lue
+    resume: "Au 2 décembre 2027, les systèmes d'IA à haut risque des domaines sensibles (dont l'emploi et l'éducation) doivent être conformes (report issu de l'omnibus numérique)."
+
+  # ---- Social et RH ------------------------------------------------------------------------
+  - id: transparence_salariale_2026
+    libelle: "Directive sur la transparence des rémunérations (fourchette de salaire dans les offres d'emploi, droit à l'information)"
+    date: "2026-06-07"
+    precision_date: a_confirmer
+    secteurs: ["*"]
+    taches: [recrutement_tri_cv, preparation_paie, gestion_conges_absences]
+    entreprises_concernees: "Employeurs ; seuils d'effectifs de certaines obligations à confirmer (rapports : grandes entreprises)"
+    source_url: "https://entreprendre.service-public.gouv.fr/actualites/A18526"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Échéance européenne de transposition au 7 juin 2026 ; le projet de loi français est en cours d'examen, la date d'application nationale reste à confirmer."
+  - id: nouveau_code_ape_2027
+    libelle: "Nouveau code APE attribué à toutes les entreprises du répertoire Sirene (NAF rév. 2.1)"
+    date: "2027-01-01"
+    precision_date: ferme
+    secteurs: ["*"]
+    taches: [declarations_administratives, saisie_donnees, gestion_documentaire]
+    entreprises_concernees: "Toutes les entreprises inscrites au répertoire Sirene, micro-entreprises comprises"
+    source_url: "https://www.economie.gouv.fr/actualites/nouveau-code-ape-entreprises-verifiez-le-des-present"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "À partir du 1er janvier 2027, un nouveau code APE est attribué à toutes les entreprises ; les entreprises doivent vérifier le leur. Impact direct sur ce radar : correspondance NAF rév. 2 → 2.1 à prévoir."
+  - id: bulletin_paie_simplifie_2027
+    libelle: "Bulletin de paie simplifié"
+    date: "2027-01-01"
+    precision_date: a_confirmer
+    secteurs: ["*"]
+    taches: [preparation_paie, gestion_conges_absences]
+    entreprises_concernees: "Tous les employeurs"
+    source_url: "https://entreprendre.service-public.gouv.fr/actualites/A18500"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Application du modèle simplifié annoncée au 1er janvier 2027 ; une page officielle de service-public signale un report de sa mise en œuvre : date à reconfirmer."
+  - id: passeport_prevention_2027
+    libelle: "Passeport de prévention : déclaration des formations santé-sécurité par l'employeur"
+    date: "2027-01-01"
+    precision_date: ferme
+    secteurs: ["*"]
+    taches: [suivi_formations, conformite_documentaire, declarations_administratives]
+    entreprises_concernees: "Tous les employeurs"
+    source_url: "https://passeport-prevention.travail-emploi.gouv.fr/actualites/ouverture-du-passeport-de-prevention-aux-employeurs"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "À partir du 1er janvier 2027, les formations santé-sécurité des catégories concernées doivent être déclarées dans le passeport de prévention (délai de 6 mois pour déclarer)."
+  - id: precompte_cotisations_plateformes_2027
+    libelle: "Précompte des cotisations sociales des micro-entrepreneurs par les plateformes numériques"
+    date: "2027-01-01"
+    precision_date: ferme
+    secteurs: ["49.32Z", "49.42Z", "53.20Z", "88.10A", "96.09Z", "81.21Z", "55.20Z", "47.91B"]
+    taches: [facturation_clients, declarations_administratives, saisie_factures]
+    entreprises_concernees: "Plateformes numériques et micro-entrepreneurs qui y vendent des services"
+    source_url: "https://entreprendre.service-public.gouv.fr/actualites/A18550"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Au 1er janvier 2027, les plateformes calculent et prélèvent les cotisations des micro-entrepreneurs et déclarent leur chiffre d'affaires à l'Urssaf."
+
+  # ---- Immobilier, énergie, bâtiment ----------------------------------------------------------
+  - id: dpe_f_interdiction_location_2028
+    libelle: "Interdiction de louer les logements classés F au DPE (nouveaux baux)"
+    date: "2028-01-01"
+    precision_date: ferme
+    secteurs: ["68.20A", "68.20B", "68.31Z", "68.32A", "71.20B", "43.29A", "43.29B", "43.22B", "43.32A", "43.34Z"]
+    taches: [gestion_locative, redaction_annonces, conformite_documentaire, preparation_devis, suivi_chantiers]
+    entreprises_concernees: "Propriétaires bailleurs, agences et gestionnaires, diagnostiqueurs, artisans de la rénovation énergétique"
+    source_url: "https://www.economie.gouv.fr/particuliers/immobilier-diagnostic-performance-energetique-dpe"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Un logement F devient non décent à la location au 1er janvier 2028 (G depuis le 1er janvier 2025, E au 1er janvier 2034)."
+  - id: meubles_tourisme_enregistrement_2026
+    libelle: "Enregistrement national des meublés de tourisme (numéro d'enregistrement, règlement européen sur la location de courte durée)"
+    date: "2026-05-20"
+    precision_date: a_confirmer
+    secteurs: ["55.20Z", "55.30Z", "68.20A", "68.31Z", "68.32A", "79.90Z"]
+    taches: [gestion_reservations, redaction_annonces, conformite_documentaire, gestion_locative]
+    entreprises_concernees: "Hébergeurs, conciergeries, agences immobilières, plateformes de location de courte durée"
+    source_url: "https://www.entreprises.gouv.fr/fr/tourisme/conseils-strategie/meubles-de-tourisme"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Règlement (UE) 2024/1028 ; téléservice national d'enregistrement annoncé au quatrième trimestre 2026, les hébergeurs disposant ensuite de plusieurs mois pour s'enregistrer. Date d'application exacte à recontrôler."
+  - id: eco_energie_tertiaire_2027
+    libelle: "Éco Énergie Tertiaire (OPERAT) : déclaration annuelle des consommations des bâtiments tertiaires de 1 000 m² et plus"
+    date: "2027-09-30"
+    precision_date: a_confirmer
+    secteurs: ["55.10Z", "93.13Z", "93.11Z", "47.59A"]
+    taches: [reporting, conformite_documentaire, declarations_administratives]
+    entreprises_concernees: "Propriétaires et occupants de bâtiments tertiaires de 1 000 m² ou plus (hôtels, salles de sport, grandes surfaces)"
+    source_url: "https://www.ecologie.gouv.fr/politiques-publiques/eco-energie-tertiaire-eet"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Dépôt annuel sur la plateforme OPERAT (ADEME) ; 30 septembre 2027 relevé comme échéance de choix de l'année de référence. Surface minimale : peu de TPE concernées."
+
+  # ---- Produits, emballages, environnement, réparation ------------------------------------------
+  - id: reglement_emballages_ppwr_2026
+    libelle: "Règlement européen sur les emballages (PPWR) : application"
+    date: "2026-08-12"
+    precision_date: ferme
+    secteurs: ["56.10A", "56.10C", "56.21Z", "47.11B", "47.24Z", "10.71C", "10.71D", "10.82Z", "10.85Z", "47.91B"]
+    taches: [conformite_documentaire, veille_reglementaire, gestion_commandes, inventaire_stock]
+    entreprises_concernees: "Producteurs, importateurs et distributeurs d'emballages ou de produits emballés (restauration, alimentaire, vente à distance)"
+    source_url: "https://environment.ec.europa.eu/news/new-eu-rules-packaging-enter-application-2026-08-11_en"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Applicable depuis le 12 août 2026 : restriction des PFAS dans les emballages alimentaires, recyclabilité, responsabilité élargie du producteur."
+  - id: droit_reparation_2026
+    libelle: "Directive sur le droit à la réparation (formulaire européen d'information sur la réparation)"
+    date: "2026-07-31"
+    precision_date: a_confirmer
+    secteurs: ["95.11Z", "95.12Z", "95.21Z", "95.22Z", "95.23Z", "95.24Z", "95.25Z", "95.29Z", "45.40Z"]
+    taches: [conformite_documentaire, gestion_contrats, service_client_faq, suivi_dossiers]
+    entreprises_concernees: "Réparateurs de biens de consommation"
+    source_url: "https://eur-lex.europa.eu/legal-content/FR/ALL/?uri=OJ:L_202401799"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Directive (UE) 2024/1799 : transposition due au 31 juillet 2026 ; le texte français de transposition est en cours, date d'application nationale à confirmer."
+  - id: eudr_deforestation_2026
+    libelle: "Règlement européen contre la déforestation importée (EUDR) : grandes et moyennes entreprises"
+    date: "2026-12-30"
+    precision_date: ferme
+    secteurs: ["16.10A", "16.23Z", "16.29Z", "10.82Z", "10.13B", "47.22Z", "47.59A"]
+    taches: [conformite_documentaire, declarations_administratives, suivi_dossiers, gestion_commandes]
+    entreprises_concernees: "Opérateurs et négociants de bois, cacao, viande bovine et dérivés (micro et petites entreprises déjà couvertes par le règlement bois : même date)"
+    source_url: "https://environment.ec.europa.eu/news/commission-updates-product-scope-and-tools-support-eudr-2026-07-13_en"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Application au 30 décembre 2026 pour les grands et moyens opérateurs et les micro et petits opérateurs déjà couverts par le règlement bois."
+  - id: eudr_deforestation_micro_2027
+    libelle: "Règlement européen contre la déforestation importée (EUDR) : autres micro et petites entreprises"
+    date: "2027-06-30"
+    precision_date: ferme
+    secteurs: ["16.10A", "16.23Z", "16.29Z", "10.82Z", "10.13B", "47.22Z", "47.59A"]
+    taches: [conformite_documentaire, declarations_administratives, suivi_dossiers, gestion_commandes]
+    entreprises_concernees: "Micro et petits opérateurs non déjà couverts par le règlement bois (déclaration unique simplifiée)"
+    source_url: "https://www.deforestationimportee.ecologie.gouv.fr/en/the-european-deforestation-free-regulation/article/the-european-deforestation-free-regulation-eudr"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Application au 30 juin 2027 pour les autres micro et petits opérateurs, avec un régime très simplifié (une déclaration unique)."
+  - id: espr_passeport_produit_textile_2027
+    libelle: "Passeport numérique de produit (règlement écoconception ESPR) : textiles"
+    date: "2027-01-01"
+    precision_date: a_confirmer
+    secteurs: ["47.51Z", "47.71Z", "47.72A", "47.91B"]
+    taches: [conformite_documentaire, redaction_contenus, gestion_documentaire]
+    entreprises_concernees: "Fabricants, importateurs et distributeurs de textiles"
+    source_url: "https://commission.europa.eu/energy-climate-change-environment/standards-tools-and-labels/products-labelling-rules-and-requirements/sustainable-products/ecodesign-sustainable-products-regulation_en"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Mise en œuvre du passeport numérique annoncée à partir de 2027 ; actes délégués par produit (textiles) et calendrier précis à recontrôler."
+
+  # ---- Cybersécurité -------------------------------------------------------------------------
+  - id: cra_notification_vulnerabilites_2026
+    libelle: "Cyber Resilience Act : notification des vulnérabilités activement exploitées et incidents graves"
+    date: "2026-09-11"
+    precision_date: ferme
+    secteurs: ["62.01Z", "62.02A", "62.09Z", "63.12Z"]
+    taches: [conformite_documentaire, veille_reglementaire, service_client_faq]
+    entreprises_concernees: "Fabricants de produits comportant des éléments numériques (logiciels et objets connectés)"
+    source_url: "https://digital-strategy.ec.europa.eu/en/policies/cra-reporting"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Depuis le 11 septembre 2026 : alerte précoce sous 24 h, notification sous 72 h, rapport final sous 14 jours après correctif."
+  - id: cra_exigences_completes_2027
+    libelle: "Cyber Resilience Act : application des exigences principales de cybersécurité des produits"
+    date: "2027-12-11"
+    precision_date: ferme
+    secteurs: ["62.01Z", "62.02A", "62.09Z", "63.12Z"]
+    taches: [conformite_documentaire, veille_reglementaire, service_client_faq]
+    entreprises_concernees: "Fabricants, importateurs et distributeurs de produits comportant des éléments numériques"
+    source_url: "https://digital-strategy.ec.europa.eu/en/policies/cra-reporting"
+    verifie_le: "2026-10-01"
+    verification: extrait_de_recherche
+    resume: "Les obligations principales du règlement (UE) 2024/2847 s'appliquent à partir du 11 décembre 2027."
+
+# Sujets suivis SANS date d'application ferme : jamais comptés comme déclencheurs par le score
+# (ils n'ont pas de date), mais gardés pour ne pas les perdre. Une source officielle est exigée aussi.
+a_surveiller:
+  - id: nis2_transposition_france
+    libelle: "Directive NIS 2 : transposition française (loi relative à la résilience des infrastructures critiques)"
+    motif: "Texte non promulgué à la date de vérification ; délai de mise en conformité annoncé de l'ordre de trois ans après la promulgation."
+    source_url: "https://aide.monespacenis2.cyber.gouv.fr/fr/article/avancement-de-la-transposition-de-la-directive-nis-2-1b3j1da/"
+    verifie_le: "2026-10-01"
+  - id: csrd_omnibus
+    libelle: "Directive CSRD (reporting de durabilité) allégée par l'omnibus : seuil relevé aux entreprises de plus de 1 000 salariés"
+    motif: "Transposition française à venir ; les TPE ne sont pas directement visées, mais leurs grands clients peuvent leur demander des données (norme volontaire VSME)."
+    source_url: "https://entreprendre.service-public.gouv.fr/actualites/A18827"
+    verifie_le: "2026-10-01"

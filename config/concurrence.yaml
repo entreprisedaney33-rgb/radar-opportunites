@@ -1,0 +1,44 @@
+# V2.6 (RADAR-V2.md) : cartographie de la concurrence d'un couple secteur x tâche par recherche web BORNÉE.
+# Lu par app/config.py::concurrence(). Aucun secret ici (la clé du moteur n'est JAMAIS dans ce dépôt : variable d'environnement).
+#
+# DÉCISION DE MATHÉO du 2026-10-01 : aucune clé de moteur de recherche payant pour l'instant. Le fournisseur est donc construit,
+# testé sans réseau, et DÉSACTIVÉ. Tant qu'il ne l'est pas, le critère « concurrence » vaut 0 (« non évalué ») et la fiche est produite
+# quand même ; la concurrence des meilleures fiches est alors remplie en session Claude Code (procédure V2.6b, PROCEDURE-V2.6b.md).
+version: "2026.10.1"
+
+# Activation du fournisseur web : DEUX conditions, jamais l'une sans l'autre.
+#   RADAR_CONCURRENCE_WEB=1            (le drapeau, absent = désactivé)
+#   RADAR_BRAVE_SEARCH_API_KEY=...     (la clé, posée par Mathéo lui-même dans Render ; ce code ne l'affiche ni ne la journalise)
+# Et un plafond côté compte Brave, hors du contrôle de ce code (voir app/enqueteur/fournisseur_payant.py).
+recherche_web:
+  fournisseur: brave_search
+  pays: FR
+  langue: fr
+  # Plafond mensuel STRICT de requêtes (toutes fiches confondues), surchargeable par RADAR_RECHERCHE_WEB_MAX_MOIS. Réservé en base AVANT
+  # chaque appel : le plafond ne peut pas être dépassé, même si le processus s'arrête au milieu.
+  max_requetes_par_mois: 2000
+  resultats_par_requete: 10
+  # Estimation pour la lecture des métriques (Brave : 5 $ pour 1 000 requêtes, tarif lu le 2026-09-25 dans app/enqueteur/fournisseur_payant.py).
+  cout_estime_eur_par_requete: 0.0047
+
+# Requêtes composées PAR LE CODE (jamais par un modèle), en français, à partir du libellé du secteur et du libellé de la tâche.
+# {tache} et {secteur} sont les libellés des référentiels (config/taches.yaml, config/secteurs_tpe.yaml), minuscules.
+requetes:
+  outils: "{tache} logiciel {secteur}"
+  prestataires: "{tache} {secteur} prestataire"
+
+# Une page de prix par couple au plus de {max_pages_prix_par_couple} outils (recuperer_page : robots.txt respecté, journal HTTP).
+max_pages_prix_par_couple: 3
+# Longueur maximale d'un extrait de prix gardé en base.
+prix_extrait_max_caracteres: 160
+
+# Détection d'un « service local » : un résultat de la requête « prestataire » dont le nom de domaine, le titre ou l'extrait
+# mentionne un de ces termes (mots entiers, insensibles à la casse et aux accents).
+termes_zone: [Bordeaux, Gironde, Mérignac, Pessac, Talence, Libourne, Arcachon, Bègles, Nouvelle-Aquitaine, Bassin d'Arcachon, Médoc, Saint-Émilion]
+# Un résultat n'est un prestataire local que s'il n'est pas un annuaire ou une plateforme générique (config/domaines_exclus_concurrents.yaml).
+
+# Validité d'une évaluation : au-delà, le couple peut être réévalué (la concurrence bouge lentement).
+validite_jours: 90
+
+# Une évaluation web dont les deux requêtes ne renvoient AUCUN résultat n'est pas « aucun outil » : c'est une panne probable ou une
+# requête trop étroite, jamais une preuve d'absence. Elle reste « non évaluée ».

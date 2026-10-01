@@ -1,0 +1,39 @@
+# V2.4 (RADAR-V2.md) : réglages de l'étiquetage des offres d'emploi (tâches du lexique config/taches.yaml)
+# et de l'agrégation par secteur x tâche. Lu par app/config.py::etiquetage() ; aucun secret ici.
+
+# Version de l'étiquetage (prompt + lexique + règles de vérification). Écrite sur chaque offre étiquetée : un
+# changement de prompt ou de lexique se voit en base, et un ré-étiquetage se décide explicitement (jamais en silence).
+version: "2026.10.1"
+
+# --- Étage modèle (modèle le moins cher = `model_tri`, voir app/config.py) -------------------------------------
+description_max_caracteres: 6000     # texte de l'offre envoyé au modèle (environ 1 700 jetons) ; l'excédent est coupé
+max_tokens_sortie: 700               # sortie : au plus `max_taches_par_offre` tâches avec citation
+max_taches_par_offre: 8
+citation_min_caracteres: 8           # citation plus courte : refusée (trop vague pour prouver quoi que ce soit)
+citation_max_caracteres: 300         # citation plus longue : refusée (c'est un paragraphe, pas une preuve)
+
+# --- Budget -------------------------------------------------------------------------------------------------------
+# Régime de croisière : plafond journalier (RADAR-V2 §6 : 2 €/jour). Première cartographie : enveloppe unique,
+# autorisée par RADAR_ENVELOPPE_INITIALE_EUR (jamais au-delà de `enveloppe_max_eur`), CUMULÉE sur toute la
+# durée de l'étiquetage (pas par jour) : voir app/etiquetage.py.
+budget_eur_par_jour: 2.0
+# Décision de Mathéo du 2026-10-01 : enveloppe initiale de 50 € (étiquetage + fiches, voir config/fiches.yaml), 60 offres par secteur, 2 fiches
+# par secteur au plus. Le code refuse toute valeur de RADAR_ENVELOPPE_INITIALE_EUR au-delà de ce maximum et s'arrête de lui-même à l'enveloppe.
+enveloppe_max_eur: 50.0
+max_offres_par_passe: 2000           # garde-fou de volume, indépendant de tout prix
+
+# ÉCHANTILLON PAR CODE NAF (option A retenue par Mathéo le 2026-10-01). Le stock d'offres actives sur 90 jours, mesuré le
+# 2026-10-01, est de 256 294 offres pour les 160 codes d'alors ; après l'exclusion de 78.20Z et 78.10Z (code NAF de
+# l'agence d'intérim, pas du métier proposé), il reste ~95 200 offres sur 158 codes (nouvelle mesure du même jour) : tout étiqueter coûterait encore
+# ~250 € au coût mesuré (0,0026 € l'offre). On étiquette donc au plus N offres par code dans la fenêtre du stock, tirées
+# par hachage STABLE de l'identifiant (jamais « les plus récentes » : pas de biais de date), et l'agrégation extrapole la
+# part et le nombre d'offres avec un intervalle de confiance (app/agregation.py). Avec N = 60 : 8 212 offres, ~21,6 €
+# (28,1 € avec 30 % de marge), précision de l'ordre de ± 10 points sur une part de 20 %.
+# `null` = tout étiqueter (aucune extrapolation). Modifiable ici, jamais en dur dans le code.
+echantillon_max_par_code: 60
+
+# --- Agrégation ---------------------------------------------------------------------------------------------------
+fenetre_stock_jours: 90              # décision de Mathéo du 2026-10-01 : mesure de demande = stock d'offres actives sur 90 jours
+# La tendance 3 mois (offres créées sur les 90 derniers jours vs les 90 précédents) n'a de sens que si la collecte a
+# accumulé de quoi voir les 90 jours précédents (l'API ne sert que les offres actives : les anciennes disparaissent).
+accumulation_min_tendance_jours: 180

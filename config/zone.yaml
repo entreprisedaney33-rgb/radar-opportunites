@@ -1,0 +1,42 @@
+# V2.1 (RADAR-V2.md) : la zone de prospection de Mathéo et Dorian.
+# Lu et validé strictement par app/referentiels.py.
+#
+# Trois niveaux, du plus proche au plus large :
+#   1. `coeur`        : la Gironde, entièrement dans la zone ;
+#   2. `proximite`    : départements limitrophes en partie à moins de 100 km de Bordeaux ;
+#                       le filtre exact du rayon se fera par commune (V2.2), un département
+#                       entier ne tient pas toujours dans le rayon ;
+#   3. `nouvelle_aquitaine` puis `france_entiere` (second niveau, pour les chiffres de demande).
+centre:
+  nom: Bordeaux
+  latitude: 44.8378
+  longitude: -0.5792
+rayon_km: 100
+
+coeur:
+  - {code: "33", nom: Gironde}
+
+proximite:
+  - {code: "24", nom: Dordogne}
+  - {code: "47", nom: Lot-et-Garonne}
+  - {code: "40", nom: Landes}
+  - {code: "17", nom: Charente-Maritime}
+  - {code: "16", nom: Charente}
+
+nouvelle_aquitaine:
+  - {code: "16", nom: Charente}
+  - {code: "17", nom: Charente-Maritime}
+  - {code: "19", nom: Corrèze}
+  - {code: "23", nom: Creuse}
+  - {code: "24", nom: Dordogne}
+  - {code: "33", nom: Gironde}
+  - {code: "40", nom: Landes}
+  - {code: "47", nom: Lot-et-Garonne}
+  - {code: "64", nom: Pyrénées-Atlantiques}
+  - {code: "79", nom: Deux-Sèvres}
+  - {code: "86", nom: Vienne}
+  - {code: "87", nom: Haute-Vienne}
+
+france_entiere:
+  perimetre: metropole
+  note: "Second niveau : sert au comptage national de la demande (offres d'emploi, nombre d'établissements), jamais à la liste de prospection."

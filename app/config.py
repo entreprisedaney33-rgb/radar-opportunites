@@ -45,6 +45,30 @@ def faisabilite() -> dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
+def etiquetage() -> dict[str, Any]:
+    """V2.4 : réglages de l'étiquetage des offres et de l'agrégation (`config/etiquetage.yaml`)."""
+    return _load_yaml("etiquetage.yaml")
+
+
+@lru_cache(maxsize=1)
+def fiches() -> dict[str, Any]:
+    """V2.5 : sélection, score v2, décision et rafraîchissement des fiches (`config/fiches.yaml`)."""
+    return _load_yaml("fiches.yaml")
+
+
+@lru_cache(maxsize=1)
+def concurrence() -> dict[str, Any]:
+    """V2.6 : requêtes, plafonds et marqueurs de la cartographie de la concurrence (`config/concurrence.yaml`)."""
+    return _load_yaml("concurrence.yaml")
+
+
+@lru_cache(maxsize=1)
+def cycle_v2() -> dict[str, Any]:
+    """V2.8 : cycle du worker (cartographie initiale, régime quotidien, interrupteur du pipeline v1) (`config/cycle_v2.yaml`)."""
+    return _load_yaml("cycle_v2.yaml")
+
+
+@lru_cache(maxsize=1)
 def sources_autorisees() -> dict[str, Any]:
     return _load_yaml("sources_autorisees.yaml")
 

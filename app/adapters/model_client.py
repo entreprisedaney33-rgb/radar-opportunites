@@ -181,6 +181,7 @@ class ModelClient:
         role: str,
         opportunity_id: str | None = None,
         max_tokens: int = 1500,
+        forcer_outil: bool = True,
     ) -> BaseModel | None:
         """Renvoie une instance validée de `schema`, ou None si l'accès
         manque, si le budget est dépassé, ou si la sortie ne respecte pas le
@@ -198,7 +199,13 @@ class ModelClient:
         `usage_events` à part (son propre coût réel), étiquetée `issue`
         (voir `ISSUE_*` ci-dessus) -- la première tentative d'une paire qui
         déclenche une relance est `ISSUE_RELANCEE`, jamais `ISSUE_PERDUE`
-        (qui ne marque que la toute DERNIÈRE tentative invalide)."""
+        (qui ne marque que la toute DERNIÈRE tentative invalide).
+
+        `forcer_outil` (V2.5) : `True` (défaut, comportement de TOUS les rôles de la v1) impose l'appel de l'outil `repondre`
+        (`tool_choice` = outil imposé). `False` laisse le choix au modèle (`auto`) : constaté au test de fumée du 2026-10-01, un appel
+        forcé pousse parfois le modèle d'analyse (Sonnet 5) à renvoyer un appel d'outil FACTICE (« placeholder », 1, 2) en quelques
+        centaines de jetons, alors qu'en mode auto il rédige la réponse complète. Sans appel d'outil, la tentative compte comme
+        invalide (relance, puis perte) exactement comme avant."""
         if not self.settings.has_model_access:
             raise AccesModeleIndisponible("ANTHROPIC_API_KEY absente : appeler le mode démo à la place.")
 
@@ -225,7 +232,7 @@ class ModelClient:
             resultat, erreur_validation, message_echec = self._un_appel(
                 modele=modele, prompt_systeme=prompt_systeme, prompt_utilisateur=prompt_effectif,
                 schema=schema, role=role, opportunity_id=opportunity_id, max_tokens=max_tokens,
-                derniere_tentative=derniere_tentative,
+                derniere_tentative=derniere_tentative, forcer_outil=forcer_outil,
             )
             if message_echec is not None:
                 dernier_message_echec = message_echec
@@ -277,7 +284,7 @@ class ModelClient:
 
     def _un_appel(
         self, *, modele: str, prompt_systeme: str, prompt_utilisateur: str, schema: type[BaseModel],
-        role: str, opportunity_id: str | None, max_tokens: int, derniere_tentative: bool,
+        role: str, opportunity_id: str | None, max_tokens: int, derniere_tentative: bool, forcer_outil: bool = True,
     ) -> tuple[BaseModel | None, str | None, str | None]:
         """UNE tentative réelle (un appel API, un budget engagé, une ligne
         `usage_events`). Renvoie `(resultat, erreur_validation, message_echec)` :
@@ -306,13 +313,14 @@ class ModelClient:
             "strict": True,
         }
         try:
+            parametres_outil = {"tool_choice": {"type": "tool", "name": "repondre"}} if forcer_outil else {}
             resp = client.messages.create(
                 model=modele,
                 max_tokens=max_tokens,
                 system=prompt_systeme,
                 messages=[{"role": "user", "content": prompt_utilisateur}],
                 tools=[outil],
-                tool_choice={"type": "tool", "name": "repondre"},
+                **parametres_outil,
             )
         except Exception as exc:  # réseau, 429, etc. — journalisé, jamais relancé, pas de crash du run entier
             message = f"{type(exc).__name__}: {exc}"

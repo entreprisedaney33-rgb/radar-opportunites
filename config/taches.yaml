@@ -1,0 +1,207 @@
+# V2.1 (RADAR-V2.md) : lexique de tâches automatisables par l'IA, en français.
+# Lu et validé strictement par app/referentiels.py. Servira à l'Étiqueteur (V2.4) :
+# étage code (mots-clés ci-dessous) puis étage modèle avec citation vérifiée.
+#
+# Une entrée : id (identifiant stable, minuscules et tirets bas), libelle, famille,
+# donnees_sensibles_patients (facultatif, faux par défaut : vrai si la tâche manipule des données de
+# patients, voir la règle ci-dessous) ; mots_cles (expressions et variantes ; la comparaison se fera sans accents ni casse ;
+# aucune expression ne doit figurer dans deux tâches, pour ne jamais compter une offre deux fois).
+familles:
+  - relation_client
+  - comptabilite_finance
+  - administratif
+  - commercial_marketing
+  - exploitation
+  - ressources_humaines
+  - conformite
+  - communication
+
+# Décision de Mathéo (2026-10-01) : la santé libérale est un secteur retenu ; l'exclusion HDS
+# (hébergement de données de santé, Code de la santé publique, art. L1111-8) porte sur les TÂCHES
+# qui manipulent des données de patients. Règle appliquée au chargement : pour les secteurs ci-dessous,
+# toute tâche portant `donnees_sensibles_patients: true` est exclue avec le motif « HDS ».
+# Hors règle : activités sans donnée de santé humaine (vétérinaires, appareillage, optique).
+regle_donnees_sensibles_patients:
+  motif: HDS
+  source: "Code de la santé publique, art. L1111-8 : tout hébergement de données de santé exige une certification HDS (barrière réglementaire lourde)."
+  familles_secteurs: [sante_liberale]
+  secteurs_hors_regle: ["75.00Z", "47.74Z", "47.78A"]
+
+taches:
+  - id: relance_clients
+    libelle: "Relance des clients (devis, rendez-vous, retours)"
+    famille: relation_client
+    donnees_sensibles_patients: true
+    mots_cles: ["relance client", "relances clients", "relance des clients", "relancer les clients", "relance commerciale", "relance des devis"]
+  - id: relance_impayes
+    libelle: "Relance des impayés et recouvrement amiable"
+    famille: comptabilite_finance
+    mots_cles: ["relance des impayés", "impayés", "recouvrement amiable", "factures en retard", "retards de paiement", "relance de paiement"]
+  - id: saisie_factures
+    libelle: "Saisie des factures fournisseurs et clients"
+    famille: comptabilite_finance
+    mots_cles: ["saisie de factures", "saisie des factures", "comptabilisation des factures", "saisie comptable", "saisie des pièces comptables"]
+  - id: collecte_pieces
+    libelle: "Collecte des pièces justificatives auprès des clients"
+    famille: comptabilite_finance
+    mots_cles: ["collecte des pièces", "pièces justificatives", "pièces manquantes", "récupération des documents clients"]
+  - id: rapprochement_bancaire
+    libelle: "Rapprochement bancaire, lettrage, suivi de trésorerie"
+    famille: comptabilite_finance
+    mots_cles: ["rapprochement bancaire", "lettrage", "pointage bancaire", "suivi de trésorerie", "suivi de la trésorerie"]
+  - id: facturation_clients
+    libelle: "Établissement et envoi des factures clients"
+    famille: comptabilite_finance
+    donnees_sensibles_patients: true
+    mots_cles: ["établir les factures", "établissement des factures", "émission des factures", "facturation clients", "facturation client", "édition des factures"]
+  - id: preparation_devis
+    libelle: "Préparation et envoi de devis"
+    famille: commercial_marketing
+    mots_cles: ["établir des devis", "établissement de devis", "rédaction de devis", "préparation de devis", "chiffrage", "chiffrage de devis"]
+  - id: metres_chiffrage_chantier
+    libelle: "Métrés et chiffrage de chantier"
+    famille: exploitation
+    mots_cles: ["métré", "métrés", "relevé de mesures", "étude de prix", "établir un métré"]
+  - id: prise_rendez_vous
+    libelle: "Prise et gestion des rendez-vous"
+    famille: relation_client
+    donnees_sensibles_patients: true
+    mots_cles: ["prise de rendez-vous", "prise de rdv", "gestion des rendez-vous", "gestion de l'agenda", "planification des rendez-vous", "confirmation des rendez-vous"]
+  - id: accueil_telephonique
+    libelle: "Accueil et standard téléphonique"
+    famille: relation_client
+    mots_cles: ["accueil téléphonique", "standard téléphonique", "répondre au téléphone", "permanence téléphonique", "réception des appels", "filtrage des appels"]
+  - id: reponse_avis
+    libelle: "Réponse aux avis clients et e-réputation"
+    famille: communication
+    donnees_sensibles_patients: true
+    mots_cles: ["avis clients", "répondre aux avis", "avis google", "e-réputation", "gestion de la réputation en ligne"]
+  - id: tri_mails
+    libelle: "Tri et réponse aux courriels"
+    famille: administratif
+    mots_cles: ["gestion de la boîte mail", "tri des courriels", "tri des mails", "réponse aux mails", "traitement des e-mails", "gestion des emails", "gestion de la messagerie"]
+  - id: planning
+    libelle: "Planification des interventions et des équipes"
+    famille: exploitation
+    mots_cles: ["planning", "gestion des plannings", "planification des interventions", "plannings des équipes", "organisation des tournées", "planification des tournées"]
+  - id: suivi_dossiers
+    libelle: "Suivi de dossiers clients ou administratifs"
+    famille: administratif
+    donnees_sensibles_patients: true
+    mots_cles: ["suivi de dossiers", "suivi des dossiers", "gestion des dossiers clients", "suivi administratif", "gestion administrative des dossiers"]
+  - id: redaction_annonces
+    libelle: "Rédaction d'annonces et de descriptifs de biens"
+    famille: commercial_marketing
+    mots_cles: ["rédaction d'annonces", "rédiger des annonces", "annonces immobilières", "descriptifs de biens", "rédaction de fiches biens"]
+  - id: traduction
+    libelle: "Traduction et localisation de contenus"
+    famille: communication
+    mots_cles: ["traduction", "traduire des documents", "localisation de contenus", "traduction de documents", "traduction de sites"]
+  - id: reporting
+    libelle: "Reporting et tableaux de bord"
+    famille: administratif
+    mots_cles: ["reporting", "tableaux de bord", "suivi d'indicateurs", "suivi des indicateurs", "reporting hebdomadaire", "reporting mensuel"]
+  - id: inventaire_stock
+    libelle: "Inventaire, gestion des stocks et réapprovisionnement"
+    famille: exploitation
+    mots_cles: ["inventaire", "gestion des stocks", "suivi des stocks", "réapprovisionnement", "gestion de stock", "commandes fournisseurs"]
+  - id: preparation_paie
+    libelle: "Préparation de la paie et des variables de paie"
+    famille: ressources_humaines
+    mots_cles: ["préparation de la paie", "bulletins de paie", "gestion de la paie", "variables de paie", "élaboration de la paie", "établissement des bulletins de salaire"]
+  - id: gestion_conges_absences
+    libelle: "Gestion des congés, absences et plannings du personnel"
+    famille: ressources_humaines
+    mots_cles: ["gestion des congés", "gestion des absences", "planning du personnel", "suivi des temps de travail", "suivi des heures", "gestion des temps"]
+  - id: recrutement_tri_cv
+    libelle: "Tri de CV et présélection de candidats"
+    famille: ressources_humaines
+    mots_cles: ["tri de cv", "tri des cv", "présélection de candidats", "présélection des candidatures", "diffusion d'offres d'emploi", "sourcing de candidats"]
+  - id: suivi_formations
+    libelle: "Suivi des formations, convocations et émargements"
+    famille: ressources_humaines
+    mots_cles: ["suivi des formations", "convocations aux formations", "feuilles d'émargement", "dossier qualiopi", "plan de formation", "gestion des stagiaires"]
+  - id: conformite_documentaire
+    libelle: "Conformité documentaire et archivage réglementaire"
+    famille: conformite
+    mots_cles: ["conformité documentaire", "contrôle de conformité", "dossiers réglementaires", "archivage réglementaire", "vérification des documents", "contrôle des pièces"]
+  - id: veille_reglementaire
+    libelle: "Veille réglementaire et juridique"
+    famille: conformite
+    mots_cles: ["veille réglementaire", "veille juridique", "suivi de la réglementation", "veille normative", "veille législative"]
+  - id: declarations_administratives
+    libelle: "Déclarations et formalités administratives"
+    famille: administratif
+    mots_cles: ["déclarations de tva", "déclarations administratives", "formalités administratives", "dossiers administratifs", "déclarations sociales", "formalités légales"]
+  - id: appels_offres
+    libelle: "Réponse aux appels d'offres et marchés publics"
+    famille: commercial_marketing
+    mots_cles: ["réponse aux appels d'offres", "appels d'offres", "marchés publics", "mémoire technique", "dossiers de candidature aux marchés"]
+  - id: dossiers_subvention
+    libelle: "Montage de dossiers de subvention et de financement"
+    famille: administratif
+    mots_cles: ["dossiers de subvention", "montage de dossiers de financement", "demandes de subvention", "dossiers d'aides", "demandes de financement"]
+  - id: onboarding_client
+    libelle: "Accueil et intégration des nouveaux clients"
+    famille: relation_client
+    mots_cles: ["onboarding client", "accueil des nouveaux clients", "intégration des clients", "ouverture de dossier client", "création de fiches clients"]
+  - id: gestion_reseaux_sociaux
+    libelle: "Animation des réseaux sociaux et gestion des commentaires"
+    famille: communication
+    mots_cles: ["community management", "animation des réseaux sociaux", "gestion des réseaux sociaux", "publication sur les réseaux", "modération des commentaires"]
+  - id: redaction_contenus
+    libelle: "Rédaction de contenus (articles, newsletters, fiches produits)"
+    famille: communication
+    mots_cles: ["rédaction de contenus", "rédaction web", "articles de blog", "rédaction de newsletters", "descriptifs produits", "fiches produits"]
+  - id: emailing_fidelisation
+    libelle: "Campagnes d'emailing et fidélisation"
+    famille: commercial_marketing
+    mots_cles: ["campagnes d'emailing", "emailing", "fidélisation client", "fidélisation des clients", "relance des clients inactifs"]
+  - id: transcription_reunions
+    libelle: "Comptes rendus et transcription de réunions"
+    famille: administratif
+    mots_cles: ["compte rendu de réunion", "comptes rendus de réunion", "transcription", "prise de notes", "rédaction de procès-verbaux"]
+  - id: qualification_demandes
+    libelle: "Qualification des demandes entrantes (contacts, prospects)"
+    famille: commercial_marketing
+    mots_cles: ["qualification des demandes", "qualification des leads", "qualification de prospects", "tri des demandes entrantes", "traitement des demandes de contact"]
+  - id: prospection_commerciale
+    libelle: "Prospection commerciale et prise de contact"
+    famille: commercial_marketing
+    mots_cles: ["prospection commerciale", "prospection téléphonique", "recherche de prospects", "prospection", "démarchage"]
+  - id: gestion_reservations
+    libelle: "Gestion des réservations (hébergement, restauration, activités)"
+    famille: exploitation
+    mots_cles: ["gestion des réservations", "centrale de réservation", "planning des réservations", "channel manager", "traitement des réservations"]
+  - id: gestion_commandes
+    libelle: "Saisie et suivi des commandes"
+    famille: exploitation
+    mots_cles: ["saisie des commandes", "traitement des commandes", "suivi des commandes", "gestion des commandes", "préparation de commandes clients"]
+  - id: service_client_faq
+    libelle: "Service client : réponses aux questions courantes et SAV"
+    famille: relation_client
+    mots_cles: ["service client", "support client", "sav", "service après-vente", "réponses aux questions des clients"]
+  - id: gestion_contrats
+    libelle: "Rédaction et suivi des contrats"
+    famille: conformite
+    mots_cles: ["rédaction de contrats", "gestion des contrats", "suivi des contrats", "renouvellement de contrats", "contrats clients"]
+  - id: suivi_chantiers
+    libelle: "Suivi de chantier et comptes rendus d'avancement"
+    famille: exploitation
+    mots_cles: ["suivi de chantier", "suivi des chantiers", "avancement des travaux", "comptes rendus de chantier", "suivi des travaux"]
+  - id: gestion_locative
+    libelle: "Gestion locative (états des lieux, quittances, charges)"
+    famille: administratif
+    mots_cles: ["gestion locative", "états des lieux", "quittances de loyer", "régularisation des charges", "suivi des loyers"]
+  - id: gestion_sinistres_assurance
+    libelle: "Gestion des sinistres et devis d'assurance"
+    famille: administratif
+    mots_cles: ["gestion des sinistres", "déclaration de sinistre", "devis d'assurance", "comparatif de contrats d'assurance", "suivi des sinistres"]
+  - id: gestion_documentaire
+    libelle: "Classement, numérisation et archivage de documents"
+    famille: administratif
+    mots_cles: ["classement des documents", "numérisation", "archivage des documents", "gestion documentaire", "classement administratif"]
+  - id: saisie_donnees
+    libelle: "Saisie de données et ressaisie manuelle"
+    famille: administratif
+    mots_cles: ["saisie de données", "saisie des données", "ressaisie", "double saisie", "saisie informatique", "mise à jour de bases de données"]

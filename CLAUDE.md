@@ -4,13 +4,29 @@
 > [`ARCHITECTURE.md`](ARCHITECTURE.md) (constat Phase 0, coûts, décisions en
 > attente) et [`SCORING.md`](SCORING.md) (ancres du score).
 >
-> Le plan d'évolution en cours est dans [`AMELIORATIONS.md`](AMELIORATIONS.md)
-> — le lire avant toute modification.
+> **Le plan en cours est [`RADAR-V2.md`](RADAR-V2.md)** (depuis le 2026-10-01) — le lire
+> avant toute modification. [`AMELIORATIONS.md`](AMELIORATIONS.md) (version 1) reste
+> l'historique et la source des règles communes (§0.2, §3, §5), inchangées.
 
-Produit interne : radar nocturne qui repère des opportunités économiques où
+## Mission (version 2)
+
+Cartographier la demande des TPE/PME françaises pour des services IA livrables à deux, en
+Gironde d'abord. Preuves chiffrées et sourcées, jamais d'idée sans source. Mathéo prospecte,
+le radar dit où.
+
+Description de la version 1 (toujours en base, archivée) : radar nocturne qui repère des opportunités économiques où
 l'IA change concrètement le coût/délai/qualité d'un problème identifié, les
 qualifie via 3 rôles (Scout/Analyst/Critic) et produit des dossiers
 traçables (sources, preuves typées, score déterministe, objections).
+
+**État V2.6 (2026-10-01)** : la concurrence des fiches a son fournisseur web (`app/concurrence.py`), **éteint** — décision de
+Mathéo : aucune clé de moteur payant pour l'instant ; le critère « concurrence » reste « non évalué » (0 point) et se remplit en
+session par la procédure [`PROCEDURE-V2.6b.md`](PROCEDURE-V2.6b.md), à lancer après V2.8. Rien n'est déployé.
+
+**État V2.8 (2026-10-01/02)** : le worker exécute le **cycle v2** (`app/cycle_v2.py`, `config/cycle_v2.yaml`) et plus jamais le pipeline v1
+(`pipeline_v1_actif: false`, rallumable par config). Cartographie initiale si `RADAR_CARTOGRAPHIE_INITIALE=1` (secteurs de priorité 1 de
+`config/secteurs_tpe.yaml`, enveloppe `RADAR_ENVELOPPE_INITIALE_EUR`=10 €), puis régime quotidien à 2 €/jour, priorités 1 → 2 → 3. Variables Render
+posées par `scripts/render_env.py` (jamais à la main). Suivi : `python scripts/suivre_cartographie.py [--acces]`. Voir le Journal V2.8 de `RADAR-V2.md`.
 
 ## Ce dossier-ci n'est PAS déployé tel quel
 

@@ -85,6 +85,10 @@ class FournisseurBraveSearch:
     renvoyés par cet appel."""
 
     nom = NOM
+    # V2.6 : un sous-classe peut fixer le pays et la langue de la recherche (paramètres `country` et `search_lang` de l'API Brave, à
+    # confirmer au premier appel réel). `None` = aucun paramètre ajouté : l'adresse appelée est strictement celle d'avant V2.6.
+    pays: str | None = None
+    langue: str | None = None
 
     def rechercher(self, requete: str, limite: int) -> list[ResultatRecherche]:
         cle = os.environ.get(VARIABLE_CLE)
@@ -93,7 +97,12 @@ class FournisseurBraveSearch:
                 f"{VARIABLE_CLE} absente -- fournisseur {NOM!r} non configuré, jamais appelé sans elle."
             )
 
-        parametres = urlencode({"q": requete, "count": min(limite, MAX_RESULTATS_PAR_APPEL)})
+        champs = {"q": requete, "count": min(limite, MAX_RESULTATS_PAR_APPEL)}
+        if self.pays:
+            champs["country"] = self.pays
+        if self.langue:
+            champs["search_lang"] = self.langue
+        parametres = urlencode(champs)
         url = f"{URL_RECHERCHE}?{parametres}"
         try:
             resp = get_with_retry(url, headers={"X-Subscription-Token": cle})

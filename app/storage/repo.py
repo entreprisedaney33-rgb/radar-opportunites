@@ -16,16 +16,26 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 from sqlalchemy.dialects.postgresql import insert as postgres_upsert
 
 from app.storage.schema import (
+    concurrence_secteur_tache,
+    recherches_web,
     assessments,
     faisabilites,
     controles,
     decisions,
+    demande_secteur_tache,
     etats_disjoncteur_api,
     etats_disjoncteur_enqueteur,
+    etablissements_secteur,
+    collectes_offres,
     etats_flux_recherche,
+    fiches_secteur_tache,
     journal_http,
     opportunities,
+    offres_emploi,
+    offres_etiquetage,
+    offres_taches,
     opportunity_evidence,
+    prospection,
     runs,
     scores,
     signals,
@@ -967,3 +977,454 @@ def infos_sources_tous_dossiers(engine: Engine) -> dict[str, dict[str, dict]]:
         if claim.startswith("Scout: "):
             info["origine"] = True
     return tous
+
+
+# ------------------------------------- sous-étape V2.2 (établissements) -----
+
+def enregistrer_comptage_etablissements(
+    engine: Engine, *, code_naf: str, naf_version: str, departement: str, nb_entreprises_actives: int,
+    comptage_plafonne: bool, nb_etablissements_listes: int | None, echantillon_complet: bool | None, plafond_echantillon: int | None,
+    requetes: int, source_url: str, horodatage: datetime | None = None,
+) -> str:
+    """Append-only : une ligne par mesure, la plus récente fait foi (`derniers_comptages_etablissements`)."""
+    e_id = _uid()
+    with engine.begin() as cx:
+        cx.execute(
+            insert(etablissements_secteur).values(
+                id=e_id, code_naf=code_naf, naf_version=naf_version, departement=departement,
+                nb_entreprises_actives=nb_entreprises_actives, comptage_plafonne=comptage_plafonne,
+                nb_etablissements_listes=nb_etablissements_listes,
+                echantillon_complet=echantillon_complet, plafond_echantillon=plafond_echantillon,
+                requetes=requetes, source_url=source_url, horodatage=horodatage or _now(),
+            )
+        )
+    return e_id
+
+
+def derniers_comptages_etablissements(engine: Engine, naf_version: str) -> dict[tuple[str, str], dict]:
+    """Dernière mesure de chaque paire (code NAF, département) -> ligne complète."""
+    with engine.connect() as cx:
+        lignes = cx.execute(
+            select(etablissements_secteur)
+            .where(etablissements_secteur.c.naf_version == naf_version)
+            .order_by(etablissements_secteur.c.horodatage.asc())
+        ).mappings().all()
+    derniers: dict[tuple[str, str], dict] = {}
+    for ligne in lignes:  # ordre croissant : la dernière écrase
+        derniers[(ligne["code_naf"], ligne["departement"])] = dict(ligne)
+    return derniers
+
+
+def enregistrer_prospects(
+    engine: Engine, prospects: list[dict[str, Any]], *, naf_version: str, maintenant: datetime | None = None,
+) -> tuple[int, int]:
+    """Upsert par (siret, naf_version) ; renvoie (nouveaux, déjà connus). Un déjà connu voit ses champs
+    rafraîchis et sa `derniere_vue` avancer ; `premiere_collecte` ne bouge jamais ; rien n'est jamais supprimé."""
+    if not prospects:
+        return 0, 0
+    quand = maintenant or _now()
+    upsert = sqlite_upsert if engine.dialect.name == "sqlite" else postgres_upsert
+    sirets = [p["siret"] for p in prospects]
+    connus: set[str] = set()
+    with engine.begin() as cx:
+        for i in range(0, len(sirets), 300):
+            lot = sirets[i:i + 300]
+            connus.update(
+                r[0] for r in cx.execute(
+                    select(prospection.c.siret).where(prospection.c.naf_version == naf_version, prospection.c.siret.in_(lot))
+                )
+            )
+        for p in prospects:
+            valeurs = {k: v for k, v in p.items() if k != "siret"}
+            valeurs["derniere_vue"] = quand
+            stmt = upsert(prospection).values(
+                id=_uid(), siret=p["siret"], naf_version=naf_version, premiere_collecte=quand, **valeurs,
+            )
+            stmt = stmt.on_conflict_do_update(index_elements=["siret", "naf_version"], set_=valeurs)
+            cx.execute(stmt)
+    nouveaux = len(set(sirets) - connus)
+    return nouveaux, len(set(sirets)) - nouveaux
+
+
+def resume_etablissements(engine: Engine, naf_version: str, *, rayon_km: float, departements_zone: tuple[str, ...]) -> dict:
+    """Lecture seule pour `app.metriques` : secteurs couverts, entreprises et prospects en zone."""
+    derniers = derniers_comptages_etablissements(engine, naf_version)
+    secteurs_couverts = {code for (code, dep) in derniers if dep != "FR"}
+    entreprises_zone = sum(
+        l["nb_entreprises_actives"] for (code, dep), l in derniers.items() if dep in departements_zone
+    )
+    with engine.connect() as cx:
+        total = cx.execute(
+            select(func.count()).select_from(prospection).where(prospection.c.naf_version == naf_version)
+        ).scalar_one()
+        en_rayon = cx.execute(
+            select(func.count()).select_from(prospection).where(
+                prospection.c.naf_version == naf_version, prospection.c.distance_centre_km <= rayon_km)
+        ).scalar_one()
+    dernieres = [l["horodatage"] for l in derniers.values()]
+    return {
+        "naf_version": naf_version,
+        "secteurs_couverts": len(secteurs_couverts),
+        "mesures_secteur_departement": len(derniers),
+        "mesures_plafonnees_api": sum(1 for l in derniers.values() if l["comptage_plafonne"]),
+        "entreprises_actives_departements_zone": entreprises_zone,
+        "prospects_total": total,
+        "prospects_dans_le_rayon": en_rayon,
+        "derniere_mesure": max(dernieres).isoformat() if dernieres else None,
+    }
+
+
+# ------------------------------------------ sous-étape V2.3 (offres d'emploi) -----
+
+def enregistrer_offres(
+    engine: Engine, offres: list[dict[str, Any]], *, naf_version: str, maintenant: datetime | None = None,
+) -> tuple[int, int]:
+    """Upsert par `id_offre` ; renvoie (nouvelles, déjà connues). Une offre déjà connue voit ses champs
+    rafraîchis (actualisation, salaire...) et sa `derniere_vue` avancer ; `premiere_collecte` ne bouge jamais."""
+    if not offres:
+        return 0, 0
+    quand = maintenant or _now()
+    upsert = sqlite_upsert if engine.dialect.name == "sqlite" else postgres_upsert
+    ids = list({o["id_offre"] for o in offres})
+    connues: set[str] = set()
+    with engine.begin() as cx:
+        for i in range(0, len(ids), 300):
+            connues.update(
+                r[0] for r in cx.execute(select(offres_emploi.c.id_offre).where(offres_emploi.c.id_offre.in_(ids[i:i + 300])))
+            )
+        for o in offres:
+            valeurs = {k: v for k, v in o.items() if k != "id_offre"}
+            valeurs["derniere_vue"] = quand
+            valeurs["naf_version"] = naf_version
+            stmt = upsert(offres_emploi).values(id=_uid(), id_offre=o["id_offre"], premiere_collecte=quand, **valeurs)
+            cx.execute(stmt.on_conflict_do_update(index_elements=["id_offre"], set_=valeurs))
+    nouvelles = len(set(ids) - connues)
+    return nouvelles, len(ids) - nouvelles
+
+
+def enregistrer_collecte_offres(
+    engine: Engine, *, code_naf: str, naf_version: str, debut: datetime, fin: datetime, nb_offres: int,
+    nb_nouvelles: int, requetes: int, fenetres_tronquees: int, horodatage: datetime | None = None,
+) -> str:
+    c_id = _uid()
+    with engine.begin() as cx:
+        cx.execute(insert(collectes_offres).values(
+            id=c_id, code_naf=code_naf, naf_version=naf_version, debut=debut, fin=fin, nb_offres=nb_offres,
+            nb_nouvelles=nb_nouvelles, requetes=requetes, fenetres_tronquees=fenetres_tronquees,
+            horodatage=horodatage or _now(),
+        ))
+    return c_id
+
+
+def _aware(valeur: datetime | None) -> datetime | None:
+    if valeur is not None and valeur.tzinfo is None:
+        return valeur.replace(tzinfo=timezone.utc)
+    return valeur
+
+
+def dernieres_fins_collecte_offres(engine: Engine, naf_version: str) -> dict[str, datetime]:
+    """Pour chaque code NAF : la `fin` de sa collecte la plus récente."""
+    with engine.connect() as cx:
+        lignes = cx.execute(
+            select(collectes_offres.c.code_naf, func.max(collectes_offres.c.fin))
+            .where(collectes_offres.c.naf_version == naf_version).group_by(collectes_offres.c.code_naf)
+        ).all()
+    return {code: _aware(fin) for code, fin in lignes}
+
+
+def resume_offres(
+    engine: Engine, naf_version: str, *, departements_zone: tuple[str, ...], maintenant: datetime | None = None,
+) -> dict:
+    """Lecture seule pour `app.metriques`."""
+    quand = maintenant or _now()
+    with engine.connect() as cx:
+        def _compte(*conditions) -> int:
+            return cx.execute(select(func.count()).select_from(offres_emploi).where(
+                offres_emploi.c.naf_version == naf_version, *conditions)).scalar_one()
+
+        total = _compte()
+        derniers_90_jours = _compte(offres_emploi.c.date_creation >= quand - timedelta(days=90))
+        en_zone = _compte(offres_emploi.c.departement.in_(departements_zone))
+        avec_salaire = _compte(offres_emploi.c.salaire_annuel_min_eur.is_not(None))
+        codes = cx.execute(select(func.count(func.distinct(offres_emploi.c.code_naf))).where(
+            offres_emploi.c.naf_version == naf_version)).scalar_one()
+        tronquees = cx.execute(select(func.coalesce(func.sum(collectes_offres.c.fenetres_tronquees), 0)).where(
+            collectes_offres.c.naf_version == naf_version)).scalar_one()
+        derniere = cx.execute(select(func.max(collectes_offres.c.horodatage)).where(
+            collectes_offres.c.naf_version == naf_version)).scalar_one()
+    return {
+        "naf_version": naf_version, "offres_total": total, "offres_creees_90_jours": derniers_90_jours,
+        "offres_dans_les_departements_de_la_zone": en_zone, "offres_avec_salaire_lisible": avec_salaire,
+        "codes_naf_avec_offres": codes, "fenetres_tronquees_cumulees": int(tronquees),
+        "derniere_collecte": _aware(derniere).isoformat() if derniere else None,
+    }
+
+
+# ------------------------------------------ sous-étape V2.4 (étiquetage) -----
+
+def _rang_stable(id_offre: str) -> str:
+    """Clé de tirage STABLE (hachage de l'identifiant) : le même échantillon d'un jour à l'autre, sans biais de date."""
+    import hashlib
+
+    return hashlib.md5(id_offre.encode("utf-8")).hexdigest()
+
+
+def offres_a_etiqueter(engine: Engine, naf_version: str, *, version: str, limite: int, departements_zone: tuple[str, ...],
+                       avec_modele: bool, max_par_code: int | None = None, depuis: datetime | None = None,
+                       exclure_codes: tuple[str, ...] = (), seulement_codes: tuple[str, ...] | None = None) -> list[dict[str, Any]]:
+    """Offres à passer : jamais étiquetées, ou `lexique_seul`/`echec_modele` (reprise si `avec_modele`).
+
+    Sans `max_par_code` : celles de la zone d'abord, puis les plus récentes. Avec `max_par_code` (échantillon) : au plus
+    N offres par code NAF parmi celles créées depuis `depuis` (étiquetées ou en cours comprises), tirées par hachage
+    stable ; les reprises (déjà dans l'échantillon) passent toujours en premier, puis les nouvelles à tour de rôle
+    entre les codes, pour qu'une passe courte ne vide pas un seul secteur."""
+    jamais = offres_etiquetage.c.id_offre.is_(None)
+    a_reprendre = offres_etiquetage.c.statut.in_(("lexique_seul", "echec_modele"))
+    filtre = (jamais | a_reprendre) if avec_modele else jamais
+    if exclure_codes:  # secteurs exclus du référentiel : jamais de dépense d'étiquetage dessus
+        filtre = filtre & (offres_emploi.c.code_naf.is_(None) | offres_emploi.c.code_naf.not_in(exclure_codes))
+    if seulement_codes is not None:  # V2.8 : une tranche de priorité à la fois (cartographie initiale, régime quotidien)
+        filtre = filtre & offres_emploi.c.code_naf.in_(seulement_codes)
+    jointure = offres_emploi.outerjoin(offres_etiquetage, offres_emploi.c.id_offre == offres_etiquetage.c.id_offre)
+    colonnes = (offres_emploi.c.id_offre, offres_emploi.c.intitule, offres_emploi.c.description, offres_emploi.c.code_naf,
+                offres_etiquetage.c.statut.label("statut_precedent"))
+    if max_par_code is None:
+        en_zone = (offres_emploi.c.departement.in_(departements_zone)).desc()
+        requete = (select(*colonnes).select_from(jointure).where(offres_emploi.c.naf_version == naf_version, filtre)
+                   .order_by(en_zone, offres_emploi.c.date_creation.desc(), offres_emploi.c.id_offre).limit(limite))
+        with engine.connect() as cx:
+            return [dict(r) for r in cx.execute(requete).mappings()]
+
+    fenetre = (offres_emploi.c.date_creation >= depuis) if depuis is not None else True
+    with engine.connect() as cx:
+        en_cours = cx.execute(
+            select(offres_emploi.c.code_naf, func.count()).select_from(jointure)
+            .where(offres_emploi.c.naf_version == naf_version, offres_etiquetage.c.id_offre.is_not(None), fenetre)
+            .group_by(offres_emploi.c.code_naf)
+        ).all()
+        deja = {code: n for code, n in en_cours}
+        candidats = cx.execute(
+            select(offres_emploi.c.id_offre, offres_emploi.c.code_naf, offres_etiquetage.c.statut)
+            .select_from(jointure).where(offres_emploi.c.naf_version == naf_version, filtre, fenetre)
+        ).all()
+    reprises = sorted((i for i, _c, st in candidats if st is not None), key=_rang_stable)
+    nouvelles_par_code: dict[str, list[str]] = {}
+    for i, code, st in candidats:
+        if st is None:
+            nouvelles_par_code.setdefault(code or "", []).append(i)
+    tour: list[tuple[int, str, str]] = []
+    for code, ids in nouvelles_par_code.items():
+        place = max(0, max_par_code - deja.get(code, 0))
+        for rang, i in enumerate(sorted(ids, key=_rang_stable)[:place]):
+            tour.append((rang, code, i))
+    choisies = (reprises + [i for _r, _c, i in sorted(tour)])[:limite]
+    lignes: dict[str, dict[str, Any]] = {}
+    with engine.connect() as cx:
+        for k in range(0, len(choisies), 400):
+            lot = choisies[k:k + 400]
+            for r in cx.execute(select(*colonnes).select_from(jointure).where(offres_emploi.c.id_offre.in_(lot))).mappings():
+                lignes[r["id_offre"]] = dict(r)
+    return [lignes[i] for i in choisies if i in lignes]
+
+
+def enregistrer_etiquetage(
+    engine: Engine, *, id_offre: str, statut: str, version: str, modele: str | None, taches: list[dict[str, Any]],
+    nb_citations_proposees: int, nb_citations_verifiees: int, maintenant: datetime | None = None,
+) -> None:
+    """Une seule transaction par offre : les lignes `offres_taches` (déjà présentes : ignorées, jamais dupliquées) et
+    l'état `offres_etiquetage` (mis à jour si l'offre est reprise). Rien n'est jamais supprimé."""
+    quand = maintenant or _now()
+    upsert = sqlite_upsert if engine.dialect.name == "sqlite" else postgres_upsert
+    nb_lexique = sum(1 for t in taches if t["provenance"] == "lexique")
+    with engine.begin() as cx:
+        for t in taches:
+            stmt = upsert(offres_taches).values(
+                id=_uid(), id_offre=id_offre, tache_id=t["tache_id"], provenance=t["provenance"], citation=t["citation"],
+                modele=t.get("modele"), version=version, date_creation=quand,
+            ).on_conflict_do_nothing(index_elements=["id_offre", "tache_id", "provenance"])
+            cx.execute(stmt)
+        valeurs = dict(statut=statut, version=version, modele=modele, nb_lexique=nb_lexique,
+                       nb_citations_proposees=nb_citations_proposees, nb_citations_verifiees=nb_citations_verifiees,
+                       etiquetee_le=quand)
+        cx.execute(upsert(offres_etiquetage).values(id_offre=id_offre, **valeurs)
+                   .on_conflict_do_update(index_elements=["id_offre"], set_=valeurs))
+
+
+def cout_total_par_role(engine: Engine, role: str) -> float:
+    """Dépense cumulée de TOUS les jours pour un rôle (enveloppe unique de la première cartographie)."""
+    with engine.connect() as cx:
+        return float(cx.execute(
+            select(func.coalesce(func.sum(usage_events.c.cout_declare_ou_estime), 0.0)).where(usage_events.c.role == role)
+        ).scalar_one())
+
+
+def cout_total_par_roles(engine: Engine, roles: tuple[str, ...]) -> float:
+    """Dépense cumulée de TOUS les jours pour plusieurs rôles (enveloppe unique partagée de la première cartographie)."""
+    with engine.connect() as cx:
+        return float(cx.execute(
+            select(func.coalesce(func.sum(usage_events.c.cout_declare_ou_estime), 0.0)).where(usage_events.c.role.in_(roles))
+        ).scalar_one())
+
+
+def resume_etiquetage(engine: Engine, naf_version: str, *, role: str, jour: date | None = None) -> dict:
+    """Lecture seule pour `app.metriques` (états CUMULÉS)."""
+    with engine.connect() as cx:
+        total = cx.execute(select(func.count()).select_from(offres_emploi).where(offres_emploi.c.naf_version == naf_version)).scalar_one()
+        par_statut = dict(cx.execute(select(offres_etiquetage.c.statut, func.count()).group_by(offres_etiquetage.c.statut)).all())
+        somme = cx.execute(select(
+            func.coalesce(func.sum(offres_etiquetage.c.nb_citations_proposees), 0),
+            func.coalesce(func.sum(offres_etiquetage.c.nb_citations_verifiees), 0),
+            func.coalesce(func.sum(offres_etiquetage.c.nb_lexique), 0),
+        ).where(offres_etiquetage.c.statut == "ok")).one()
+        avec_tache = cx.execute(select(func.count(func.distinct(offres_taches.c.id_offre)))).scalar_one()
+    proposees, verifiees, lexique = (int(somme[0]), int(somme[1]), int(somme[2]))
+    cout_total = cout_total_par_role(engine, role)
+    cout_jour = 0.0
+    if jour is not None:
+        debut, fin = _bornes_jour_utc(jour)
+        with engine.connect() as cx:
+            cout_jour = float(cx.execute(select(func.coalesce(func.sum(usage_events.c.cout_declare_ou_estime), 0.0)).where(
+                usage_events.c.role == role, usage_events.c.date_creation >= debut, usage_events.c.date_creation < fin)).scalar_one())
+    etiquetees_ok = int(par_statut.get("ok", 0))
+    return {
+        "offres_total": total, "offres_par_statut": {k: int(v) for k, v in par_statut.items()},
+        "offres_non_etiquetees": total - sum(par_statut.values()),
+        "offres_avec_au_moins_une_tache": int(avec_tache),
+        "taux_citation_verifiee": round(verifiees / proposees, 4) if proposees else None,
+        "citations_proposees": proposees, "citations_verifiees": verifiees, "taches_lexique": lexique,
+        "cout_etiquetage_total_eur": round(cout_total, 4), "cout_etiquetage_jour_eur": round(cout_jour, 4),
+        "cout_moyen_par_offre_eur": round(cout_total / etiquetees_ok, 5) if etiquetees_ok else None,
+    }
+
+
+# ------------------------------------------ sous-étape V2.4 (agrégation) -----
+
+def dernier_agregat_par_couple(engine: Engine, naf_version: str) -> dict[tuple[str, str], dict]:
+    with engine.connect() as cx:
+        lignes = cx.execute(
+            select(demande_secteur_tache).where(demande_secteur_tache.c.naf_version == naf_version)
+            .order_by(demande_secteur_tache.c.calcule_le.asc())
+        ).mappings().all()
+    derniers: dict[tuple[str, str], dict] = {}
+    for ligne in lignes:
+        derniers[(ligne["code_naf"], ligne["tache_id"])] = dict(ligne)
+    return derniers
+
+
+def enregistrer_agregats(engine: Engine, lignes: list[dict[str, Any]]) -> None:
+    if not lignes:
+        return
+    with engine.begin() as cx:
+        for ligne in lignes:
+            cx.execute(insert(demande_secteur_tache).values(id=_uid(), **ligne))
+
+
+# ------------------------------------------ sous-étape V2.5 (fiches) -----
+
+def derniers_agregats(engine: Engine, naf_version: str) -> list[dict]:
+    """Dernière ligne `demande_secteur_tache` de chaque couple (code, tâche)."""
+    return list(dernier_agregat_par_couple(engine, naf_version).values())
+
+
+def etablissements_dans_le_rayon_par_code(engine: Engine, naf_version: str, *, rayon_km: float) -> dict[str, int]:
+    """Nombre d'établissements de l'échantillon de prospection à moins de `rayon_km` du centre, par code NAF."""
+    with engine.connect() as cx:
+        lignes = cx.execute(
+            select(prospection.c.code_naf, func.count()).where(
+                prospection.c.naf_version == naf_version, prospection.c.distance_centre_km <= rayon_km
+            ).group_by(prospection.c.code_naf)
+        ).all()
+    return {code: int(n) for code, n in lignes}
+
+
+def entreprises_zone_par_code(engine: Engine, naf_version: str, departements: tuple[str, ...]) -> dict[str, dict]:
+    """Somme, par code NAF, des dernières mesures `nb_entreprises_actives` des départements de la zone ; `plafonne` si
+    l'une des mesures est une borne basse (plafond de 10 000 de l'API)."""
+    resultat: dict[str, dict] = {}
+    for (code, dep), ligne in derniers_comptages_etablissements(engine, naf_version).items():
+        if dep not in departements:
+            continue
+        r = resultat.setdefault(code, {"entreprises": 0, "plafonne": False})
+        r["entreprises"] += int(ligne["nb_entreprises_actives"])
+        r["plafonne"] = r["plafonne"] or bool(ligne["comptage_plafonne"])
+    return resultat
+
+
+def enregistrer_fiche(engine: Engine, valeurs: dict[str, Any]) -> str:
+    f_id = _uid()
+    with engine.begin() as cx:
+        cx.execute(insert(fiches_secteur_tache).values(id=f_id, **valeurs))
+    return f_id
+
+
+def dernieres_fiches(engine: Engine, naf_version: str) -> dict[tuple[str, str], dict]:
+    with engine.connect() as cx:
+        lignes = cx.execute(
+            select(fiches_secteur_tache).where(fiches_secteur_tache.c.naf_version == naf_version)
+            .order_by(fiches_secteur_tache.c.calcule_le.asc())
+        ).mappings().all()
+    derniers: dict[tuple[str, str], dict] = {}
+    for ligne in lignes:
+        derniers[(ligne["code_naf"], ligne["tache_id"])] = dict(ligne)
+    return derniers
+
+
+def resume_fiches(engine: Engine, naf_version: str, *, role_analyste: str, role_critic: str) -> dict:
+    """Lecture seule pour `app.metriques` (états CUMULÉS)."""
+    derniers = dernieres_fiches(engine, naf_version)
+    par_decision: dict[str, int] = {}
+    for f in derniers.values():
+        par_decision[f["decision"]] = par_decision.get(f["decision"], 0) + 1
+    scores = sorted(f["score_prudent"] for f in derniers.values())
+    return {
+        "fiches": len(derniers), "par_decision": par_decision,
+        "score_prudent_median": scores[len(scores) // 2] if scores else None,
+        "score_prudent_max": scores[-1] if scores else None,
+        "cout_analyste_eur": round(cout_total_par_role(engine, role_analyste), 4),
+        "cout_critic_eur": round(cout_total_par_role(engine, role_critic), 4),
+    }
+
+
+# ------------------------------------------------------------- concurrence (V2.6) -----
+
+def enregistrer_concurrence(engine: Engine, valeurs: dict[str, Any]) -> str:
+    c_id = _uid()
+    with engine.begin() as cx:
+        cx.execute(insert(concurrence_secteur_tache).values(id=c_id, **valeurs))
+    return c_id
+
+
+def dernieres_concurrences(engine: Engine, naf_version: str, *, seulement_evaluees: bool = True) -> dict[tuple[str, str], dict]:
+    """Ligne la plus récente par (code, tâche). Par défaut parmi les lignes ÉVALUÉES seulement : un échec ultérieur n'efface rien."""
+    requete = select(concurrence_secteur_tache).where(concurrence_secteur_tache.c.naf_version == naf_version)
+    if seulement_evaluees:
+        requete = requete.where(concurrence_secteur_tache.c.statut == "evalue")
+    with engine.connect() as cx:
+        lignes = cx.execute(requete.order_by(concurrence_secteur_tache.c.evalue_le.asc())).mappings().all()
+    derniers: dict[tuple[str, str], dict] = {}
+    for ligne in lignes:
+        derniers[(ligne["code_naf"], ligne["tache_id"])] = dict(ligne)
+    return derniers
+
+
+def reserver_recherche_web(engine: Engine, *, fournisseur: str, mois: str, requete: str, code_naf: str | None, tache_id: str | None,
+                           maximum: int, maintenant: datetime) -> str | None:
+    """Plafond mensuel STRICT : compte et réserve dans la même transaction. `None` si le plafond du mois est atteint (rien n'est écrit)."""
+    r_id = _uid()
+    with engine.begin() as cx:
+        deja = cx.execute(select(func.count()).select_from(recherches_web).where(recherches_web.c.mois == mois)).scalar_one()
+        if deja >= maximum:
+            return None
+        cx.execute(insert(recherches_web).values(id=r_id, fournisseur=fournisseur, mois=mois, requete=requete, code_naf=code_naf,
+                                                 tache_id=tache_id, nb_resultats=None, date_creation=maintenant))
+    return r_id
+
+
+def clore_recherche_web(engine: Engine, recherche_id: str, nb_resultats: int) -> None:
+    with engine.begin() as cx:
+        cx.execute(update(recherches_web).where(recherches_web.c.id == recherche_id).values(nb_resultats=nb_resultats))
+
+
+def nombre_recherches_web(engine: Engine, mois: str) -> int:
+    with engine.connect() as cx:
+        return int(cx.execute(select(func.count()).select_from(recherches_web).where(recherches_web.c.mois == mois)).scalar_one())

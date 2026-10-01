@@ -191,6 +191,45 @@ def get_with_retry(
     raise ErreurCollecte(f"Échec après {max_retries} tentatives pour {url}: {derniere_erreur}")
 
 
+def post_formulaire_with_retry(
+    url: str, data: dict[str, str], *, max_retries: int = 3, base_delay: float = 2.0, timeout: float = 10.0,
+    engine: Engine | None = None, contexte: str | None = None,
+) -> requests.Response:
+    """V2.3 : POST d'un formulaire (`application/x-www-form-urlencoded`), pour les jetons OAuth
+    `client_credentials` (France Travail). Même espacement par hôte, même backoff sur 429/5xx et même
+    journalisation `journal_http` que `get_with_retry` ; le CORPS de la requête (`client_secret`) n'est
+    JAMAIS journalisé ni mis dans un message d'erreur -- seulement l'hôte et le code HTTP."""
+    hote = urlsplit(url).netloc
+    debut = time.monotonic()
+    dernier_code: int | None = None
+    type_erreur: str | None = None
+    derniere_erreur: Exception | None = None
+    for tentative in range(1, max_retries + 1):
+        try:
+            _attendre_espacement_hote(url)
+            resp = requests.post(url, data=data, timeout=timeout, headers={"User-Agent": USER_AGENT})
+            dernier_code = resp.status_code
+            if resp.status_code == 429:
+                time.sleep(base_delay * (2 ** (tentative - 1)))
+                continue
+            resp.raise_for_status()
+            _journaliser_appel_http(engine, contexte, hote, dernier_code, None, time.monotonic() - debut)
+            return resp
+        except requests.Timeout as exc:
+            derniere_erreur, type_erreur, dernier_code = exc, "timeout", None
+        except requests.HTTPError as exc:
+            derniere_erreur = exc
+        except requests.RequestException as exc:
+            derniere_erreur, type_erreur, dernier_code = exc, "erreur_reseau", None
+        if tentative < max_retries:
+            time.sleep(base_delay * (2 ** (tentative - 1)))
+    _journaliser_appel_http(engine, contexte, hote, dernier_code, type_erreur, time.monotonic() - debut)
+    if dernier_code == 429:
+        raise TropDeRequetes(f"429 persistant après {max_retries} tentatives pour {hote}")
+    # Message volontairement sans URL complète ni détail de la requête : le corps contient un secret.
+    raise ErreurCollecte(f"Échec après {max_retries} tentatives pour {hote} (code {dernier_code or type_erreur})")
+
+
 def get_avec_limite_taille(
     url: str, *, max_octets: int, max_retries: int = 3, base_delay: float = 2.0, timeout: float = 10.0,
     engine: Engine | None = None, contexte: str | None = None,
