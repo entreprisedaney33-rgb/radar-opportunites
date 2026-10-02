@@ -103,7 +103,66 @@ def _journaliser_appel_http(
 
 
 class ErreurCollecte(Exception):
-    pass
+    """`type_erreur` (V2.8b) : posé par `get_with_retry` sur l'échec final -- "timeout", "erreur_reseau" (avec leur détail
+    "timeout:delai_connexion", "erreur_reseau:refus"... quand l'appelant le demande), "http_<code>", ou None (erreur hors HTTP)."""
+    type_erreur: str | None = None
+
+
+# V2.8b (RADAR-V2.md) : diagnostic Render -> SIRENE. Le journal ne disait qu'« erreur_reseau » ; ce classement dit laquelle.
+TYPES_ERREUR_RESEAU = ("dns", "tls", "delai_connexion", "delai_lecture", "refus", "reinitialisation", "proxy", "autre")
+
+
+def classer_erreur_reseau(exc: BaseException) -> str:
+    """Type exact d'un échec de connexion (un des `TYPES_ERREUR_RESEAU`), en remontant la chaîne d'exceptions de
+    requests -> urllib3 -> socket/ssl. Attention : dans urllib3 2.x, `NewConnectionError` HÉRITE de `ConnectTimeoutError`
+    (compatibilité) : un délai de connexion n'est donc reconnu que par son type EXACT, jamais par `isinstance`."""
+    import socket
+    import ssl
+
+    from urllib3 import exceptions as u3
+
+    if isinstance(exc, requests.exceptions.ProxyError):
+        return "proxy"
+    if isinstance(exc, requests.exceptions.SSLError):
+        return "tls"
+    if isinstance(exc, requests.exceptions.ConnectTimeout):
+        return "delai_connexion"
+    if isinstance(exc, requests.exceptions.ReadTimeout):
+        return "delai_lecture"
+    vus: set[int] = set()
+    pile: list[BaseException | None] = [exc]
+    while pile:
+        e = pile.pop()
+        if e is None or id(e) in vus:
+            continue
+        vus.add(id(e))
+        if isinstance(e, (socket.gaierror, u3.NameResolutionError)):
+            return "dns"
+        if isinstance(e, (ssl.SSLError, u3.SSLError)):
+            return "tls"
+        if isinstance(e, u3.ProxyError):
+            return "proxy"
+        if isinstance(e, ConnectionRefusedError):
+            return "refus"
+        if isinstance(e, ConnectionResetError):
+            return "reinitialisation"
+        if type(e) is u3.ConnectTimeoutError or isinstance(e, socket.timeout) and not isinstance(e, u3.HTTPError):
+            return "delai_connexion"
+        if isinstance(e, u3.ReadTimeoutError):
+            return "delai_lecture"
+        pile.extend([e.__cause__, e.__context__, getattr(e, "reason", None)])
+        pile.extend(a for a in getattr(e, "args", ()) if isinstance(a, BaseException))
+    # Dernier recours : le texte (certains environnements ne gardent pas la chaîne d'exceptions)
+    texte = str(exc).lower()
+    for motifs, type_ in ((("name or service not known", "failed to resolve", "nodename nor servname", "temporary failure in name resolution",
+                            "getaddrinfo"), "dns"),
+                          (("certificate", "ssl", "tls"), "tls"),
+                          (("connection refused", "errno 111", "errno 61"), "refus"),
+                          (("connection reset", "reset by peer", "errno 104", "errno 54"), "reinitialisation"),
+                          (("connect timeout", "timed out"), "delai_connexion")):
+        if any(m in texte for m in motifs):
+            return type_
+    return "autre"
 
 
 class PageTropGrande(ErreurCollecte):
@@ -128,7 +187,7 @@ class TropDeRequetes(ErreurCollecte):
 def get_with_retry(
     url: str, *, max_retries: int = 3, base_delay: float = 2.0, timeout: float = 10.0,
     headers: dict[str, str] | None = None,
-    engine: Engine | None = None, contexte: str | None = None,
+    engine: Engine | None = None, contexte: str | None = None, detailler_erreur_reseau: bool = False,
 ) -> requests.Response:
     """`headers` (sous-étape 3.5 d'AMELIORATIONS.md) : en-têtes supplémentaires
     fusionnés avec `User-Agent` -- nécessaire pour un fournisseur qui
@@ -140,7 +199,11 @@ def get_with_retry(
     journalise une seule ligne dans `journal_http` pour CET appel logique
     (tentatives et backoff compris), avec le dernier code HTTP obtenu (429
     compris, s'il persiste jusqu'à épuisement des tentatives) ou, en son
-    absence (timeout, erreur réseau), le type d'échec."""
+    absence (timeout, erreur réseau), le type d'échec.
+
+    `detailler_erreur_reseau` (V2.8b, False par défaut : comportement inchangé pour tous les appelants existants) : le type
+    d'échec journalisé porte le détail de `classer_erreur_reseau` ("erreur_reseau:dns", "timeout:delai_connexion"...), aussi
+    écrit dans le log et dans le message de l'exception finale."""
     en_tete = {"User-Agent": USER_AGENT}
     if headers:
         en_tete.update(headers)
@@ -164,8 +227,10 @@ def get_with_retry(
             return resp
         except requests.Timeout as exc:
             derniere_erreur = exc
-            type_erreur = "timeout"
+            type_erreur = f"timeout:{classer_erreur_reseau(exc)}" if detailler_erreur_reseau else "timeout"
             dernier_code = None
+            if detailler_erreur_reseau:
+                logger.warning("Échec réseau [%s] pour %s (tentative %d/%d) : %s", type_erreur, hote, tentative, max_retries, exc)
             if tentative < max_retries:
                 time.sleep(base_delay * (2 ** (tentative - 1)))
         except requests.HTTPError as exc:
@@ -176,8 +241,10 @@ def get_with_retry(
                 time.sleep(base_delay * (2 ** (tentative - 1)))
         except requests.RequestException as exc:
             derniere_erreur = exc
-            type_erreur = "erreur_reseau"
+            type_erreur = f"erreur_reseau:{classer_erreur_reseau(exc)}" if detailler_erreur_reseau else "erreur_reseau"
             dernier_code = None
+            if detailler_erreur_reseau:
+                logger.warning("Échec réseau [%s] pour %s (tentative %d/%d) : %s", type_erreur, hote, tentative, max_retries, exc)
             if tentative < max_retries:
                 time.sleep(base_delay * (2 ** (tentative - 1)))
     _journaliser_appel_http(engine, contexte, hote, dernier_code, type_erreur, time.monotonic() - debut)
@@ -187,8 +254,13 @@ def get_with_retry(
         # `dernier_code` porterait la trace de cette dernière tentative-là) --
         # exception dédiée pour que l'appelant puisse réagir spécifiquement
         # (voir `TropDeRequetes`), plutôt qu'une `ErreurCollecte` générique.
-        raise TropDeRequetes(f"429 persistant après {max_retries} tentatives pour {url}")
-    raise ErreurCollecte(f"Échec après {max_retries} tentatives pour {url}: {derniere_erreur}")
+        erreur_finale: ErreurCollecte = TropDeRequetes(f"429 persistant après {max_retries} tentatives pour {url}")
+        erreur_finale.type_erreur = "http_429"
+        raise erreur_finale
+    prefixe = f"[{type_erreur}] " if detailler_erreur_reseau and type_erreur else ""
+    erreur_finale = ErreurCollecte(f"{prefixe}Échec après {max_retries} tentatives pour {url}: {derniere_erreur}")
+    erreur_finale.type_erreur = type_erreur or (f"http_{dernier_code}" if dernier_code is not None else None)
+    raise erreur_finale
 
 
 def post_formulaire_with_retry(

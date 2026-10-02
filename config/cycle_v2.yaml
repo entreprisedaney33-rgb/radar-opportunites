@@ -27,3 +27,20 @@ initiale:
   # fiches) avant de la déclarer terminée avec un avertissement.
   passes_max: 40
   attente_entre_passes_minutes: 5
+
+# --- Établissements (V2.8b, 2026-10-02) ------------------------------------------------------------------------------------
+# Constat du 2026-10-02 : l'API Recherche d'entreprises (SIRENE) est injoignable depuis Render (erreurs de connexion) alors qu'elle
+# répond depuis le poste de Mathéo. Deux mécanismes :
+# - IMPORT : le worker importe `fichier_import` (comptes + échantillons mesurés sur le poste par scripts/compter_etablissements_local.py,
+#   commité et déployé) au démarrage et à chaque passe, pour chaque paire (code NAF, département) dont la mesure du fichier est plus
+#   récente que la dernière mesure en base. Additif et idempotent : rien n'est jamais supprimé ni importé deux fois.
+# - RÉESSAI LENT : après un arrêt du disjoncteur SIRENE (3 échecs de suite), plus aucune requête pendant `reessai_lent_minutes`, puis une
+#   seule paire sonde l'API ; la cartographie initiale ne consomme pas ses passes pour des paires que SIRENE ne peut pas mesurer.
+etablissements:
+  fichier_import: data/etablissements_import.json
+  reessai_lent_minutes: 30
+
+# V2.8b (décision de Mathéo du 2026-10-02) : en régime quotidien, les fiches des secteurs de la priorité `initiale.priorite` peuvent
+# puiser, EN PLUS du plafond du jour, dans le reste de l'enveloppe initiale (RADAR_ENVELOPPE_INITIALE_EUR = 10 €, cumul étiquetage + fiches
+# de tous les jours, jamais dépassé). Sans enveloppe posée ou une fois épuisée : aucun effet. `false` = comportement V2.8.
+fiches_priorite_initiale_sur_enveloppe: true

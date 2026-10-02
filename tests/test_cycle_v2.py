@@ -504,14 +504,18 @@ def test_regime_quotidien_apres_l_initiale_couvre_les_autres_secteurs_a_2_euros_
     j.appels.clear()
     reseau.codes_offres.clear()
     # Le même jour : les offres de la priorité 1 sont déjà étiquetées ; la collecte du jour couvre les priorités 1, 2 puis 3 dans l'ordre.
-    monkeypatch.setenv("RADAR_ENVELOPPE_INITIALE_EUR", "10")  # encore posée : ne doit PAS servir de plafond au régime quotidien
+    monkeypatch.setenv("RADAR_ENVELOPPE_INITIALE_EUR", "10")  # encore posée : ne sert QUE les fiches de la priorité 1 (V2.8b)
     b = cyc.cycle_quotidien(engine_test, ops, horloge=lambda: MAINTENANT)
     assert reseau.codes_offres[:len(P1)] == [c for c in reseau.codes_offres[:len(P1)] if c in P1], "priorité 1 d'abord"
     assert set(reseau.codes_offres) == set(P1 + P2 + P3)
-    assert all(kw["enveloppe"] is None for kw in j.de("etiquetage") + j.de("fiches"))
-    jour_cout = repo.cout_total_jour_utc(engine_test, MAINTENANT.date())
-    assert repo.cout_total_par_roles(engine_test, etiq.ROLES_ENVELOPPE) - avant <= 2.0 + 1e-9 or jour_cout <= 2.0 + 1e-9
+    assert all(kw["enveloppe"] is None for kw in j.de("etiquetage"))
+    # V2.8b (décision du 2026-10-02) : l'étiquetage et les fiches de toutes priorités restent sous le plafond du jour ; seules les fiches de
+    # la priorité 1 peuvent en plus puiser dans le reste de l'enveloppe initiale.
+    sur_enveloppe = [kw for kw in j.de("fiches") if kw["enveloppe"] is not None]
+    assert all(kw["enveloppe"] == 10.0 and tuple(kw["seulement_codes"]) == P1 for kw in sur_enveloppe)
+    assert repo.cout_total_par_roles(engine_test, etiq.ROLES_ENVELOPPE) <= 10.0 + COUT_ANALYSTE + COUT_CRITIC
     assert b.erreur_systemique is False
+    assert avant <= 10.0
 
 
 def test_le_plafond_de_2_euros_par_jour_est_applique_au_cout_reel_en_regime_quotidien(engine_test, reseau, monkeypatch):
@@ -540,3 +544,86 @@ def test_aucune_cle_modele_pas_de_fiche_par_repli_et_le_cycle_continue(engine_te
     b = cyc.cycle_quotidien(engine_test, ops, horloge=lambda: MAINTENANT)
     assert _compte(engine_test, fiches_secteur_tache) == 0
     assert b.erreur_systemique  # « ANTHROPIC_API_KEY absente » est un arrêt systémique : attente d'une heure, pas toutes les 30 minutes
+
+
+# ------------------------------------------------------------------ V2.8b : fiches de la priorité 1 sur le reste de l'enveloppe initiale -----
+
+def _depenser(engine, montant, role=etiq.ROLE_ETIQUETEUR):
+    run = repo.creer_run(engine, mode="test", version_code="x", version_config="x", quotas={})
+    budget = BudgetTracker(engine, run, 1000.0, plafond_appels_approfondis=0)
+    budget.verifier_et_engager(montant, role=role)
+    budget.enregistrer_reel(fournisseur="anthropic", modele_ou_actor="faux", appels=1, tokens_in=1, tokens_out=1, cout_reel=montant,
+                            cout_estime_engage=montant, role=role)
+
+
+def test_fiches_p1_puisent_dans_l_enveloppe_en_plus_du_plafond_du_jour(engine_test, monkeypatch):
+    monkeypatch.setenv("RADAR_ENVELOPPE_INITIALE_EUR", "10")
+    j = Journal()
+    cyc.cycle_quotidien(engine_test, operations_vides(j), horloge=lambda: MAINTENANT)
+    fiches = j.de("fiches")
+    assert len(fiches) == 2
+    assert fiches[0]["enveloppe"] is None  # d'abord le plafond du jour, toutes priorités
+    assert fiches[1]["enveloppe"] == 10.0 and tuple(fiches[1]["seulement_codes"]) == P1 and tuple(fiches[1]["ordre_codes"]) == P1
+
+
+def test_sans_enveloppe_posee_pas_de_fiches_sur_enveloppe(engine_test, monkeypatch):
+    monkeypatch.delenv("RADAR_ENVELOPPE_INITIALE_EUR", raising=False)
+    j = Journal()
+    cyc.cycle_quotidien(engine_test, operations_vides(j), horloge=lambda: MAINTENANT)
+    assert [kw["enveloppe"] for kw in j.de("fiches")] == [None]
+
+
+def test_enveloppe_epuisee_pas_de_fiches_sur_enveloppe(engine_test, monkeypatch):
+    monkeypatch.setenv("RADAR_ENVELOPPE_INITIALE_EUR", "10")
+    _depenser(engine_test, 9.99)
+    j = Journal()
+    cyc.cycle_quotidien(engine_test, operations_vides(j), horloge=lambda: MAINTENANT)
+    assert [kw["enveloppe"] for kw in j.de("fiches")] == [None]
+
+
+def test_enveloppe_illisible_ignoree_sans_arreter_le_cycle(engine_test, monkeypatch):
+    monkeypatch.setenv("RADAR_ENVELOPPE_INITIALE_EUR", "beaucoup")
+    j = Journal()
+    b = cyc.cycle_quotidien(engine_test, operations_vides(j), horloge=lambda: MAINTENANT)
+    assert [kw["enveloppe"] for kw in j.de("fiches")] == [None] and b.erreur_systemique is False
+
+
+def test_interrupteur_de_config_eteint_revient_au_comportement_v2_8(engine_test, monkeypatch):
+    monkeypatch.setenv("RADAR_ENVELOPPE_INITIALE_EUR", "10")
+    reel = cfg.cycle_v2()
+    monkeypatch.setattr(cfg, "cycle_v2", lambda: {**reel, "fiches_priorite_initiale_sur_enveloppe": False})
+    j = Journal()
+    cyc.cycle_quotidien(engine_test, operations_vides(j), horloge=lambda: MAINTENANT)
+    assert [kw["enveloppe"] for kw in j.de("fiches")] == [None]
+
+
+def test_plafond_du_jour_epuise_les_fiches_p1_sortent_sur_l_enveloppe_sans_la_depasser(engine_test, reseau, monkeypatch):
+    """Le cas du 2026-10-02 : plafond du jour déjà dépensé en étiquetage ; les fiches de la priorité 1 sortent quand même, sur l'enveloppe."""
+    maintenant = datetime.now(timezone.utc)  # les dépenses sont horodatées à l'heure réelle : le cycle doit regarder le même jour
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "cle-de-test")
+    monkeypatch.setenv("RADAR_ENVELOPPE_INITIALE_EUR", "10")
+    cfg.get_settings.cache_clear()
+    j = Journal()
+    ops = operations_reelles(engine_test, j, plafond_client=2.0)
+    # Préparation sans modèle payant : collecte, établissements, étiquetage (coût simulé), agrégation.
+    from app.agregation import calculer_agregats
+    from app.etablissements import rafraichir_etablissements
+    from app.offres import collecter_offres
+    collecter_offres(engine_test, codes=(CODE_P1,))
+    rafraichir_etablissements(engine_test, codes=(CODE_P1,))
+    etiq.etiqueter_offres(engine_test, codes=(CODE_P1,), enveloppe=None, plafond_jour_eur=2.0, client=ClientQuiCoute(engine_test, 2.0))
+    calculer_agregats(engine_test)
+    _depenser(engine_test, 2.0 - repo.cout_total_jour_utc(engine_test, maintenant.date()))  # plafond du jour atteint
+    avant = repo.cout_total_jour_utc(engine_test, maintenant.date())
+    assert avant >= 2.0 - 1e-9 and _compte(engine_test, fiches_secteur_tache) == 0
+
+    # Le client « qui coûte » applique SON plafond : on lui donne celui que produire_fiches lui passerait (l'enveloppe).
+    ops.produire_fiches = (lambda eng, **kw: (j.ajouter("fiches", **kw),
+                                              fch.produire_fiches(eng, client=ClientQuiCoute(eng, kw["enveloppe"] or 2.0), **kw))[1])
+    cyc.cycle_quotidien(engine_test, ops, horloge=lambda: maintenant)
+    assert 1 <= _compte(engine_test, fiches_secteur_tache) <= 2
+    with engine_test.connect() as cx:
+        assert {c for (c,) in cx.execute(select(fiches_secteur_tache.c.code_naf))} <= set(P1)
+    assert repo.cout_total_jour_utc(engine_test, maintenant.date()) > avant  # dépense au-delà du plafond du jour...
+    assert repo.cout_total_par_roles(engine_test, etiq.ROLES_ENVELOPPE) <= 10.0  # ...jamais au-delà de l'enveloppe cumulée
+    cfg.get_settings.cache_clear()

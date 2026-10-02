@@ -10,6 +10,12 @@ Un secteur exclu (`exclusion` du référentiel) n'est jamais collecté. Rien n'e
 
 Disjoncteur : après `ECHECS_CONSECUTIFS_MAX` paires consécutives en échec (API en panne ou 429
 persistant), la passe s'arrête et le dit dans son résumé -- jamais de mesure par repli.
+
+Réessai lent (V2.8b) : après un tel arrêt, SIRENE est mis « en attente » pour `reessai_lent_minutes` (30 min,
+`config/cycle_v2.yaml::etablissements`) : les passes de cette fenêtre ne font AUCUNE requête et le disent ; à
+l'échéance, une seule paire sert de sonde (un échec relance l'attente, un succès rouvre la passe normale). État du
+PROCESSUS (comme le limiteur par hôte de `app.adapters.http`) : un redémarrage du worker repart sans attente.
+Constat du 2026-10-02 : SIRENE injoignable depuis Render (erreurs de connexion), 40 passes consommées pour rien.
 Ce module n'est PAS branché au worker (v1 suspendue) : le branchement se décide à la mise en
 production de la v2 (V2.8).
 """
@@ -35,6 +41,11 @@ JOURS_RAFRAICHISSEMENT_DEFAUT = 30
 MAX_REQUETES_DEFAUT = 2000
 ECHECS_CONSECUTIFS_MAX = 3
 VARIABLE_MAX_REQUETES = "RADAR_ETAB_MAX_REQUETES"
+REESSAI_LENT_MINUTES_DEFAUT = 30
+
+# V2.8b : réessai lent de SIRENE (état du processus, jamais en base). None = pas en attente.
+_sirene_en_attente_jusqua: datetime | None = None
+_sirene_dernier_echec: str | None = None
 
 
 @dataclass
@@ -51,6 +62,28 @@ class ResumePasse:
 
 def _maintenant() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def reessai_lent_minutes() -> float:
+    from app import config as cfg
+    try:
+        return float((cfg.cycle_v2().get("etablissements") or {}).get("reessai_lent_minutes", REESSAI_LENT_MINUTES_DEFAUT))
+    except Exception:  # noqa: BLE001 -- configuration illisible : valeur par défaut, jamais d'arrêt
+        return float(REESSAI_LENT_MINUTES_DEFAUT)
+
+
+def sirene_en_attente(maintenant: datetime | None = None) -> datetime | None:
+    """Échéance de l'attente de SIRENE si elle court encore, sinon None."""
+    quand = maintenant or _maintenant()
+    if _sirene_en_attente_jusqua is not None and quand < _sirene_en_attente_jusqua:
+        return _sirene_en_attente_jusqua
+    return None
+
+
+def reinitialiser_reessai_lent() -> None:
+    """Pour les tests (et un redémarrage) : plus d'attente, plus de sonde."""
+    global _sirene_en_attente_jusqua, _sirene_dernier_echec
+    _sirene_en_attente_jusqua, _sirene_dernier_echec = None, None
 
 
 def max_requetes_par_passe() -> int:
@@ -146,10 +179,22 @@ def rafraichir_etablissements(
     codes: Sequence[str] | None = None,
 ) -> ResumePasse:
     """Une passe : traite les paires à rafraîchir tant que le plafond de requêtes n'est pas atteint. Une
-    passe interrompue reprend où elle s'est arrêtée à la suivante (les paires déjà mesurées sont sautées)."""
+    passe interrompue reprend où elle s'est arrêtée à la suivante (les paires déjà mesurées sont sautées).
+    V2.8b : pendant l'attente du réessai lent, aucune requête ; à l'échéance, une seule paire sonde l'API."""
+    global _sirene_en_attente_jusqua, _sirene_dernier_echec
     plafond_requetes = max_requetes if max_requetes is not None else max_requetes_par_passe()
     paires = paires_a_rafraichir(engine, jours=jours, code=code, departement=departement, codes=codes)
     resume = ResumePasse(paires_prevues=len(paires))
+    if not paires:
+        return resume
+    maintenant = _maintenant()
+    echeance = sirene_en_attente(maintenant)
+    if echeance is not None:
+        resume.arret = (f"SIRENE en attente (réessai lent) jusqu'à {echeance.strftime('%H:%M')} UTC, aucune requête ; "
+                        f"dernier échec : {_sirene_dernier_echec or '?'}")
+        return resume
+    sonde = _sirene_en_attente_jusqua is not None  # l'attente vient d'expirer : une seule paire pour vérifier que l'API répond
+    echecs_max = 1 if sonde else ECHECS_CONSECUTIFS_MAX
     echecs_consecutifs = 0
     for code_naf, dep in paires:
         if resume.requetes >= plafond_requetes:
@@ -162,10 +207,20 @@ def rafraichir_etablissements(
             resume.paires_en_echec += 1
             resume.echecs.append(f"{code_naf}/{dep} : {exc}")
             logger.warning("Établissements %s/%s : échec (%s)", code_naf, dep, exc)
-            if echecs_consecutifs >= ECHECS_CONSECUTIFS_MAX:
-                resume.arret = f"{ECHECS_CONSECUTIFS_MAX} échecs consécutifs : API indisponible, passe arrêtée"
+            if echecs_consecutifs >= echecs_max:
+                minutes = reessai_lent_minutes()
+                _sirene_en_attente_jusqua = _maintenant() + timedelta(minutes=minutes)
+                _sirene_dernier_echec = getattr(exc, "type_erreur", None) or type(exc).__name__
+                motif = "sonde du réessai lent en échec" if sonde else f"{ECHECS_CONSECUTIFS_MAX} échecs consécutifs : API indisponible"
+                resume.arret = (f"{motif} ({_sirene_dernier_echec}), passe arrêtée ; prochain essai à "
+                                f"{_sirene_en_attente_jusqua.strftime('%H:%M')} UTC (réessai lent, {minutes:.0f} min)")
+                logger.warning("[établissements] %s", resume.arret)
                 break
             continue
+        if sonde:
+            logger.info("[établissements] sonde du réessai lent réussie : SIRENE répond de nouveau, passe normale rouverte.")
+            sonde, echecs_max = False, ECHECS_CONSECUTIFS_MAX
+            _sirene_en_attente_jusqua, _sirene_dernier_echec = None, None
         echecs_consecutifs = 0
         resume.paires_mesurees += 1
         resume.requetes += requetes

@@ -239,7 +239,7 @@ journal_http = Table(
     Column("hote", String, nullable=False),  # ex. "www.reddit.com", "hn.algolia.com", ou le domaine fetché
     Column("flux_ou_fournisseur", String, nullable=False),  # ex. "reddit_recherche:smallbusiness:manually_en"
     Column("code_http", Integer, nullable=True),
-    Column("erreur", String, nullable=True),  # "timeout" | "erreur_reseau" — absent si un code HTTP a été reçu
+    Column("erreur", String, nullable=True),  # "timeout" | "erreur_reseau" (V2.8b, SIRENE : "erreur_reseau:dns", "timeout:delai_connexion"...) — absent si un code HTTP a été reçu
     Column("duree_ms", Float, nullable=False),
 )
 # Sous-étape 3.7 (AMELIORATIONS.md) : une ligne par appel HTTP réel de la

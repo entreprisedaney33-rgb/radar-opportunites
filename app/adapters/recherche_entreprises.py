@@ -122,7 +122,8 @@ def lire_page(
 ) -> PageEntreprises:
     """Une requête HTTP. Lève `ErreurCollecte` (ou `TropDeRequetes`) si l'API échoue ou répond hors format."""
     url = construire_url(code_naf, departement, page=page, par_page=par_page, connexes=connexes)
-    reponse = http.get_with_retry(url, engine=engine, contexte=CONTEXTE_JOURNAL_HTTP)
+    # V2.8b : détail du type d'échec réseau (DNS, TLS, délai, refus...) dans le journal HTTP -- diagnostic Render -> SIRENE.
+    reponse = http.get_with_retry(url, engine=engine, contexte=CONTEXTE_JOURNAL_HTTP, detailler_erreur_reseau=True)
     try:
         corps = reponse.json()
     except ValueError as exc:

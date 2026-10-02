@@ -56,9 +56,25 @@ def _cache_config_propre(monkeypatch):
     # dédié à ce mécanisme simule sa propre horloge (`time.monotonic`) et n'a
     # donc pas besoin de ce nettoyage pour fonctionner.
     http_module._dernier_appel_par_hote.clear()
+    # V2.8b : le réessai lent de SIRENE est aussi un état du PROCESSUS ; aucun test n'hérite de l'attente d'un autre.
+    from app import etablissements as _etab
+    _etab.reinitialiser_reessai_lent()
     yield
     cfg.get_settings.cache_clear()
     http_module._dernier_appel_par_hote.clear()
+    _etab.reinitialiser_reessai_lent()
+
+
+@pytest.fixture(autouse=True)
+def _aucun_import_reel_d_etablissements(monkeypatch, tmp_path):
+    """V2.8b : le worker importe `data/etablissements_import.json` (fichier réel, plusieurs mégaoctets, commité). Aucun test ne doit
+    le lire par accident (cycle complet avec les opérations par défaut) : le chemin par défaut pointe vers un fichier absent. Les tests
+    de l'import passent leur propre fichier explicitement."""
+    from app import import_etablissements as imp
+    monkeypatch.setattr(imp, "chemin_fichier", lambda: tmp_path / "aucun_import.json")
+    imp.reinitialiser_cache()
+    yield
+    imp.reinitialiser_cache()
 
 
 @pytest.fixture(autouse=True)

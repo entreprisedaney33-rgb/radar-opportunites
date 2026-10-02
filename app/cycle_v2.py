@@ -73,14 +73,20 @@ def _op_produire_fiches(engine: Engine, **kw: Any):
     return produire_fiches(engine, **kw)
 
 
+def _op_importer_etablissements(engine: Engine, **kw: Any):
+    from app.import_etablissements import importer
+    return importer(engine, **kw)
+
+
 @dataclass
 class Operations:
-    """Les cinq opérations du cycle. Les tests les remplacent par des doublures (aucun réseau, aucun modèle)."""
+    """Les opérations du cycle. Les tests les remplacent par des doublures (aucun réseau, aucun modèle)."""
     collecter_offres: Callable[..., Any] = _op_collecter_offres
     rafraichir_etablissements: Callable[..., Any] = _op_rafraichir_etablissements
     etiqueter_offres: Callable[..., Any] = _op_etiqueter_offres
     calculer_agregats: Callable[..., Any] = _op_calculer_agregats
     produire_fiches: Callable[..., Any] = _op_produire_fiches
+    importer_etablissements: Callable[..., Any] = _op_importer_etablissements  # V2.8b
 
 
 def _maintenant() -> datetime:
@@ -212,6 +218,26 @@ def _resume_texte(resume: Any) -> str:
     return str(resume)
 
 
+def importer_etablissements(engine: Engine, ops: Operations, suivi: "Suivi | None" = None) -> Any:
+    """V2.8b : importe `data/etablissements_import.json` (mesures faites sur le poste, SIRENE étant injoignable depuis Render) quand il
+    porte des paires plus récentes que la base. Au démarrage et à chaque passe ; ne lève jamais. N'écrit dans le suivi que s'il s'est
+    passé quelque chose (import ou erreur) : un fichier inchangé ne remplit pas le journal."""
+    from app.import_etablissements import resume_texte
+    try:
+        r = ops.importer_etablissements(engine)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("[cycle v2] import des établissements en erreur")
+        if suivi is not None:
+            suivi.ecrire("import_etablissements", f"ERREUR : {exc}")
+        return None
+    if getattr(r, "paires_importees", 0) or getattr(r, "erreur", None):
+        texte = resume_texte(r)
+        logger.info("[cycle v2] import des établissements : %s", texte)
+        if suivi is not None:
+            suivi.ecrire("import_etablissements", texte, dernier=texte)
+    return r
+
+
 # ------------------------------------------------------------------ cartographie initiale -----
 
 def _lire_enveloppe() -> float | None:
@@ -226,6 +252,7 @@ def une_passe_initiale(engine: Engine, ops: Operations, suivi: Suivi, *, envelop
     codes = referentiels.secteurs_tpe().codes_par_priorite(priorite)
     part = float(reglages["part_etiquetage_de_l_enveloppe"])
 
+    importer_etablissements(engine, ops, suivi)
     r = ops.rafraichir_etablissements(engine, codes=codes)
     suivi.ecrire("etablissements", _resume_texte(r), dernier=_resume_texte(r))
     r = ops.collecter_offres(engine, codes=codes)
@@ -241,7 +268,14 @@ def une_passe_initiale(engine: Engine, ops: Operations, suivi: Suivi, *, envelop
     reste = reste_a_faire(engine, codes)
     etiquetage_bloque = depense >= enveloppe * part - MARGE_PLAFOND_EUR
     enveloppe_epuisee = depense >= enveloppe - MARGE_PLAFOND_EUR
-    encore = (reste["paires_etablissements"] > 0 or reste["codes_sans_collecte"] > 0
+    # V2.8b : des paires que SIRENE ne peut pas mesurer (réessai lent en cours) ne retiennent pas la cartographie : sinon elle
+    # consommerait ses passes pour rien (40 passes perdues le 2026-10-01/02). Le régime quotidien les reprend (réessai lent, import).
+    from app.etablissements import sirene_en_attente
+    etablissements_bloquants = reste["paires_etablissements"] > 0 and sirene_en_attente() is None
+    if reste["paires_etablissements"] > 0 and not etablissements_bloquants:
+        suivi.ecrire("etablissements", f"{reste['paires_etablissements']} paires en attente de SIRENE (réessai lent) : "
+                                       "elles ne retiennent pas la cartographie")
+    encore = (etablissements_bloquants or reste["codes_sans_collecte"] > 0
               or (reste["offres_a_etiqueter"] > 0 and not etiquetage_bloque)
               or (reste["fiches_a_produire"] > 0 and not enveloppe_epuisee))
     suivi.sauver(avancement={**avancement(engine), "reste_priorite": reste, "enveloppe_eur": enveloppe,
@@ -312,6 +346,21 @@ def cartographie_initiale(
 
 # ------------------------------------------------------------------ régime quotidien -----
 
+def _enveloppe_restante(engine: Engine) -> float | None:
+    """L'enveloppe initiale (euros) si elle est posée, lisible et pas encore épuisée (cumul étiquetage + fiches de tous les jours) ;
+    sinon None. Jamais d'exception."""
+    from app.etiquetage import ROLES_ENVELOPPE
+    try:
+        enveloppe = _lire_enveloppe()
+    except ValueError as exc:
+        logger.warning("[cycle v2] enveloppe initiale illisible, fiches sur enveloppe ignorées : %s", exc)
+        return None
+    if enveloppe is None or repo.cout_total_par_roles(engine, ROLES_ENVELOPPE) >= enveloppe - MARGE_PLAFOND_EUR:
+        return None
+    return enveloppe
+
+
+
 @dataclass
 class BilanQuotidien:
     plafond_atteint: bool
@@ -344,6 +393,7 @@ def cycle_quotidien(engine: Engine, ops: Operations, *, horloge: Callable[[], da
     suivi.ecrire("quotidien", f"passe {etat['passes']} du {jour.isoformat()} (plafond modèle {plafond:.2f} €/jour, déjà dépensé "
                               f"{repo.cout_total_jour_utc(engine, jour):.4f} €)")
     erreur_sys = False
+    importer_etablissements(engine, ops, suivi)
 
     def passe(nom: str, action: Callable[[], Any]) -> Any:
         nonlocal erreur_sys
@@ -399,6 +449,14 @@ def cycle_quotidien(engine: Engine, ops: Operations, *, horloge: Callable[[], da
     depense_avant = repo.cout_total_jour_utc(engine, jour)
     part_fiches = float(cycle["part_fiches_du_plafond_jour"]) * plafond
     passe("fiches", lambda: ops.produire_fiches(engine, ordre_codes=ordre, enveloppe=None, plafond_jour_eur=min(plafond, depense_avant + part_fiches)))
+    # 3 bis. V2.8b (décision de Mathéo du 2026-10-02) : les fiches des secteurs de la priorité de la cartographie initiale (1) peuvent
+    # puiser, EN PLUS du plafond du jour, dans le reste de l'enveloppe initiale (RADAR_ENVELOPPE_INITIALE_EUR, cumul étiquetage + fiches
+    # de tous les jours). Sans enveloppe posée, ou enveloppe épuisée : rien. Interrupteur : `fiches_priorite_initiale_sur_enveloppe`.
+    if cycle.get("fiches_priorite_initiale_sur_enveloppe"):
+        enveloppe = _enveloppe_restante(engine)
+        if enveloppe is not None:
+            codes_init = secteurs.codes_par_priorite(int(cycle["initiale"]["priorite"]))
+            passe("fiches_enveloppe", lambda: ops.produire_fiches(engine, seulement_codes=codes_init, ordre_codes=codes_init, enveloppe=enveloppe))
     # 4. étiquetage, tranche par tranche, jusqu'au plafond du jour
     plafond_atteint = False
     etiquetage_restant = False
@@ -447,6 +505,7 @@ def executer_cycle_v2(
     initiale_faite: bool | None = None
     logger.info("[cycle v2] démarrage du worker : cartographie initiale %s ; pipeline v1 %s.",
                 "DEMANDÉE" if cartographie_initiale_demandee(environ) else "non demandée", "actif" if cycle.get("pipeline_v1_actif") else "désactivé")
+    importer_etablissements(engine, ops)  # V2.8b : au démarrage, avant toute passe
     while True:
         if pause_demandee(engine):
             logger.info("[cycle v2] PAUSE_ALL actif : en attente.")
